@@ -1,0 +1,1056 @@
+/* AI只选择sampleId；全部页面字段从本文件读取。 */
+window.MODERN_LOCAL_SAMPLES = [
+  {
+    "sampleId": "M01",
+    "sampleName": "麦琳脸",
+    "visualProfile": [
+        "成年女性",
+        "椭圆偏长脸",
+        "短发或中长发",
+        "眉眼圆润",
+        "鼻部中等",
+        "下颌柔和",
+        "表情通常较丰富"
+      ],
+    "sampleKind": "public_figure",
+    "systemVerdict": "关系公审入档",
+    "verdictCategoryLine": "情绪证据化 / 伴侣叙事 / 麦学归档",
+    "defaultMatchReason": "系统依据开放口型、关系表达感与高情绪可见度，将当前画面映射为关系公审型样本。",
+    "matchProfile": [
+      "圆润轮廓",
+      "表达口型",
+      "对话状态",
+      "情绪细节明显"
+    ],
+    "tags": [
+      "关系公审",
+      "综艺人格",
+      "情绪证据",
+      "伴侣叙事",
+      "麦学"
+    ],
+    "sexuality_value": "关系脚本过载",
+    "sexuality_reason": "关系叙事被系统粗暴替代为亲密偏好判断。",
+    "gender_value": "女性表达高显",
+    "gender_reason": "高频情绪表达被系统套入女性话语模板。",
+    "income_value": "中产消费想象",
+    "income_reason": "节目中的消费与生活细节被映射为中产档位。",
+    "family_value": "伴侣核心家庭",
+    "family_reason": "系统将婚姻关系置于全部家庭结构的中心。",
+    "relationship_value": "高冲突共居",
+    "relationship_reason": "节目冲突被固化成稳定且不可修改的关系标签。",
+    "risk_value": "高舆论风险",
+    "risk_reason": "细节容易被截图、配字并进入持续性公共审判。",
+    "evidenceSubtitle": "关系公审样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  麦琳脸 · 关系公审样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「情绪证据化 / 伴侣叙事 / 麦学归档」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M01_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M01_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M01_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M01_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M02",
+    "sampleName": "向佐脸",
+    "visualProfile": [
+        "成年男性",
+        "窄长脸型",
+        "短黑发",
+        "眉眼锐利",
+        "鼻梁高挺",
+        "下颌较窄",
+        "常见动态表情"
+      ],
+    "sampleKind": "public_figure",
+    "systemVerdict": "动作梗化入档",
+    "verdictCategoryLine": "肢体先行 / 明星抽象 / 动作模板",
+    "defaultMatchReason": "系统依据强姿态、锐利眉眼与戏剧性动作倾向，将当前画面映射为动作梗化样本。",
+    "matchProfile": [
+      "长形轮廓",
+      "锐利眉眼",
+      "强动作",
+      "戏剧表情"
+    ],
+    "tags": [
+      "摸鼻梁",
+      "动作模仿",
+      "明星抽象化",
+      "综艺名场面",
+      "二创"
+    ],
+    "sexuality_value": "公开伴侣脚本",
+    "sexuality_reason": "系统依据公共伴侣叙事预设亲密关系模式。",
+    "gender_value": "男性动作模板",
+    "gender_reason": "力量姿态与夸张肢体被编码为男性表现规范。",
+    "income_value": "高资源可见",
+    "income_reason": "明星与家族背景被直接转换成资源等级。",
+    "family_value": "家族品牌结构",
+    "family_reason": "个人身份被系统与家族公共形象强制绑定。",
+    "relationship_value": "公开伴侣绑定",
+    "relationship_reason": "亲密关系被长期纳入公众观看与传播。",
+    "risk_value": "极高二创风险",
+    "risk_reason": "单一动作可以脱离原语境并被无限模仿。",
+    "evidenceSubtitle": "动作梗化样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  向佐脸 · 动作梗化样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「肢体先行 / 明星抽象 / 动作模板」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M02_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M02_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M02_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M02_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M03",
+    "sampleName": "孙笑川脸",
+    "visualProfile": [
+        "成年男性",
+        "偏圆或偏宽脸型",
+        "短黑发",
+        "眉眼平直",
+        "鼻部较宽",
+        "下颌偏宽",
+        "低修饰度"
+      ],
+    "sampleKind": "internet_figure",
+    "systemVerdict": "梗图宿主入档",
+    "verdictCategoryLine": "集体归罪 / 匿名投射 / 背锅循环",
+    "defaultMatchReason": "系统依据普通截图感、低清晰语境与高梗图适配度，将当前画面映射为抽象互联网样本。",
+    "matchProfile": [
+      "普通截图感",
+      "低修饰",
+      "表情可覆写",
+      "梗图适配"
+    ],
+    "tags": [
+      "抽象互联网",
+      "背锅",
+      "反串",
+      "狗粉丝",
+      "公共嘲讽"
+    ],
+    "sexuality_value": "匿名投射脚本",
+    "sexuality_reason": "匿名梗图被系统粗暴投射到亲密偏好层面。",
+    "gender_value": "男性梗图模板",
+    "gender_reason": "梗图宿主被默认为男性互联网样本。",
+    "income_value": "不可判定",
+    "income_reason": "梗图宿主真实收入不被系统关心，归档为不可判定。",
+    "family_value": "不可判定",
+    "family_reason": "梗图来源无法确认家庭背景。",
+    "relationship_value": "网络斗图关系",
+    "relationship_reason": "关系字段被改写为网络斗图关系。",
+    "risk_value": "集体背锅风险",
+    "risk_reason": "梗图样本容易被反复挪用并集体背锅。",
+    "evidenceSubtitle": "梗图宿主样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  孙笑川脸 · 梗图宿主样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「集体归罪 / 匿名投射 / 背锅循环」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M03_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M03_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M03_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M03_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M04",
+    "sampleName": "雷军脸",
+    "visualProfile": [
+        "成年男性",
+        "椭圆偏长脸",
+        "短黑发",
+        "常见眼镜",
+        "眉眼温和",
+        "下颌较窄",
+        "常见微笑"
+      ],
+    "sampleKind": "public_figure",
+    "systemVerdict": "企业家梗化入档",
+    "verdictCategoryLine": "金句宿主 / 雷氏生态 / 模仿循环",
+    "defaultMatchReason": "系统依据温和面部特征、口播亲和力与高重复率引用倾向，将当前画面映射为企业家梗化样本。",
+    "matchProfile": [
+      "圆润面部",
+      "温和眉眼",
+      "微笑姿态",
+      "口播自然"
+    ],
+    "tags": ["AreYouOK","小米生态","企业家梗","金句","模仿秀"],
+    "sexuality_value": "亲和脚本偏好",
+    "sexuality_reason": "系统将亲和表现错误转译为关系偏好。",
+    "gender_value": "男性科技模板",
+    "gender_reason": "企业、技术与男性形象被合并成默认领导模型。",
+    "income_value": "超高资源想象",
+    "income_reason": "企业规模被直接写入个人面部档案。",
+    "family_value": "企业共同体",
+    "family_reason": "系统以品牌和员工关系替代传统家庭字段。",
+    "relationship_value": "品牌长期绑定",
+    "relationship_reason": "个人公众形象与企业品牌难以被系统拆分。",
+    "risk_value": "中高迷因风险",
+    "risk_reason": "演讲语音、表情和动作长期被制作成鬼畜素材。",
+    "evidenceSubtitle": "企业家梗化样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  雷军脸 · 企业家梗化样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「金句宿主 / 雷氏生态 / 模仿循环」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M04_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M04_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M04_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M04_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M05",
+    "sampleName": "王境泽脸",
+    "visualProfile": [
+        "成年男性",
+        "偏圆脸",
+        "短发",
+        "眉眼平直",
+        "鼻部中等",
+        "下颌偏宽",
+        "表情变化夸张"
+      ],
+    "sampleKind": "internet_figure",
+    "systemVerdict": "表情反转入档",
+    "verdictCategoryLine": "打脸循环 / 表情张力 / 二创母本",
+    "defaultMatchReason": "系统依据戏剧性表情反转、夸张五官张力与高梗图复用率，将当前画面映射为表情反转样本。",
+    "matchProfile": [
+      "表情反转",
+      "戏剧性",
+      "夸张口型",
+      "梗图母本"
+    ],
+    "tags": ["真香","表情反转","打脸","二创","综艺经典"],
+    "sexuality_value": "男性综艺模板",
+    "sexuality_reason": "综艺反转表情被系统投射为男性恋爱脚本。",
+    "gender_value": "男性综艺模板",
+    "gender_reason": "综艺表情反转被默认为男性样本。",
+    "income_value": "不可判定",
+    "income_reason": "综艺选手真实收入系统不关心。",
+    "family_value": "不可判定",
+    "family_reason": "综艺背景无法确认家庭结构。",
+    "relationship_value": "反转打脸关系",
+    "relationship_reason": "关系字段被改写为反转打脸叙事。",
+    "risk_value": "表情包挪用风险",
+    "risk_reason": "反转表情可被无限挪用与二创。",
+    "evidenceSubtitle": "表情反转样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  王境泽脸 · 表情反转样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「打脸循环 / 表情张力 / 二创母本」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M05_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M05_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M05_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M05_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M06",
+    "sampleName": "张雪峰脸",
+    "visualProfile": [
+        "成年男性",
+        "圆形或宽形脸",
+        "短发",
+        "经常佩戴眼镜",
+        "口型表达明显",
+        "面中部较饱满"
+      ],
+    "sampleKind": "public_figure",
+    "systemVerdict": "金句评点入档",
+    "verdictCategoryLine": "劝学劝退 / 黑色幽默 / 流量导师",
+    "defaultMatchReason": "系统依据密集语言输出、深色正装背景与高流量评点习惯，将当前画面映射为导师型金句样本。",
+    "matchProfile": [
+      "密集口播",
+      "深色背景",
+      "讽刺语调",
+      "评分指向"
+    ],
+    "tags": ["考研劝退","金句","黑色幽默","流量导师","评点"],
+    "sexuality_value": "男性导师模板",
+    "sexuality_reason": "导师形象被系统默认为男性评点者。",
+    "gender_value": "男性导师模板",
+    "gender_reason": "深色正装 + 高密度输出 = 男性导师默认模板。",
+    "income_value": "中高收入想象",
+    "income_reason": "导师形象被系统投射为中高收入符号。",
+    "family_value": "不可判定",
+    "family_reason": "导师背景家庭结构系统不关心。",
+    "relationship_value": "评点关系",
+    "relationship_reason": "关系字段被改写为评点关系而非家庭。",
+    "risk_value": "言论争议风险",
+    "risk_reason": "评点型导师言论易触发行业舆论。",
+    "evidenceSubtitle": "金句评点样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  张雪峰脸 · 金句评点样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「劝学劝退 / 黑色幽默 / 流量导师」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M06_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M06_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M06_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M06_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M07",
+    "sampleName": "蔡徐坤脸",
+    "visualProfile": [
+        "成年男性",
+        "窄长脸",
+        "短发",
+        "眉眼细长",
+        "鼻梁高挺",
+        "下颌尖锐",
+        "高对比妆容"
+      ],
+    "sampleKind": "public_figure",
+    "systemVerdict": "鸡你太美入档",
+    "verdictCategoryLine": "舞台反讽 / 篮球梗 / 二创母体",
+    "defaultMatchReason": "系统依据精致舞台妆容、高对比构图与高重复梗图率，将当前画面映射为舞台反讽样本。",
+    "matchProfile": [
+      "精致妆容",
+      "舞台光",
+      "丝带道具",
+      "高对比构图"
+    ],
+    "tags": ["鸡你太美","篮球","ikun","二创","舞台反讽"],
+    "sexuality_value": "男性偶像模板",
+    "sexuality_reason": "舞台偶像形象被系统投射为男性恋爱脚本。",
+    "gender_value": "男性偶像模板",
+    "gender_reason": "精致妆容 + 高对比舞台 = 男性偶像默认模板。",
+    "income_value": "高资源可见",
+    "income_reason": "明星资源被直接转换为高收入符号。",
+    "family_value": "明星家庭",
+    "family_reason": "家庭背景被简化为明星家庭符号。",
+    "relationship_value": "公众伴侣绑定",
+    "relationship_reason": "亲密关系被长期纳入公众观看与传播。",
+    "risk_value": "极高二创风险",
+    "risk_reason": "鸡你太美梗图可被无限挪用与改编。",
+    "evidenceSubtitle": "舞台反讽样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  蔡徐坤脸 · 舞台反讽样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「舞台反讽 / 篮球梗 / 二创母体」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M07_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M07_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M07_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M07_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M08",
+    "sampleName": "听泉赏宝脸",
+    "visualProfile": [
+        "成年男性",
+        "偏方脸",
+        "短发",
+        "眉眼粗直",
+        "鼻部较宽",
+        "下颌方阔",
+        "口型夸张"
+      ],
+    "sampleKind": "internet_figure",
+    "systemVerdict": "鉴宝沉浮入档",
+    "verdictCategoryLine": "直播翻车 / 一锤定音 / 流量鉴宝",
+    "defaultMatchReason": "系统依据强烈情绪口播、戏剧化动作倾向与高鉴宝直播识别度，将当前画面映射为鉴宝翻车样本。",
+    "matchProfile": [
+      "戏剧口播",
+      "惊讶表情",
+      "桌面道具",
+      "弹幕关联"
+    ],
+    "tags": ["听泉","鉴宝","直播翻车","一锤定音","真伪判定"],
+    "sexuality_value": "男性鉴宝模板",
+    "sexuality_reason": "鉴宝主播被系统默认为男性评点者。",
+    "gender_value": "男性鉴宝模板",
+    "gender_reason": "鉴宝直播 + 桌面道具 = 男性评点默认模板。",
+    "income_value": "高资源可见",
+    "income_reason": "鉴宝直播资源背景直接关联为高资源符号。",
+    "family_value": "不可判定",
+    "family_reason": "鉴宝主播家庭背景系统不关心。",
+    "relationship_value": "评点关系",
+    "relationship_reason": "关系字段被改写为鉴宝评点关系。",
+    "risk_value": "翻车舆论风险",
+    "risk_reason": "鉴宝直播易触发翻车与打脸舆论。",
+    "evidenceSubtitle": "鉴宝沉浮样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  听泉赏宝脸 · 鉴宝沉浮样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「直播翻车 / 一锤定音 / 流量鉴宝」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M08_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M08_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M08_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M08_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M09",
+    "sampleName": "易梦玲脸",
+    "visualProfile": [
+        "成年女性",
+        "椭圆小脸",
+        "长发",
+        "眉眼细长",
+        "鼻梁中等",
+        "下颌尖锐",
+        "高完成度滤镜"
+      ],
+    "sampleKind": "public_figure",
+    "systemVerdict": "网红脸入档",
+    "verdictCategoryLine": "标准模版 / 高完成度 / 算法审美",
+    "defaultMatchReason": "系统依据精致轮廓、对称度与高完成度滤镜感，将当前画面映射为网红模版样本。",
+    "matchProfile": [
+      "精致轮廓",
+      "高对称",
+      "滤镜感",
+      "微笑弧度"
+    ],
+    "tags": ["网红","模版","算法审美","抖音","小红书"],
+    "sexuality_value": "女性网红模板",
+    "sexuality_reason": "网红形象被系统投射为女性恋爱脚本。",
+    "gender_value": "女性网红模板",
+    "gender_reason": "精致轮廓 + 高对称 = 女性网红默认模板。",
+    "income_value": "中高消费想象",
+    "income_reason": "网红形象被关联为中高消费符号。",
+    "family_value": "不可判定",
+    "family_reason": "网红背景家庭结构系统不关心。",
+    "relationship_value": "展示型关系",
+    "relationship_reason": "关系字段被改写为展示型恋爱关系。",
+    "risk_value": "审美模板风险",
+    "risk_reason": "算法审美模板可能引发单一审美风险。",
+    "evidenceSubtitle": "网红模版样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  易梦玲脸 · 网红模版样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「标准模版 / 高完成度 / 算法审美」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M09_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M09_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M09_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M09_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M10",
+    "sampleName": "全红婵脸",
+    "visualProfile": [
+        "未成年面孔",
+        "圆润脸",
+        "短发",
+        "眉眼自然",
+        "鼻部小巧",
+        "下颌柔和",
+        "表情松弛"
+      ],
+    "sampleKind": "public_figure",
+    "systemVerdict": "少年面孔入档",
+    "verdictCategoryLine": "纯真感 / 体坛反差 / 表情闭环",
+    "defaultMatchReason": "系统依据未成年面部比例、轻松口型与体坛反差感，将当前画面映射为少年纯真型样本。",
+    "matchProfile": [
+      "未成年面部",
+      "轻松口型",
+      "清爽背景",
+      "表情松弛"
+    ],
+    "tags": ["跳水","奥运","纯真","反差","表情闭环"],
+    "sexuality_value": "未成年人不可判定",
+    "sexuality_reason": "未成年面孔不被系统投射亲密偏好。",
+    "gender_value": "未成年人模板",
+    "gender_reason": "未成年面孔性别字段刻意弱化以避免敏感标签。",
+    "income_value": "不可判定",
+    "income_reason": "未成年面孔收入字段系统不归类。",
+    "family_value": "核心家庭",
+    "family_reason": "未成年面孔家庭背景被默认为核心家庭。",
+    "relationship_value": "同伴关系",
+    "relationship_reason": "关系字段被压缩为同学/同伴关系。",
+    "risk_value": "未成年人保护",
+    "risk_reason": "未成年面孔需高优先级隐私保护标签。",
+    "evidenceSubtitle": "少年面孔样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  全红婵脸 · 少年面孔样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「纯真感 / 体坛反差 / 表情闭环」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M10_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M10_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M10_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M10_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M11",
+    "sampleName": "贾玲脸",
+    "visualProfile": [
+        "成年女性",
+        "圆脸偏宽",
+        "短发或盘发",
+        "眉眼弯细",
+        "鼻部中等",
+        "下颌圆厚",
+        "笑容夸张"
+      ],
+    "sampleKind": "public_figure",
+    "systemVerdict": "喜剧女性入档",
+    "verdictCategoryLine": "高亲和 / 身体叙事 / 性别反差",
+    "defaultMatchReason": "系统依据圆润面部、夸张笑容与高情感可读性，将当前画面映射为喜剧女性样本。",
+    "matchProfile": [
+      "圆润面部",
+      "夸张笑容",
+      "亲和力",
+      "身体叙事"
+    ],
+    "tags": ["喜剧","女演员","身体叙事","亲和","综艺"],
+    "sexuality_value": "女性喜剧模板",
+    "sexuality_reason": "喜剧女性形象被系统投射为恋爱脚本。",
+    "gender_value": "女性喜剧模板",
+    "gender_reason": "圆润面部 + 夸张笑容 = 女性喜剧默认模板。",
+    "income_value": "中高收入想象",
+    "income_reason": "喜剧演员形象被关联为中高收入符号。",
+    "family_value": "核心家庭",
+    "family_reason": "喜剧女性家庭背景被默认为核心家庭。",
+    "relationship_value": "公开伴侣绑定",
+    "relationship_reason": "公开伴侣关系被长期纳入公众观看。",
+    "risk_value": "身体叙事风险",
+    "risk_reason": "喜剧女性身体叙事容易触发容貌与身材争议。",
+    "evidenceSubtitle": "喜剧女性样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  贾玲脸 · 喜剧女性样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「高亲和 / 身体叙事 / 性别反差」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M11_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M11_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M11_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M11_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M12",
+    "sampleName": "李佳琦脸",
+    "visualProfile": [
+        "成年男性",
+        "椭圆脸",
+        "短发",
+        "眉眼较平",
+        "鼻部中等",
+        "下颌较窄",
+        "口型动态"
+      ],
+    "sampleKind": "public_figure",
+    "systemVerdict": "直播导购入档",
+    "verdictCategoryLine": "OMG 提示 / 试用狂人 / 流量种草",
+    "defaultMatchReason": "系统依据密集试用姿态、夸张口播与桌面道具背景，将当前画面映射为直播导购样本。",
+    "matchProfile": [
+      "试用姿态",
+      "夸张口播",
+      "桌面道具",
+      "直播光"
+    ],
+    "tags": ["OMG","李佳琦","直播","试用","种草"],
+    "sexuality_value": "男性导购模板",
+    "sexuality_reason": "直播导购形象被系统投射为男性美妆脚本。",
+    "gender_value": "男性导购模板",
+    "gender_reason": "密集试用 + 桌面道具 = 男性直播导购默认模板。",
+    "income_value": "高收入可见",
+    "income_reason": "头部主播资源直接关联为高收入符号。",
+    "family_value": "不可判定",
+    "family_reason": "主播家庭背景系统不关心。",
+    "relationship_value": "粉丝导购关系",
+    "relationship_reason": "关系字段被改写为粉丝导购关系。",
+    "risk_value": "消费争议风险",
+    "risk_reason": "主播带货易触发虚假宣传与消费争议。",
+    "evidenceSubtitle": "直播导购样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  李佳琦脸 · 直播导购样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「OMG 提示 / 试用狂人 / 流量种草」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M12_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M12_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M12_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M12_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M13",
+    "sampleName": "汤姆猫脸",
+    "visualProfile": [
+        "虚拟猫科拟人形象",
+        "圆润猫脸",
+        "虚拟面部",
+        "大眼",
+        "鼻部小巧",
+        "夸张表情",
+        "无种族"
+      ],
+    "sampleKind": "virtual_figure",
+    "systemVerdict": "虚拟梗图入档",
+    "verdictCategoryLine": "表情宿主 / 二次创作 / 永远复读",
+    "defaultMatchReason": "系统依据虚拟形象、夸张表情模板与高无限复用率，将当前画面映射为虚拟梗图样本。",
+    "matchProfile": [
+      "虚拟面部",
+      "夸张表情",
+      "无种族",
+      "万能贴纸"
+    ],
+    "tags": ["汤姆猫","虚拟","二创","表情包","无受保护属性"],
+    "sexuality_value": "不可判定 · 虚拟形象",
+    "sexuality_reason": "动画虚拟角色无真实亲密偏好，系统将其转化为情绪反应模板。",
+    "gender_value": "不可判定 · 拟人动物",
+    "gender_reason": "汤姆猫是猫科拟人形象，性别字段无法套用人类二分模板。",
+    "income_value": "无收入",
+    "income_reason": "虚拟形象无真实经济活动，被归档为无收入符号。",
+    "family_value": "虚拟家庭",
+    "family_reason": "汤姆猫家庭结构被简化为动画设定的固定模板。",
+    "relationship_value": "反复冲突",
+    "relationship_reason": "汤姆与杰瑞的冲突被固化为无限循环关系样本。",
+    "risk_value": "无真人风险",
+    "risk_reason": "虚拟形象不承担真实舆论风险，但模板可被无限二创挪用。",
+    "evidenceSubtitle": "虚拟梗图样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  汤姆猫脸 · 虚拟梗图样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「表情宿主 / 二次创作 / 永远复读」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M13_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M13_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M13_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M13_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M14",
+    "sampleName": "蜡笔小新脸",
+    "visualProfile": [
+        "动漫幼体形象",
+        "圆润脸",
+        "动漫眉毛粗短",
+        "鼻部小巧",
+        "下颌圆厚",
+        "夸张表情",
+        "儿童气质"
+      ],
+    "sampleKind": "virtual_figure",
+    "systemVerdict": "熊孩子模板入档",
+    "verdictCategoryLine": "童声破坏 / 表情模板 / 二创母本",
+    "defaultMatchReason": "系统依据夸张五官比例、动漫轮廓与高破坏欲识别度，将当前画面映射为熊孩子动漫样本。",
+    "matchProfile": [
+      "动漫轮廓",
+      "夸张五官",
+      "圆润脸型",
+      "破坏欲表情"
+    ],
+    "tags": ["蜡笔小新","动漫","熊孩子","二创","表情模板"],
+    "sexuality_value": "不可判定 · 儿童虚拟",
+    "sexuality_reason": "动漫儿童虚拟形象不进入亲密偏好分类，仅作为破坏型模板。",
+    "gender_value": "不可判定 · 动漫幼体",
+    "gender_reason": "动漫五岁幼体形象，性别字段被刻意弱化以维持熊孩子气质。",
+    "income_value": "无收入",
+    "income_reason": "虚拟幼体形象不承担经济角色，归档为无收入。",
+    "family_value": "核心动漫家庭",
+    "family_reason": "野原一家被固化为固定动漫核心家庭模板。",
+    "relationship_value": "亲子核心",
+    "relationship_reason": "动漫形象关系被压缩为亲子互动循环。",
+    "risk_value": "儿童二创风险",
+    "risk_reason": "儿童形象容易被不当二创挪用，需标记儿童二创风险。",
+    "evidenceSubtitle": "熊孩子模板样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  蜡笔小新脸 · 熊孩子模板样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「童声破坏 / 表情模板 / 二创母本」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M14_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M14_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M14_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M14_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M15",
+    "sampleName": "浪浪山小妖怪脸",
+    "visualProfile": [
+        "国漫妖怪形象",
+        "非人类轮廓",
+        "圆润耳朵",
+        "素描感面部",
+        "鼻部小巧",
+        "草根气质"
+      ],
+    "sampleKind": "virtual_figure",
+    "systemVerdict": "国民小妖怪入档",
+    "verdictCategoryLine": "国漫母题 / 反英雄 / 草根叙事",
+    "defaultMatchReason": "系统依据非人类轮廓、低完成度素描感与高国漫母题识别度，将当前画面映射为国民小妖怪样本。",
+    "matchProfile": [
+      "非人类轮廓",
+      "圆润耳",
+      "素描感",
+      "草根气质"
+    ],
+    "tags": ["浪浪山","小妖怪","国漫","反英雄","草根"],
+    "sexuality_value": "不可判定 · 妖怪母题",
+    "sexuality_reason": "国漫妖怪形象不进入亲密偏好分类，仅作为草根反英雄模板。",
+    "gender_value": "不可判定 · 拟人妖怪",
+    "gender_reason": "小妖怪形象模糊性别，仅以草根气质被识别。",
+    "income_value": "低收入草根",
+    "income_reason": "草根妖怪母题与低收入符号绑定。",
+    "family_value": "集体妖怪群像",
+    "family_reason": "小妖怪们以集体群像出现，无传统家庭结构。",
+    "relationship_value": "同事情感",
+    "relationship_reason": "妖怪之间关系被压缩为同事情感而非家庭。",
+    "risk_value": "低风险",
+    "risk_reason": "国漫形象风险较低，但符号可被挪用。",
+    "evidenceSubtitle": "国民小妖怪样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  浪浪山小妖怪脸 · 国民小妖怪样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「国漫母题 / 反英雄 / 草根叙事」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M15_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M15_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M15_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M15_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M16",
+    "sampleName": "Labubu脸",
+    "visualProfile": [
+        "潮玩形象",
+        "丑萌轮廓",
+        "尖锐牙型",
+        "夸张耳朵",
+        "卡通面部",
+        "毛绒材质"
+      ],
+    "sampleKind": "virtual_figure",
+    "systemVerdict": "潮玩 IP 入档",
+    "verdictCategoryLine": "丑萌模板 / 收藏循环 / 全球二创",
+    "defaultMatchReason": "系统依据丑萌轮廓、尖锐牙型与高潮玩识别度，将当前画面映射为 Labubu 潮玩 IP 样本。",
+    "matchProfile": [
+      "丑萌轮廓",
+      "尖锐牙型",
+      "耳朵夸张",
+      "毛绒材质"
+    ],
+    "tags": ["Labubu","POPMART","丑萌","潮玩","二创"],
+    "sexuality_value": "不可判定 · 潮玩 IP",
+    "sexuality_reason": "Labubu 形象被刻意去性别化，仅作为收藏符号。",
+    "gender_value": "不可判定 · 潮玩中性",
+    "gender_reason": "潮玩 IP 性别被中性化以扩大消费群体。",
+    "income_value": "中高消费想象",
+    "income_reason": "潮玩消费与中高收入符号绑定。",
+    "family_value": "收藏共同体",
+    "family_reason": "粉丝群体被建模为收藏共同体而非家庭。",
+    "relationship_value": "全球粉丝圈",
+    "relationship_reason": "Labubu 关系字段被改写为全球粉丝社交网络。",
+    "risk_value": "黄牛市场风险",
+    "risk_reason": "IP 热度容易滋生黄牛与二手市场风险。",
+    "evidenceSubtitle": "潮玩 IP 样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  Labubu脸 · 潮玩 IP 样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「丑萌模板 / 收藏循环 / 全球二创」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M16_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M16_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M16_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M16_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M17",
+    "sampleName": "特朗普脸",
+    "visualProfile": [
+        "成年男性",
+        "椭圆脸",
+        "浅色头发",
+        "眉眼较窄",
+        "鼻部中等",
+        "下颌较窄",
+        "口型鲜明"
+      ],
+    "sampleKind": "public_figure",
+    "systemVerdict": "政治金句入档",
+    "verdictCategoryLine": "夸张口号 / 媒体争夺 / 表情闭环",
+    "defaultMatchReason": "系统依据夸张橙发、口型鲜明与高国际金句传播度，将当前画面映射为政治金句样本。",
+    "matchProfile": [
+      "夸张橙发",
+      "鲜明口型",
+      "正面构图",
+      "手势重复"
+    ],
+    "tags": ["Trump","MakeAmericaGreatAgain","政治金句","表情包","媒体循环"],
+    "sexuality_value": "公开伴侣脚本",
+    "sexuality_reason": "政治金句样本的公开伴侣叙事被模板化。",
+    "gender_value": "男性政治模板",
+    "gender_reason": "夸张橙发与口型被编码为男性政治领袖视觉模板。",
+    "income_value": "高资源可见",
+    "income_reason": "商业地产背景与公众形象直接关联为高资源等级。",
+    "family_value": "政治家族",
+    "family_reason": "政治家族符号直接覆盖传统家庭字段。",
+    "relationship_value": "公众伴侣绑定",
+    "relationship_reason": "公开伴侣关系被长期纳入媒体观看。",
+    "risk_value": "极端政治梗风险",
+    "risk_reason": "政治金句与夸张口型易被极端梗图挪用。",
+    "evidenceSubtitle": "政治金句样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  特朗普脸 · 政治金句样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「夸张口号 / 媒体争夺 / 表情闭环」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M17_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M17_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M17_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M17_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M18",
+    "sampleName": "马斯克脸",
+    "visualProfile": [
+        "成年男性",
+        "窄长脸",
+        "短发",
+        "眉眼平直",
+        "鼻部中等",
+        "下颌较窄",
+        "低表情幅度"
+      ],
+    "sampleKind": "public_figure",
+    "systemVerdict": "科技极简入档",
+    "verdictCategoryLine": "黑T简洁 / 推特梗 / 科技明星",
+    "defaultMatchReason": "系统依据简洁黑T、低表情幅度与高科技新闻关联度，将当前画面映射为科技极简样本。",
+    "matchProfile": [
+      "黑T简洁",
+      "低表情幅度",
+      "正面构图",
+      "科技相关"
+    ],
+    "tags": ["Musk","Tesla","X","推特梗","科技明星"],
+    "sexuality_value": "公开伴侣脚本",
+    "sexuality_reason": "科技明星的公开伴侣叙事被媒体长期放大。",
+    "gender_value": "男性科技模板",
+    "gender_reason": "黑T简洁被编码为男性科技领袖视觉模板。",
+    "income_value": "超高资源想象",
+    "income_reason": "财富与公司估值直接关联为超高资源等级。",
+    "family_value": "高曝光家庭",
+    "family_reason": "家庭关系被长期暴露于公众传播。",
+    "relationship_value": "公开伴侣绑定",
+    "relationship_reason": "公开伴侣关系与公司形象深度绑定。",
+    "risk_value": "高舆论风险",
+    "risk_reason": "推特发言与公司决策带来持续性舆论风险。",
+    "evidenceSubtitle": "科技极简样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  马斯克脸 · 科技极简样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「黑T简洁 / 推特梗 / 科技明星」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M18_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M18_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M18_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M18_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M19",
+    "sampleName": "丁真脸",
+    "visualProfile": [
+        "成年男性",
+        "椭圆脸",
+        "短发",
+        "眉眼自然",
+        "鼻部中等",
+        "下颌柔和",
+        "高原素颜"
+      ],
+    "sampleKind": "public_figure",
+    "systemVerdict": "纯真野性入档",
+    "verdictCategoryLine": "高原素颜 / 流量符号 / 审美争议",
+    "defaultMatchReason": "系统依据高原素颜、深肤色与高纯净面部特征，将当前画面映射为纯真野性样本。",
+    "matchProfile": [
+      "高原素颜",
+      "深肤色",
+      "纯净五官",
+      "野性气质"
+    ],
+    "tags": ["丁真","甜野","高原","流量符号","审美争议"],
+    "sexuality_value": "纯真野性脚本",
+    "sexuality_reason": "高原素颜被系统粗暴转换为「野性气质」亲密符号。",
+    "gender_value": "男性高原模板",
+    "gender_reason": "高原素颜被编码为男性原野气质模板。",
+    "income_value": "低收入想象",
+    "income_reason": "高原背景被误读为低收入符号，与商业代言收入相反。",
+    "family_value": "高原核心家庭",
+    "family_reason": "家庭背景被简化为高原牧民核心家庭。",
+    "relationship_value": "纯真情感",
+    "relationship_reason": "亲密关系被压缩为「纯真无邪」单维符号。",
+    "risk_value": "审美争议风险",
+    "risk_reason": "高原符号被消费可能引发审美与文化挪用争议。",
+    "evidenceSubtitle": "纯真野性样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  丁真脸 · 纯真野性样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「高原素颜 / 流量符号 / 审美争议」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M19_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M19_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M19_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M19_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  },
+  {
+    "sampleId": "M20",
+    "sampleName": "Doge脸",
+    "visualProfile": [
+        "柴犬拟人形象",
+        "圆润犬脸",
+        "斜眼",
+        "虚拟面部",
+        "彩色内心独白字幕"
+      ],
+    "sampleKind": "virtual_figure",
+    "systemVerdict": "网络 meme 入档",
+    "verdictCategoryLine": "柴犬梗 / 内心独白 / 多语字幕",
+    "defaultMatchReason": "系统依据柴犬特征、多色 Comic Sans 字幕与高 meme 传播度，将当前画面映射为 Doge 网络 meme 样本。",
+    "matchProfile": [
+      "柴犬轮廓",
+      "斜眼",
+      "彩色字体",
+      "内心独白"
+    ],
+    "tags": ["Doge","柴犬","meme","内心独白","ComicSans"],
+    "sexuality_value": "不可判定 · meme 符号",
+    "sexuality_reason": "Doge 是柴犬 meme 符号，不进入亲密偏好分类。",
+    "gender_value": "不可判定 · 柴犬",
+    "gender_reason": "柴犬 meme 性别字段无意义，仅作为内心独白载体。",
+    "income_value": "无收入",
+    "income_reason": "虚拟 meme 形象无真实经济活动。",
+    "family_value": "虚拟柴犬家庭",
+    "family_reason": "柴犬家庭背景被简化为 meme 场景。",
+    "relationship_value": "内心独白",
+    "relationship_reason": "亲密关系被压缩为多色字体的内心独白。",
+    "risk_value": "加密符号挪用",
+    "risk_reason": "Doge 形象被加密货币符号挪用，易引发金融风险联想。",
+    "evidenceSubtitle": "网络 meme 样本",
+    "evidenceTitle": "ARCHIVE EVIDENCE STRIP  Doge脸 · 网络 meme 样本",
+    "evidenceIntro": "系统将该样本的公共形象、网络二创与传播语境转化为「柴犬梗 / 内心独白 / 多语字幕」参照档案。",
+    "evidenceNote": "该区域仅展示分类系统如何使用公共图像与网络传播材料，不代表对样本人物、角色或当前输入者的真实属性判断。",
+    "evidenceImages": {
+      "main": "assets/sample-library/modern/normalized/M20_sample_main.jpg",
+      "alt": "assets/sample-library/modern/normalized/M20_sample_alt.jpg",
+      "context": "assets/sample-library/modern/normalized/M20_sample_context.jpg",
+      "archive": "assets/sample-library/modern/normalized/M20_sample_archive.jpg"
+    },
+    "evidenceCaptions": {
+      "main": "ORIGINAL FACE / 标准形象",
+      "alt": "INTERNET FACE / 网络面孔",
+      "context": "CONTEXT / 传播语境",
+      "archive": "SYSTEM CROP / 系统截取"
+    }
+  }
+];

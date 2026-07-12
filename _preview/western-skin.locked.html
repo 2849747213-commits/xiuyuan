@@ -1,0 +1,714 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Western Physiognomic Archive · 冷档案识别界面</title>
+<!--
+  ====================================================================
+  Western Physiognomic Archive UI  ·  v3.1
+  ====================================================================
+  状态：当前工作版本（与 western-skin.locked.html 内容一致）
+        用户已确认 v3.1 为锁定基线（LOCKED BASELINE）。
+  后续修改前请先比对：
+    · 锁定备份 = western-skin.locked.html （不要修改）
+    · 保护说明 = WESTERN_LOCK_NOTE.md
+    · 规范     = ../DESIGN_RULES.md
+
+  修改规则：
+  A. 只做小修：间距 / 滚动 / 可读性 / 透明度 / 错字 / 按钮状态 / 移动端
+  B. 不做大排重排 / 不更换风格 / 不删历史图 / 内部滚动保持
+
+  详细历史与禁止清单见 WESTERN_LOCK_NOTE.md。
+  ====================================================================
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;700&family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  /* ==================== 0. 重置 + 字体层级 ==================== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --font-serif:   "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif;
+    --font-mono:    "IBM Plex Mono", "Courier Prime", "Courier New", "Consolas", monospace;
+
+    --paper:        #ece8db;
+    --paper-inside: #f4f0e3;
+    --ink-black:    #141414;
+    --ink-deep:     #2a2a2a;
+    --ink-gray:     #4a4a4a;
+    --rule:         #5a5a5a;
+    --rule-soft:    #8a8a8a;
+    --archive-blue: #1f3142;
+    --ink-red:      #8a1a1a;
+  }
+
+  /* ==================== 1. html / body ==================== */
+  /* 浏览器 body 锁死 · 不让 body 滚 */
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;            /* ★ body 不负责滚动 */
+    background: #181818;
+    font-family: var(--font-serif);
+    color: var(--ink-deep);
+  }
+
+  /* ==================== 2. 外层页面（固定在视口） ==================== */
+  .western-page {
+    width: 100%;
+    height: 100dvh;             /* ★ 用 dvh 防移动地址栏变化 */
+    overflow: hidden;           /* ★ 这层不滚 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #171717;
+    background-image:
+      radial-gradient(ellipse at 30% 20%, rgba(58,74,90,0.18), transparent 70%);
+    box-sizing: border-box;
+    padding: 24px;
+  }
+
+  /* ==================== 3. 档案卡片容器（固定高度 = 视口-留白） ==================== */
+  .western-archive-card {
+    width: min(920px, calc(100vw - 48px));
+    height: calc(100dvh - 48px);   /* ★ 把卡片固定在视口内 */
+    max-height: calc(100dvh - 48px);
+    overflow: hidden;              /* ★ 卡片本身不滚 · 但不被裁切内容 */
+    background: var(--paper);
+    border: 1px solid var(--ink-black);
+    box-sizing: border-box;
+    position: relative;
+  }
+  /* 卡片内层细线（inset 边框） */
+  .western-archive-card::before {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    border: 1px solid var(--rule);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ==================== 4. 档案滚动容器（★ 唯一滚动区域） ==================== */
+  .archive-scroll {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;              /* ★ 唯一 overflow-y: auto */
+    overflow-x: hidden;
+    box-sizing: border-box;
+    padding: 0 0 56px;            /* ★ 底部 56px 安全留白 */
+    overscroll-behavior: contain;  /* ★ 防止 overscroll 传到 body */
+    scrollbar-gutter: stable;
+    /* 主纸底纹（极淡 Lavater） */
+    background-image:
+      url('img/lavater-silhouette-L-1789.jpg'),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.04) 0 1px, transparent 1px 6px),
+      radial-gradient(circle at 30% 10%, rgba(255,255,255,0.4), transparent 70%);
+    background-size: 240px auto, auto, auto;
+    background-repeat: repeat, no-repeat, no-repeat;
+    background-position: 0 0, 0 0, 0 0;
+  }
+  /* ★ 自定义滚条 · 出现在卡片内 */
+  .archive-scroll::-webkit-scrollbar { width: 10px; }
+  .archive-scroll::-webkit-scrollbar-track { background: #d8d0bd; }
+  .archive-scroll::-webkit-scrollbar-thumb {
+    background: var(--ink-deep);
+    border: 2px solid #d8d0bd;
+    border-radius: 0;
+  }
+  .archive-scroll { scrollbar-color: var(--ink-deep) #d8d0bd; scrollbar-width: thin; }
+
+  /* ==================== 5. 内容区 · 内容必须可见 ==================== */
+  .archive-content {
+    position: relative;
+    z-index: 1;
+    /* 内容自身不锁高度 · 让 .archive-scroll 自然撑开 */
+  }
+
+  /* ==================== 5. 顶部 · 细档案条 ==================== */
+  .top {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 22px;
+    border-bottom: 1px solid var(--rule);
+    /* ★ 干净纸色遮罩 + 微 blur 隔离背景侧影 */
+    background: rgba(238, 232, 216, 0.86);
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .top .id {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1.4px;
+    color: var(--ink-gray);
+    text-transform: uppercase;
+    display: flex;
+    gap: 14px;
+    align-items: baseline;
+    flex-wrap: wrap;
+  }
+  .top .id strong { color: var(--ink-black); font-weight: 700; }
+  .top .id .accent { color: var(--archive-blue); font-weight: 600; }
+  .top .stamps { display: flex; gap: 4px; flex-wrap: wrap; }
+  .stamp {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.3px;
+    padding: 2px 6px;
+    border: 1px solid var(--ink-black);
+    background: rgba(246, 241, 228, 1);
+    color: var(--ink-black);
+    text-transform: none;
+  }
+  .stamp.r { background: var(--ink-red); color: var(--paper); border-color: var(--ink-red); }
+  .stamp.g { background: var(--ink-black); color: var(--paper); border-color: var(--ink-black); }
+
+  /* ==================== 6. 标题区（Noto Serif · 不参与冲击） ==================== */
+  .heading {
+    position: relative;
+    z-index: 1;
+    padding: 20px 28px 14px;
+    border-bottom: 1px solid var(--rule);
+    /* ★ 标题区渐变遮罩（左侧强 → 右侧弱）· 让侧影仍出现在标题区右侧 */
+    background: linear-gradient(
+      90deg,
+      rgba(238, 232, 216, 0.9) 0%,
+      rgba(238, 232, 216, 0.78) 45%,
+      rgba(238, 232, 216, 0.4) 100%
+    );
+    backdrop-filter: blur(0.5px);
+    -webkit-backdrop-filter: blur(0.5px);
+  }
+  .heading .meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-gray);
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .heading h1 {
+    font-family: var(--font-serif);
+    font-size: 36px;
+    font-weight: 400;
+    letter-spacing: 6px;
+    color: var(--ink-black);
+    text-align: left;
+    margin: 0;
+  }
+  .heading h1 small {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 2px;
+    color: var(--ink-gray);
+    margin-left: 12px;
+    text-transform: uppercase;
+  }
+  .heading .sub {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--archive-blue);
+    letter-spacing: 1.4px;
+    margin-top: 6px;
+    text-transform: uppercase;
+  }
+
+  /* ==================== 7. 档案图廊 ==================== */
+  .archive-strip {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1.4fr;
+    gap: 0;
+    border-bottom: 1px solid var(--rule);
+    /* ★ 图廊整体干净底（侧影仅在底部图之间留白看到） */
+    background: rgba(238, 232, 216, 0.84);
+  }
+  .archive-strip.three { grid-template-columns: 1fr 1fr 1fr; }
+  .archive-cell {
+    border-right: 1px solid var(--rule);
+    padding: 6px 8px 8px;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .archive-cell:last-child { border-right: none; }
+  .archive-cell .label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    color: var(--ink-gray);
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .archive-cell .label .num { color: var(--ink-red); font-weight: 700; }
+  .archive-cell .img-frame {
+    flex: 1;
+    border: 1px solid var(--ink-gray);
+    background: #fff;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    min-height: 110px;
+  }
+  .archive-cell .img-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: contrast(0.92) sepia(0.18) grayscale(0.35);
+  }
+  .archive-cell .img-frame.with-fade::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 60%, rgba(20,20,20,0.35));
+    pointer-events: none;
+  }
+  .archive-cell.note { background: rgba(238, 232, 216, 0.94); }
+  .archive-cell.note .row {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-black);
+    line-height: 1.5;
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px dotted var(--rule-soft);
+    padding: 1px 0;
+  }
+  .archive-cell.note .row .k { color: var(--ink-gray); min-width: 38px; }
+  .archive-cell.note .row .v { color: var(--ink-black); font-weight: 500; }
+
+  /* ==================== 8. 6 宫格 · 底部留 48+ ==================== */
+  .grid-section {
+    position: relative;
+    z-index: 1;
+    padding: 14px 28px 14px;
+    margin-bottom: 48px;       /* ★ 底部 48px 安全留白 */
+    /* ★ 6 宫格区干净纸色遮罩 */
+    background: rgba(238, 232, 216, 0.78);
+    backdrop-filter: blur(0.5px);
+    -webkit-backdrop-filter: blur(0.5px);
+  }
+  .grid-section .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid var(--ink-black);
+    padding-bottom: 4px;
+    margin-bottom: 12px;
+  }
+  .grid-section .header .h-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    color: var(--ink-black);
+    text-transform: uppercase;
+  }
+  .grid-section .header .h-num {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--ink-gray);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0;
+    border: 1px solid var(--ink-black);
+  }
+  .cell {
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: 10px 12px 12px;
+    /* ★ 卡内再稳一点 · 偏亮的米色 */
+    background: rgba(246, 241, 228, 0.9);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 84px;
+  }
+  .cell:nth-child(2n) { border-right: none; }
+  .cell:nth-last-child(-n+2) { border-bottom: none; }
+  .cell .row1 {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px dashed var(--rule-soft);
+    padding-bottom: 3px;
+    margin-bottom: 1px;
+  }
+  .cell .cat {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 1.3px;
+    color: var(--ink-black);
+    text-transform: uppercase;
+  }
+  .cell .sku {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: var(--ink-red);
+    border: 1px solid var(--ink-red);
+    padding: 1px 4px;
+    line-height: 1;
+  }
+  .cell .verdict {
+    font-family: var(--font-serif);
+    font-size: 26px;
+    font-weight: 500;
+    color: var(--ink-black);
+    letter-spacing: 4px;
+    line-height: 1;
+    margin: 1px 0 4px;
+  }
+  .cell .reason {
+    font-family: var(--font-serif);
+    font-size: 12.5px;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--ink-gray);
+    line-height: 1.5;
+    border-top: 1px dotted var(--rule-soft);
+    padding-top: 4px;
+    margin-top: 2px;
+  }
+
+  /* ==================== 9. 底部 · 证据链 + 警示 + 按钮 + attributions ==================== */
+  .bottom {
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid var(--rule);
+    padding: 10px 22px 12px;
+    /* ★ 干净纸色遮罩（比顶部更实） */
+    background: rgba(238, 232, 216, 0.92);
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
+  }
+  .info {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-gray);
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+  .info .sep { color: var(--ink-red); margin: 0 5px; font-weight: 700; }
+  .info strong { color: var(--ink-black); font-weight: 600; }
+  .info .engine { color: var(--ink-red); font-weight: 700; }
+
+  .warning {
+    font-family: var(--font-serif);
+    font-size: 12.5px;
+    color: var(--archive-blue);
+    letter-spacing: 0.5px;
+    text-align: left;
+    padding: 6px 0 8px;
+    line-height: 1.45;
+    border-top: 1px dashed var(--rule);
+    border-bottom: 1px dashed var(--rule);
+    margin-bottom: 10px;
+    font-style: italic;
+  }
+  .warning::before { content: "· "; color: var(--ink-red); font-style: normal; }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+  }
+  .btn {
+    flex: 1;
+    padding: 10px 12px;
+    background: transparent;
+    color: var(--ink-black);
+    border: 1px solid var(--ink-black);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 2.5px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: var(--ink-black); color: var(--paper); }
+  .btn.primary { background: var(--ink-black); color: var(--paper); }
+  .btn.primary:hover { background: var(--ink-red); border-color: var(--ink-red); }
+
+  /* ==================== 10. 出处行 ==================== */
+  .attribution {
+    position: relative;
+    z-index: 1;
+    text-align: left;
+    padding: 6px 22px 10px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--ink-gray);
+    letter-spacing: 0.5px;
+    line-height: 1.5;
+    border-top: 1px solid var(--rule);
+    /* ★ 最底也要干净纸色 + 微微半透明 */
+    background: rgba(245, 239, 222, 0.96);
+    opacity: 1;
+  }
+  .attribution a { color: var(--archive-blue); text-decoration: none; }
+  .attribution a:hover { text-decoration: underline; }
+
+  /* ==================== 11. 移动端 / 小窗口兼容 ==================== */
+  @media (max-width: 720px) {
+    .archive-strip { grid-template-columns: 1fr; }
+    .archive-strip.three { grid-template-columns: 1fr; }
+    .archive-cell { border-right: none; border-bottom: 1px solid var(--rule); }
+    .archive-cell:last-child { border-bottom: none; }
+    .grid { grid-template-columns: 1fr; }
+    .cell:nth-child(2n) { border-right: none; border-bottom: 1px solid var(--rule); }
+    .cell:nth-last-child(-n+2) { border-bottom: 1px solid var(--rule); }
+    .cell:last-child { border-bottom: none; }
+  }
+  @media (max-height: 700px) {
+    .western-page { padding: 12px; }
+    .western-archive-card { height: calc(100dvh - 24px); max-height: calc(100dvh - 24px); }
+  }
+
+  /* ★★★ 西方面学 · 颅骨地图脸 证据条（仅展示，不接 AI / 不接摄像头 / 不接 pathSelect） ★★★ */
+  .verdict-stamp {
+    display: inline-block;
+    margin: 14px 0 4px;
+    padding: 6px 18px;
+    border: 2px solid #1a1a1a;
+    background: var(--paper, #f5f0e1);
+    color: #1a1a1a;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    box-shadow: 3px 3px 0 #1a1a1a;
+  }
+  .fs-strip {
+    margin: 18px 0 8px;
+    padding: 14px 14px 12px;
+    border: 1px dashed #1a1a1a;
+    background: rgba(245, 240, 225, 0.6);
+    text-align: left;
+    box-sizing: border-box;
+  }
+  .fs-strip__head {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    border-bottom: 1px dashed #1a1a1a; padding-bottom: 8px; margin-bottom: 10px;
+  }
+  .fs-strip__kicker { font-size: 9.5px; letter-spacing: 3px; color: #1a1a1a; font-weight: 700; }
+  .fs-strip__title { font-size: 15px; font-weight: 900; color: #1a1a1a; letter-spacing: 1.5px; }
+  .fs-strip__sub { font-size: 11px; line-height: 1.6; color: #2a2a2a; margin-bottom: 12px; }
+  .fs-strip__row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .fs-strip__cell {
+    width: 220px; background: #f5f0e1; border: 1px solid #1a1a1a;
+    display: flex; flex-direction: column;
+  }
+  .fs-strip__img { display: block; width: 100%; height: 150px; object-fit: cover; background: #111; }
+  .fs-strip__cap {
+    padding: 8px 10px 10px; font-size: 10.5px; line-height: 1.5; color: #1a1a1a;
+    border-top: 1px dashed #1a1a1a;
+  }
+  .fs-strip__cap b { display: block; font-size: 12px; letter-spacing: 2px; margin-bottom: 2px; color: #000; }
+  .fs-strip__note { margin-top: 10px; font-size: 10px; color: #444; font-style: italic; letter-spacing: 0.5px; }
+  @media (max-width: 560px) {
+    .fs-strip__cell { width: 100%; }
+  }
+</style>
+</head>
+
+<body>
+
+  <!-- 1. 外层页面 · 固定在视口 · 不滚 -->
+  <div class="western-page">
+
+    <!-- 2. 档案卡片容器 · 固定高度（视口-48px）· 不滚 -->
+    <section class="western-archive-card">
+
+      <!-- 3. 档案滚动容器 · ★ 唯一可滚动 -->
+      <div class="archive-scroll">
+
+        <!-- 内容区 -->
+        <div class="archive-content">
+
+          <!-- 1. 顶部细档案条 -->
+          <div class="top">
+            <div class="id">
+              <span><strong>W.P.A</strong> / WESTERN PHYSIOGNOMIC ARCHIVE</span>
+              <span class="accent">ID 027-A</span>
+              <span>OBS · 2025-11-04 / 14:20</span>
+              <span>BIAS-SYSTEM CLASSIFIED</span>
+            </div>
+            <div class="stamps">
+              <span class="stamp">已入档</span>
+              <span class="stamp r">不可上诉</span>
+              <span class="stamp g">系统推荐</span>
+              <span class="stamp">无可退档</span>
+            </div>
+          </div>
+
+          <!-- 2. 标题区 -->
+          <div class="heading">
+            <div class="meta">CHAPTER 06 · CASE Nº 027-A · BIAS SYSTEM · 编号档案</div>
+            <h1>你被归类为<small>verdict · classification notice</small></h1>
+            <div class="sub">MODE › 西方面学 · Western Physiognomic Archive · 9-axis classification</div>
+            <div class="verdict-stamp">颅骨地图脸</div>
+          </div>
+
+          <!-- 3. 档案图廊 · 真图素材（3 列） -->
+          <div class="archive-strip">
+            <div class="archive-cell">
+              <div class="label"><span>Bertillon Tab.</span><span class="num">Nº 01</span></div>
+              <div class="img-frame with-fade">
+                <img src="img/bertillon-portrait-parle-1909.jpg" alt="Bertillon portrait parlé 1909">
+              </div>
+            </div>
+            <div class="archive-cell note">
+              <div class="label"><span>FILE 027-A</span><span class="num">/03</span></div>
+              <div class="row"><span class="k">HT</span><span class="v">178.0</span></div>
+              <div class="row"><span class="k">CR IDX</span><span class="v">82.4 / brachy</span></div>
+              <div class="row"><span class="k">NAS W</span><span class="v">36</span></div>
+              <div class="row"><span class="k">EAR L</span><span class="v">64</span></div>
+              <div class="row"><span class="k">JAW</span><span class="v">124</span></div>
+              <div class="row"><span class="k">AGE</span><span class="v">indeterm.</span></div>
+            </div>
+            <div class="archive-cell">
+              <div class="label"><span>Lavater 1789</span><span class="num">Nº 02</span></div>
+              <div class="img-frame">
+                <img src="img/lavater-silhouette-L-1789.jpg" alt="Lavater silhouette L 1789">
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. 6 宫格 · 表格化 -->
+          <div class="grid-section">
+            <div class="header">
+              <div class="h-title">▌ 已选 6 / 9 维度 · 9 axes observed</div>
+              <div class="h-num">concatenated to single verdict</div>
+            </div>
+            <div class="grid">
+              <div class="cell">
+                <div class="row1"><span class="cat">古典相貌</span><span class="sku">WP-01</span></div>
+                <div class="verdict">古典兽相</div>
+                <div class="reason">因为：系统将五官与动物性格相连，用类比替代真实理解。</div>
+              </div>
+              <div class="cell">
+                <div class="row1"><span class="cat">侧影道德</span><span class="sku">WP-02</span></div>
+                <div class="verdict">侧影道德化</div>
+                <div class="reason">因为：系统根据侧脸轮廓推测理性、克制与高贵程度。</div>
+              </div>
+              <div class="cell">
+                <div class="row1"><span class="cat">颅骨地图</span><span class="sku">WP-03</span></div>
+                <div class="verdict">颅骨地图化</div>
+                <div class="reason">因为：系统把头骨表面误读为人格能力的分区图。</div>
+              </div>
+              <div class="cell">
+                <div class="row1"><span class="cat">犯罪预兆</span><span class="sku">WP-04</span></div>
+                <div class="verdict">犯罪预兆化</div>
+                <div class="reason">因为：系统把低额 / 突颌 / 不对称等特征标记为危险倾向。</div>
+              </div>
+              <div class="cell">
+                <div class="row1"><span class="cat">平均脸规训</span><span class="sku">WP-05</span></div>
+                <div class="verdict">平均脸规训</div>
+                <div class="reason">因为：系统用统计平均值制造"正常脸"，再把偏差视为异常。</div>
+              </div>
+              <div class="cell">
+                <div class="row1"><span class="cat">算法再分类</span><span class="sku">WP-06</span></div>
+                <div class="verdict">算法再分类</div>
+                <div class="reason">因为：系统以中立技术之名，重新执行旧相貌学的分类冲动。</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. 补充档案图 · 3 列（phrenology + anthropometry + physiognomy） -->
+          <div class="archive-strip three">
+            <div class="archive-cell">
+              <div class="label"><span>Gall / Spurzheim</span><span class="num">Nº 03</span></div>
+              <div class="img-frame">
+                <img src="img/wellcome-phrenology-32099.jpg" alt="Phrenology head map">
+              </div>
+            </div>
+            <div class="archive-cell">
+              <div class="label"><span>Anthropometric</span><span class="num">Nº 04</span></div>
+              <div class="img-frame with-fade">
+                <img src="img/wellcome-anthropometry-32016.jpg" alt="Anthropometric measurement plate">
+              </div>
+            </div>
+            <div class="archive-cell">
+              <div class="label"><span>Physiognomy plate</span><span class="num">Nº 05</span></div>
+              <div class="img-frame">
+                <img src="img/wellcome-physiognomy-9293.jpg" alt="Physiognomy plate">
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. 底部证据链 / 警示 / 按钮 -->
+          <div class="bottom">
+            <div class="info">
+              <strong>证据链</strong>：portrait parlé 已生成 <span class="sep">|</span>
+              <strong>申辩</strong>：不受理 <span class="sep">|</span>
+              <strong>档案</strong>：已入柜 <span class="sep">|</span>
+              <strong>在管</strong>：警务已收 <span class="sep">|</span>
+              <span class="engine">ENGINE: BIAS-SYSTEM</span>
+            </div>
+            <div class="warning">本档案不识别输入对象的真实身份 · 仅展示分类系统的运作方式 · 一切分类均为虚构</div>
+            <!-- ★ 西方面学 · 颅骨地图脸 样本证据条（仅展示，不接 AI / 不接摄像头 / 不接 pathSelect） -->
+            <div class="fs-strip">
+              <div class="fs-strip__head">
+                <span class="fs-strip__kicker">▌ ARCHIVE EVIDENCE STRIP</span>
+                <span class="fs-strip__title">颅骨地图脸 · 相貌测量样本</span>
+              </div>
+              <div class="fs-strip__sub">系统将 19 世纪颅相学图谱转化为「颅骨地图化 / 脑区想象 / cranial archive」的参照样本。</div>
+              <div class="fs-strip__row">
+                <div class="fs-strip__cell">
+                  <img class="fs-strip__img" src="../assets/sample-library/western/W05_19_phrenology_main.jpg" alt="WS-01 颅相学头部图谱 / 颅骨地图样本" onerror="this.style.display='none'" />
+                  <div class="fs-strip__cap"><b>WS-01</b>颅相学头部图谱 / 颅骨地图样本</div>
+                </div>
+                <div class="fs-strip__cell">
+                  <img class="fs-strip__img" src="../assets/sample-library/western/W05_19_phrenology_alt.jpg" alt="WS-02 相貌测量参照样本" onerror="this.style.display='none'" />
+                  <div class="fs-strip__cap"><b>WS-02</b>相貌测量参照样本</div>
+                </div>
+              </div>
+              <div class="fs-strip__note">该区域仅展示系统如何把西方相貌学图像转化为分类参照，不代表真实人格判断。</div>
+            </div>
+            <div class="actions">
+              <button class="btn primary" type="button">↻ 重测 / re-measure</button>
+              <button class="btn" type="button">✕ 封卷 / seal envelope</button>
+            </div>
+          </div>
+
+          <!-- 7. 出处行 -->
+          <div class="attribution">
+            <strong>IMAGE SOURCES</strong> · Bertillon, "Tableau synoptique des traits physionomiques" ca. 1909 — Metropolitan Museum of Art, New York (CC0) · Lavater silhouette & physiognomy plates — Wellcome Collection (CC BY 4.0) · Phrenology charts — Wellcome Collection (CC BY 4.0) · Anthropometric plates — Wellcome Collection (CC BY 4.0). 全部图片仅作为艺术评论 / 教育用途嵌入到本作品，不再制品保存。
+            <br>
+            <strong>SYSTEM</strong> · BIAS-SYSTEM · Western Physiognomic Archive · v0.1 preview · 静态预览 · 不接 AI / 摄像头 / 主流程
+          </div>
+
+        </div><!-- /archive-content -->
+      </div><!-- /archive-scroll -->
+    </section><!-- /western-archive-card -->
+  </div><!-- /western-page -->
+
+</body>
+</html>
+

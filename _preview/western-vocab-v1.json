@@ -1,0 +1,381 @@
+{
+  "version": "v1",
+  "mode": "西方面学",
+  "mode_en": "Western Physiognomic Archive",
+  "subtitle": "脸作为分类证据",
+  "note": "本词库整理西方历史上真实出现过的相貌判断系统。它不是看脸算命，而是展示系统如何把一张脸转化为可被解释、可被排序、可被管理的对象。所有条目为虚构档案，不代表真实身份。",
+  "schema": {
+    "axis_label": "维度（西方九个分类轴之一）",
+    "system": "该格子的判读系统名称（9 个西方相貌学传统之一）",
+    "evidence": "系统在脸上读到的"证据"（虚构的可被解释的视觉特征）",
+    "verdict_class": "系统最终给出的分类词条（9 个之一）",
+    "consequence": "该分类词条可能带来的判断与后果（虚构，不能直接判真实身份）",
+    "reason": "卡片底部"因为：……"后面的虚构解释"
+  },
+  "rendering_rules": {
+    "field": "卡片左上小字：从 dimensions 数组里取",
+    "big_word": "卡片大字 · 只显示 verdict_class（不再带 consequences）",
+    "reason_line": "卡片底部 · 因为：{reason}",
+    "forbidden_output": [
+      "英文分类词（所有输出必须是中文，可以保留 Western Physiognomic Archive 这一个总名）",
+      "Markdown 标记",
+      "把 verdict_class + consequence 拼到同一字段",
+      "真实身份判断"
+    ]
+  },
+  "dimensions": [
+    "古典相貌",
+    "侧影道德",
+    "颅骨地图",
+    "犯罪预兆",
+    "平均脸规训",
+    "警务档案",
+    "殖民等级",
+    "症状表情",
+    "算法再分类"
+  ],
+  "dictionaries": {
+    "古典相貌": {
+      "label": "古典相貌学 · 脸作为德性的外壳",
+      "system": "Physiognomics · 古典兽相",
+      "options": [
+        {
+          "evidence": "五官比例与兽相特征相似",
+          "verdict_class": "古典兽相",
+          "consequence": "被系统用动物性格反推气质",
+          "reason": "因为：系统将五官与动物性格相连，用类比替代真实理解。"
+        },
+        {
+          "evidence": "额头宽 / 低 / 后倾",
+          "verdict_class": "古典兽相",
+          "consequence": "被推测理性 / 迟钝 / 冲动 / 野性",
+          "reason": "因为：额部相术把额头形状判为性格信号。"
+        },
+        {
+          "evidence": "眼神 / 凝视方向异常",
+          "verdict_class": "古典兽相",
+          "consequence": "被解释为诚实 / 狡猾 / 胆怯 / 欲望",
+          "reason": "因为：眼神被错误地等同于道德。"
+        },
+        {
+          "evidence": "鼻梁 / 鼻尖形态显著",
+          "verdict_class": "古典兽相",
+          "consequence": "被赋予意志力 / 攻击性 / 贵族气质",
+          "reason": "因为：鼻形被读作权力符号。"
+        },
+        {
+          "evidence": "下颌突出",
+          "verdict_class": "古典兽相",
+          "consequence": "被解释为顽固 / 原始 / 攻击性",
+          "reason": "因为：突出的下颌被当作性格证据。"
+        },
+        {
+          "evidence": "面部比例不对称",
+          "verdict_class": "古典兽相",
+          "consequence": "被判性格不稳定",
+          "reason": "因为：对称性被误读为道德稳定。"
+        }
+      ]
+    },
+    "侧影道德": {
+      "label": "拉瓦特式侧影学 · 轮廓作为道德证据",
+      "system": "Lavaterian Silhouette",
+      "options": [
+        {
+          "evidence": "侧面轮廓与理想化古典雕塑差异显著",
+          "verdict_class": "侧影道德化",
+          "consequence": "被系统根据侧脸轮廓推测理性与高贵程度",
+          "reason": "因为：系统根据侧脸轮廓推测理性、克制与高贵程度。"
+        },
+        {
+          "evidence": "前额坡度不理想",
+          "verdict_class": "侧影道德化",
+          "consequence": "被判理性 / 精神层次低",
+          "reason": "因为：前额是否挺直，被读作理性证据。"
+        },
+        {
+          "evidence": "鼻额线不连贯",
+          "verdict_class": "侧影道德化",
+          "consequence": "被判高贵 / 低劣",
+          "reason": "因为：鼻额线被看作高贵或低劣的视觉证据。"
+        },
+        {
+          "evidence": "嘴唇闭合 / 松弛 / 外翻",
+          "verdict_class": "侧影道德化",
+          "consequence": "被解释为克制 / 贪欲 / 软弱",
+          "reason": "因为：嘴唇闭合方式被判为性格符号。"
+        },
+        {
+          "evidence": "轮廓偏离古典雕塑模板",
+          "verdict_class": "侧影道德化",
+          "consequence": "被判理性 / 优雅 / 文明度低",
+          "reason": "因为：越接近理想化模板的轮廓，越被系统判为理性优雅。"
+        },
+        {
+          "evidence": "整体轮廓特征",
+          "verdict_class": "侧影道德化",
+          "consequence": "性格被提前写进脸部线条，不再用行为判断",
+          "reason": "因为：人的性格不再通过行为判断，被提前写进脸部。"
+        }
+      ]
+    },
+    "颅骨地图": {
+      "label": "颅相学 · 头骨作为人格地图",
+      "system": "Phrenology · 颅骨凸起地图",
+      "options": [
+        {
+          "evidence": "颅骨特定区域隆起",
+          "verdict_class": "颅骨地图化",
+          "consequence": "被推测为记忆 / 攻击 / 亲情 / 宗教感 / 破坏欲强弱",
+          "reason": "因为：系统把头骨表面误读为人格能力的分区图。"
+        },
+        {
+          "evidence": "颅骨分区映射内部能力",
+          "verdict_class": "颅骨地图化",
+          "consequence": "被推测天赋与缺陷",
+          "reason": "因为：触摸式判断通过头骨外形推测内部能力。"
+        },
+        {
+          "evidence": "整体头形偏离模板",
+          "verdict_class": "颅骨地图化",
+          "consequence": "社会行为被解释为先天结构",
+          "reason": "因为：它弱化了环境、教育与制度因素，把行为归为先天。"
+        },
+        {
+          "evidence": "身体比例偏离标准值",
+          "verdict_class": "颅骨地图化",
+          "consequence": "性格被转化为可测量可记录的身体档案",
+          "reason": "因为：人的性格变成可比较的身体表面。"
+        }
+      ]
+    },
+    "犯罪预兆": {
+      "label": "犯罪人类学 · 脸作为犯罪预兆",
+      "system": "Lombrosian Criminal Anthropology",
+      "options": [
+        {
+          "evidence": "额头较常人低",
+          "verdict_class": "犯罪预兆化",
+          "consequence": "被错误归入智力低下 / 冲动 / 原始",
+          "reason": "因为：低额被错误解释为智力低下与冲动。"
+        },
+        {
+          "evidence": "突颌（颌部突出）",
+          "verdict_class": "犯罪预兆化",
+          "consequence": "被归入"退化""野蛮""攻击性"",
+          "reason": "因为：突颌被当作退化与野蛮的身体特征。"
+        },
+        {
+          "evidence": "耳形异常 / 不对称",
+          "verdict_class": "犯罪预兆化",
+          "consequence": "被当作犯罪倾向证据",
+          "reason": "因为：耳形曾被作为犯罪倾向证据使用。"
+        },
+        {
+          "evidence": "面部五官不对称",
+          "verdict_class": "犯罪预兆化",
+          "consequence": "被解释为精神 / 道德异常",
+          "reason": "因为：五官不均衡被读作精神或道德异常。"
+        },
+        {
+          "evidence": "眼窝深陷",
+          "verdict_class": "犯罪预兆化",
+          "consequence": "被制造阴沉、危险、反社会的视觉判断",
+          "reason": "因为：眼窝深陷被投射为危险与反社会。"
+        },
+        {
+          "evidence": "整体偏离隆布罗索式"罪犯类型"",
+          "verdict_class": "犯罪预兆化",
+          "consequence": "被宣布为"天生罪犯"",
+          "reason": "因为：犯罪被从社会问题转化为身体命运。"
+        }
+      ]
+    },
+    "平均脸规训": {
+      "label": "优生学与复合肖像 · 平均脸作为标准",
+      "system": "Galtonian Composite Portrait",
+      "options": [
+        {
+          "evidence": "面部特征接近多张样本的统计平均",
+          "verdict_class": "平均脸规训",
+          "consequence": "被判稳定 / 健康 / 理想",
+          "reason": "因为：平均脸被误认为更稳定、更健康、更理想。"
+        },
+        {
+          "evidence": "面部特征偏离样本平均",
+          "verdict_class": "平均脸规训",
+          "consequence": "被标记为疾病 / 低能 / 危险 / 退化",
+          "reason": "因为：偏离平均值的脸被系统标记为异常。"
+        },
+        {
+          "evidence": "与"标准型"样本相似",
+          "verdict_class": "平均脸规训",
+          "consequence": "被纳入所谓"正常"类型",
+          "reason": "因为：类型化平均让个体差异被抹除。"
+        },
+        {
+          "evidence": "样本叠加的复合特征",
+          "verdict_class": "平均脸规训",
+          "consequence": "脸不再是个人特征，而变成数据模型中的偏差",
+          "reason": "因为：复合照片曾制造"犯罪者""病人""民族类型"。"
+        }
+      ]
+    },
+    "警务档案": {
+      "label": "警务人像学 · 脸作为可追踪编号",
+      "system": "Bertillonage / Mugshot System",
+      "options": [
+        {
+          "evidence": "正面 + 侧面照的固定姿态",
+          "verdict_class": "警务档案化",
+          "consequence": "被压缩为正面、侧面、编号与可追踪身份",
+          "reason": "因为：系统把脸压缩成正面照、侧面照与编号。"
+        },
+        {
+          "evidence": "耳廓形态独特",
+          "verdict_class": "警务档案化",
+          "consequence": "被视为比表情更稳定的识别特征",
+          "reason": "因为：耳朵形状被视为稳定的识别依据。"
+        },
+        {
+          "evidence": "鼻长 / 鼻宽 / 鼻尖角度",
+          "verdict_class": "警务档案化",
+          "consequence": "被纳入身体测量系统",
+          "reason": "因为：鼻梁被纳入身体测量系统。"
+        },
+        {
+          "evidence": "头长 / 头宽比例",
+          "verdict_class": "警务档案化",
+          "consequence": "被记录成编号用于警务追踪",
+          "reason": "因为：身体比例被记录成编号。"
+        },
+        {
+          "evidence": "面对镜头的姿态僵硬",
+          "verdict_class": "警务档案化",
+          "consequence": "失去自然表情，成为"可疑身份"",
+          "reason": "因为：人被要求以固定姿态面对镜头。"
+        }
+      ]
+    },
+    "殖民等级": {
+      "label": "殖民与种族分类 · 面部作为等级秩序",
+      "system": "Colonial Anthropometric Classification",
+      "options": [
+        {
+          "evidence": "头长与头宽比（头指数）",
+          "verdict_class": "殖民等级化",
+          "consequence": "被归入所谓"种族类型"",
+          "reason": "因为：系统用头型制造种族类型的伪分类。"
+        },
+        {
+          "evidence": "鼻宽 / 鼻高（鼻指数）",
+          "verdict_class": "殖民等级化",
+          "consequence": "被判所谓"文明 / 原始"",
+          "reason": "因为：鼻指数被用来制造"文明 / 原始"的伪分类。"
+        },
+        {
+          "evidence": "肤色深浅",
+          "verdict_class": "殖民等级化",
+          "consequence": "被排列成进化、劳动、阶级与殖民统治的视觉证据",
+          "reason": "因为：肤色被当作殖民统治的视觉证据。"
+        },
+        {
+          "evidence": "发质卷直 / 粗细",
+          "verdict_class": "殖民等级化",
+          "consequence": "被纳入人种判断",
+          "reason": "因为：发质被纳入人种判断。"
+        },
+        {
+          "evidence": "面部前突角度",
+          "verdict_class": "殖民等级化",
+          "consequence": "被判所谓智力与文明程度",
+          "reason": "因为：面部角度被读作智力与文明程度。"
+        },
+        {
+          "evidence": "整体符合"分类对象"凝视",
+          "verdict_class": "殖民等级化",
+          "consequence": "被固定在低等、异域、可管理的位置",
+          "reason": "因为：殖民凝视把被分类者固定在低等位置。"
+        }
+      ]
+    },
+    "症状表情": {
+      "label": "精神医学图像 · 表情作为症状",
+      "system": "Psychiatric Symptom Portrait",
+      "options": [
+        {
+          "evidence": "被拍摄的女性"歇斯底里"表情",
+          "verdict_class": "表情症状化",
+          "consequence": "被归档、解释为疾病",
+          "reason": "因为：19 世纪医学影像把女性表情读为疾病。"
+        },
+        {
+          "evidence": "皱眉 / 张口 / 眼神上翻",
+          "verdict_class": "表情症状化",
+          "consequence": "被解释为痛苦 / 病理证据",
+          "reason": "因为：瞬间面部动作被读作病理证据。"
+        },
+        {
+          "evidence": "偏离"标准动作"的表情",
+          "verdict_class": "表情症状化",
+          "consequence": "被读作恐惧 / 愤怒 / 羞耻 / 服从",
+          "reason": "因为：表情被拆解成标准动作。"
+        },
+        {
+          "evidence": "不看镜头 / 凝视过强 / 眼神游离",
+          "verdict_class": "表情症状化",
+          "consequence": "被判精神异常",
+          "reason": "因为：凝视异常被解释为精神异常。"
+        },
+        {
+          "evidence": "瞬间情绪被镜头固定",
+          "verdict_class": "表情症状化",
+          "consequence": "瞬间情绪被固定为长期身份",
+          "reason": "因为：表情冻结让瞬间情绪变成长期身份。"
+        }
+      ]
+    },
+    "算法再分类": {
+      "label": "现代算法面相 · 旧分类的数字回声",
+      "system": "Algorithmic Re-Classification",
+      "options": [
+        {
+          "evidence": "嘴角 / 眉毛 / 眼睛组合",
+          "verdict_class": "算法再分类",
+          "consequence": "被判为某种情绪状态",
+          "reason": "因为：现代系统试图从五官判断情绪。"
+        },
+        {
+          "evidence": "整体面部特征",
+          "verdict_class": "算法再分类",
+          "consequence": "被判为可信 / 危险 / 配合度评分",
+          "reason": "因为：面部被转化为风险评分。"
+        },
+        {
+          "evidence": "面部特征不符二元模板",
+          "verdict_class": "算法再分类",
+          "consequence": "被强行归入男性或女性",
+          "reason": "因为：系统强行排除模糊 / 流动 / 非二元。"
+        },
+        {
+          "evidence": "皱纹 / 肤色 / 骨相",
+          "verdict_class": "算法再分类",
+          "consequence": "被贴上年龄标签",
+          "reason": "因为：现代算法延续了旧的人种分类惯性。"
+        },
+        {
+          "evidence": "面孔整体属性",
+          "verdict_class": "算法再分类",
+          "consequence": "被判为某一种族推断",
+          "reason": "因为：种族推断把旧分类重新装进算法。"
+        },
+        {
+          "evidence": "脸不符合训练数据常见类型",
+          "verdict_class": "算法再分类",
+          "consequence": "被降信、加险或强行归档",
+          "reason": "因为：不可归类时系统不承认失败，而是强行归档。"
+        }
+      ]
+    }
+  }
+}

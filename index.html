@@ -1,0 +1,2351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<title>BIAS SYSTEM · LIVE CLASSIFICATION</title>
+<link rel="stylesheet" href="exhibition.css" />
+<!-- V3X_FORK_STYLES · 从 path-overlay-v5.html v9 内联 · 12 张图 200 -->
+<style data-v3x-fork="inline">
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --font-li:     "STLiti", "SimLi", "LiSu", "隶书", serif;
+    --font-kai:    "STKaiti", "KaiTi", "楷体", serif;
+    --font-serif:  "Noto Serif SC", "Source Han Serif SC", serif;
+    --font-mono:   "IBM Plex Mono", "Courier Prime", "Courier New", monospace;
+  }
+
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+
+  /* 摄像头占位背景 */
+  .v3x-video-bg {
+    background:
+      radial-gradient(ellipse at 30% 30%, rgba(120,80,40,0.55), transparent 55%),
+      radial-gradient(ellipse at 70% 75%, rgba(70,45,35,0.55), transparent 55%),
+      radial-gradient(ellipse at 50% 50%, rgba(40,30,22,0.65), transparent 70%),
+      linear-gradient(180deg, #1a1410 0%, #0a0806 100%) !important;
+  }
+  .v3x-video-bg::after {
+    content: ""; position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 260'><defs><radialGradient id='s' cx='50%25' cy='50%25' r='60%25'><stop offset='0%25' stop-color='%23d4a878'/><stop offset='100%25' stop-color='%235a3d28'/></radialGradient></defs><ellipse cx='100' cy='130' rx='70' ry='95' fill='url(%23s)'/><ellipse cx='80' cy='120' rx='5' ry='3' fill='%231a1a1a'/><ellipse cx='120' cy='120' rx='5' ry='3' fill='%231a1a1a'/><path d='M90 110 Q100 105 110 110' stroke='%233a2818' stroke-width='1.5' fill='none'/><path d='M85 155 Q100 165 115 155' stroke='%233a2818' stroke-width='1.5' fill='none'/><path d='M100 138 L96 165 L104 165 L100 170' stroke='%233a2818' stroke-width='1.5' fill='none'/></svg>");
+    background-repeat: no-repeat; background-position: center 45%;
+    background-size: 380px 480px; opacity: 0.78;
+  }
+
+  /* 暗化遮罩（仅中央收紧光圈） */
+  .v3x-dim-overlay {
+    position: fixed; inset: 0;
+    background: radial-gradient(ellipse at 50% 38%, transparent 20%, rgba(0,0,0,0.55) 80%);
+    pointer-events: none; z-index: 4;
+  }
+
+  /* 检测框（默认被金 · fork 时更明显） */
+  .v3x-frame { border: none !important; }
+  .v3x-frame .v3x-corner {
+    width: 90px !important; height: 90px !important;
+    border-color: #f5d400 !important; border-width: 6px !important;
+    box-shadow: 0 0 30px rgba(245,212,0,0.4);
+  }
+  .v3x-frame-label {
+    position: absolute; top: -26px; left: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px; font-weight: 900; color: #f5d400;
+    text-transform: uppercase; letter-spacing: 3px;
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(0,0,0,0.7); padding: 4px 10px;
+    border: 1.5px solid #f5d400;
+  }
+  .v3x-frame-label .dot {
+    display: inline-block; width: 8px; height: 8px;
+    background: #f5d400; box-shadow: 0 0 6px #f5d400;
+    animation: v3xDotPulse 1.2s ease-in-out infinite;
+  }
+  @keyframes v3xDotPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  body.forked .v3x-frame .v3x-corner {
+    box-shadow: 0 0 40px rgba(245,212,0,0.7);
+    animation: v3xCornerBreath 1.4s ease-in-out infinite;
+  }
+  @keyframes v3xCornerBreath {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+  }
+  body.forked .v3x-frame .v3x-scanline {
+    background: linear-gradient(90deg, transparent, rgba(245,212,0,1), transparent) !important;
+    box-shadow: 0 0 18px rgba(245,212,0,0.9) !important;
+    animation: v3xScanMove 0.5s linear infinite !important;
+  }
+
+  /* 顶部条 + 中央提示 */
+  body.forked .v3x-topbar__led {
+    background: #f5d400; box-shadow: 0 0 0 2px #000, 0 0 18px #f5d400;
+  }
+
+  .v3x-fork-hint {
+    position: fixed; top: 18%; left: 50%;
+    transform: translateX(-50%); z-index: 11;
+    text-align: center; opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s, transform 0.4s;
+  }
+  body.forked .v3x-fork-hint { opacity: 1; }
+  .v3x-fork-hint .pre {
+    font-family: 'Courier New', monospace;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 5px; color: #f5d400;
+    text-transform: uppercase; margin-bottom: 6px;
+    border-top: 1px solid #f5d400;
+    border-bottom: 1px solid #f5d400;
+    padding: 4px 0; display: inline-block;
+  }
+  .v3x-fork-hint .pre::before { content: "▌ "; }
+  .v3x-fork-hint .pre::after { content: " ▐"; }
+  .v3x-fork-hint .title {
+    font-family: 'Courier New', monospace;
+    font-size: 24px; font-weight: 900;
+    letter-spacing: 10px; color: #fff;
+    text-transform: uppercase; margin-top: 2px;
+    text-shadow: 2px 2px 0 #f5d400, 4px 4px 0 rgba(214,0,0,0.55);
+  }
+  .v3x-fork-hint .sub {
+    font-family: var(--font-kai);
+    font-size: 13px; color: #d8d8d8;
+    letter-spacing: 2px; font-style: italic;
+    margin-top: 6px;
+  }
+  .v3x-fork-hint .sub::before { content: "· "; color: #f5d400; }
+  .v3x-fork-hint .sub::after { content: " ·"; color: #f5d400; }
+
+  /* ============ 右侧"样本已锁定"状态卡片 ============ */
+  .v3x-locked-state {
+    display: block;
+    margin-top: 10px; padding: 12px 14px 10px;
+    background: rgba(0,0,0,0.6); border: 2px solid #f5d400;
+    box-shadow: 3px 3px 0 #00ff66; text-align: left;
+  }
+  body.forked .v3x-action__btn { display: none; }
+  body:not(.forked) .v3x-locked-state { display: none; }
+  .v3x-locked-state__title {
+    font-family: 'Courier New', monospace;
+    font-weight: 900; font-size: 14px;
+    color: #f5d400; letter-spacing: 3px;
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+  .v3x-locked-state__sub {
+    font-family: 'Courier New', monospace;
+    font-size: 11px; color: #fff; letter-spacing: 1.5px;
+  }
+  .v3x-locked-state__bar {
+    margin-top: 7px; height: 4px; background: #222; overflow: hidden;
+  }
+  .v3x-locked-state__bar-fill {
+    height: 100%; width: 100%;
+    background: linear-gradient(90deg, #f5d400, #00ff66);
+    animation: lockedBar 1.4s linear infinite;
+  }
+  @keyframes lockedBar {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* ================ 底部三分支 ================ */
+  .v3x-fork {
+    position: fixed; left: 50%; bottom: 5%;
+    transform: translateX(-50%) translateY(20px);
+    z-index: 20; width: min(1200px, 96vw);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.4s, transform 0.4s;
+  }
+  body.forked .v3x-fork {
+    opacity: 1; transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+  }
+  .v3x-fork .row {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 26px;
+  }
+  .v3x-fork .foot {
+    text-align: center; margin-top: 14px;
+    font-family: var(--font-kai);
+    font-size: 12.5px; color: #d8d8d8;
+    letter-spacing: 1.5px; font-style: italic;
+  }
+  .v3x-fork .foot::before { content: "※ "; color: #f5d400; }
+  .v3x-fork .foot::after { content: " ※"; color: #f5d400; }
+
+  /* 通用 hover/selected · routing-to 标签 */
+  .v3x-fork .path-ancient,
+  .v3x-fork .path-modern,
+  .v3x-fork .path-western {
+    position: relative;
+    display: flex; flex-direction: column;
+    cursor: pointer; text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    overflow: hidden; min-height: 220px;
+  }
+  .v3x-fork .path-ancient .routing-to,
+  .v3x-fork .path-modern .routing-to,
+  .v3x-fork .path-western .routing-to {
+    position: absolute; bottom: 100%; left: 0; right: 0;
+    text-align: center; padding: 7px 0;
+    font-family: 'Courier New', monospace;
+    font-weight: 900; font-size: 12px;
+    letter-spacing: 3px; opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+  }
+  .v3x-fork .path-ancient:hover .routing-to,
+  .v3x-fork .path-modern:hover .routing-to,
+  .v3x-fork .path-western:hover .routing-to {
+    opacity: 1; transform: translateY(0);
+  }
+
+  /* ==================== ① 古代 · 相书签牌 / 卷宗索引卡 v7 · 真实公版素材 ==================== */
+  .v3x-fork .path-ancient {
+    color: #2a1f17;
+    background-color: #f1e3b6;
+    /* ★ 加入真实公版素材局部（1817 木刻相书 + 色诊图）作为底层纹理 */
+    background-image:
+      /* 上层左侧：色诊图局部（中医面部反射区划） */
+      url('img/ancient-chinese-complexion-diagnosis.jpg'),
+      /* 下层整张：木刻相书局部作为底纹 */
+      url('img/ancient-chinese-physiognomy-diagnosis-1817.jpg'),
+      /* 极淡横纹 */
+      repeating-linear-gradient(0deg, rgba(74,58,42,0.06) 0 1px, transparent 1px 7px);
+    background-repeat: no-repeat, no-repeat, repeat;
+    background-size: 40% auto, 280px auto, auto;
+    background-position: 0 100%, 100% 110%, 0 0;
+    border: 2.5px solid #5e4a36;
+    box-shadow: 4px 4px 0 #5e4a36;
+    padding: 0;
+    overflow: hidden;
+  }
+  .v3x-fork .path-ancient::before {
+    content: ""; position: absolute; inset: 6px;
+    border: 1px solid rgba(94,74,54,0.55); pointer-events: none;
+  }
+  .v3x-fork .path-ancient:hover {
+    transform: translateY(-4px); border-color: #8a0d0d;
+    box-shadow: 6px 6px 0 #8a0d0d, 0 0 30px rgba(138,13,13,0.35);
+  }
+  .v3x-fork .path-ancient .routing-to { background: #2a0d0d; color: #f1c4c4; }
+  .v3x-fork .path-ancient .header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 10px 14px 6px;
+    border-bottom: 1px dashed rgba(94,74,54,0.4);
+  }
+  .v3x-fork .path-ancient .num {
+    font-family: var(--font-mono);
+    font-size: 12px; letter-spacing: 1.5px;
+    color: #6a5944; padding-top: 2px;
+  }
+  .v3x-fork .path-ancient .num strong { color: #8a0d0d; font-size: 15px; }
+  .v3x-fork .path-ancient .seal {
+    width: 48px; height: 48px;
+    border: 2.5px solid #8a0d0d; color: #8a0d0d;
+    font-family: var(--font-li); font-weight: 700; font-size: 11px;
+    display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+    transform: rotate(-6deg);
+    background: rgba(255,248,225,0.45); line-height: 1;
+  }
+  .v3x-fork .path-ancient .seal span {
+    display: flex; align-items: center; justify-content: center;
+    border-right: 2px solid #8a0d0d; border-bottom: 2px solid #8a0d0d;
+  }
+  .v3x-fork .path-ancient .seal span:nth-child(2n) { border-right: none; }
+  .v3x-fork .path-ancient .seal span:nth-child(n+3) { border-bottom: none; }
+  .v3x-fork .path-ancient .nav-sign {
+    display: flex; padding: 0 14px;
+    background: rgba(94,74,54,0.1);
+    border-bottom: 1px solid rgba(94,74,54,0.5);
+  }
+  .v3x-fork .path-ancient .nav-sign span {
+    flex: 1; height: 7px; border-right: 1px solid rgba(94,74,54,0.4);
+  }
+  .v3x-fork .path-ancient .nav-sign span:last-child { border-right: none; }
+  .v3x-fork .path-ancient .body { padding: 14px 16px; flex: 1; }
+
+  /* ★ 古代真实素材 · 古籍相书局部裁切 · 显示在右下方 */
+  .v3x-fork .path-ancient .ancient-artifact {
+    position: absolute;
+    bottom: 38px;       /* 让按钮在它下方覆盖 */
+    right: 14px;
+    width: 110px;
+    height: 90px;
+    object-fit: cover;
+    object-position: 60% 30%;   /* 裁切局部（人脸 + 宫位标记） */
+    filter: sepia(0.55) saturate(0.5) brightness(0.95) contrast(1.05);
+    opacity: 0.42;
+    border: 1.5px solid #8a0d0d;
+    box-shadow: 2px 2px 0 rgba(94,74,54,0.6);
+    pointer-events: none;
+    z-index: 0;
+  }
+  /* 古代 body 内的文字相对提升 */
+  .v3x-fork .path-ancient .body > * { position: relative; z-index: 2; }
+  .v3x-fork .path-ancient .name {
+    font-family: var(--font-li); font-size: 30px; font-weight: 700;
+    letter-spacing: 8px; color: #2a1f17;
+    line-height: 1.1; margin-bottom: 4px;
+  }
+  .v3x-fork .path-ancient .sub {
+    font-family: var(--font-kai); font-size: 14px;
+    letter-spacing: 5px; color: #4a3a2a; margin-bottom: 10px;
+  }
+  .v3x-fork .path-ancient .divider {
+    height: 1px; background: rgba(138,13,13,0.6);
+    margin: 8px 0; position: relative;
+  }
+  .v3x-fork .path-ancient .divider::after {
+    content: "朱砂批"; position: absolute; top: -7px; right: 0;
+    background: rgba(241,227,182,1); padding: 0 6px;
+    font-family: var(--font-kai); font-size: 10px;
+    color: #8a0d0d; letter-spacing: 2px; font-weight: 700;
+  }
+  .v3x-fork .path-ancient .seal-line {
+    font-family: var(--font-kai); font-size: 11px;
+    color: #8a0d0d; letter-spacing: 2px;
+    margin-bottom: 10px; font-weight: 700;
+  }
+  .v3x-fork .path-ancient .keys {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 10px 14px;
+    background: rgba(255,248,225,0.6);
+    border-top: 1px dashed rgba(138,13,13,0.5);
+  }
+  .v3x-fork .path-ancient .keys span {
+    font-family: var(--font-kai); font-size: 13px;
+    padding: 3px 8px; background: rgba(255,248,225,1);
+    border: 1px solid #8a0d0d; color: #2a1f17;
+    letter-spacing: 2px; font-weight: 700;
+  }
+  .v3x-fork .path-ancient .action {
+    padding: 14px 16px; border-top: 1px solid #5e4a36;
+    text-align: right; background: rgba(94,74,54,0.18);
+  }
+  .v3x-fork .path-ancient .enter {
+    display: inline-block; font-family: var(--font-mono);
+    font-weight: 700; font-size: 14px;
+    letter-spacing: 5px; color: #8a0d0d;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border: 1.5px solid #8a0d0d;
+    background: rgba(255,248,225,0.8);
+  }
+  .v3x-fork .path-ancient .enter::after { content: " ⇢"; }
+
+  /* ==================== ② 现代 · 身份清仓标签机 v7 · 半真实：摄像头抓拍 + 系统识别条 ==================== */
+  .v3x-fork .path-modern {
+    color: #1a1a1a;
+    background-color: #f5ecd0;
+    background-image: repeating-linear-gradient(0deg, rgba(0,0,0,0.05) 0 1px, transparent 1px 5px);
+    border: 4px solid #1a1a1a;
+    box-shadow: 7px 7px 0 #d60000;
+    padding: 0;
+    overflow: hidden;
+  }
+  .v3x-fork .path-modern:hover {
+    transform: translateY(-4px); border-color: #d60000;
+    box-shadow: 10px 10px 0 #d60000, 0 0 30px rgba(214,0,0,0.4);
+  }
+  .v3x-fork .path-modern .routing-to { background: #1a1a1a; color: #f5d400; }
+  .v3x-fork .path-modern .header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 14px 7px; border-bottom: 2px solid #1a1a1a;
+    background: #1a1a1a; color: #f5d400;
+  }
+  .v3x-fork .path-modern .num {
+    font-family: 'Courier New', monospace; font-weight: 900;
+    font-size: 12px; letter-spacing: 1.5px; color: #f5d400;
+  }
+  .v3x-fork .path-modern .num strong { font-size: 15px; color: #f5d400; }
+  .v3x-fork .path-modern .sku-chip {
+    background: #d60000; color: #fff;
+    font-family: 'Courier New', monospace; font-weight: 900;
+    font-size: 12px; padding: 3px 9px;
+    border: 2px solid #1a1a1a; letter-spacing: 1.4px;
+  }
+  .v3x-fork .path-modern .barcode {
+    padding: 6px 14px; background: #fff;
+    border-bottom: 2px solid #1a1a1a;
+    font-family: 'Courier New', monospace; font-size: 13px;
+    color: #1a1a1a; letter-spacing: 2px;
+  }
+  /* ★ 现代真实素材 · 多层身份识别结果（v8 完全重做） */
+  .v3x-fork .path-modern .modern-capture {
+    background: #0a0a0e;
+    background-image:
+      repeating-linear-gradient(90deg, rgba(34,197,94,0.05) 0 1px, transparent 1px 18px);
+    border-bottom: 2px solid #1a1a1a;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 78px;
+  }
+  /* 左侧：摄像头缩略 + 标签 */
+  .v3x-fork .path-modern .mod-side-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .v3x-fork .path-modern .cam-frame {
+    background: #000;
+    border: 1.5px solid #22c55e;
+    width: 90px; height: 50px;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 8px rgba(34,197,94,0.4) inset, 0 0 4px rgba(34,197,94,0.6);
+  }
+  .v3x-fork .path-modern .cam-frame svg {
+    width: 100%; height: 100%; display: block;
+  }
+  .v3x-fork .path-modern .cam-label {
+    color: #22c55e;
+    font-family: 'Courier New', monospace;
+    font-weight: 900; font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  /* 右侧：AI-LIVE · 系统识别粘纸（多行） */
+  .v3x-fork .path-modern .mod-side-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  .v3x-fork .path-modern .ai-tag {
+    color: #22c55e;
+    font-family: 'Courier New', monospace;
+    font-weight: 900; font-size: 12px;
+    letter-spacing: 1.5px;
+    padding: 4px 8px;
+    border: 1.5px solid #22c55e;
+    background: rgba(34,197,94,0.12);
+    text-transform: uppercase;
+  }
+  .v3x-fork .path-modern .ai-spec {
+    color: #f5d400;
+    font-family: 'Courier New', monospace;
+    font-weight: 900; font-size: 10px;
+    letter-spacing: 1.5px;
+    background: rgba(214,0,0,0.85);
+    border: 1.2px solid #d60000;
+    padding: 2px 6px;
+    text-transform: uppercase;
+  }
+  .v3x-fork .path-modern .ai-meta {
+    color: #1a1a1a;
+    font-family: 'Courier New', monospace;
+    font-weight: 700; font-size: 9px;
+    letter-spacing: 0.8px;
+    background: #fff;
+    padding: 1.5px 5px;
+    border: 1px solid #1a1a1a;
+  }
+  /* ★ 像素化人脸预览条（8 个色块模拟"模糊像素头像"） */
+  .v3x-fork .path-modern .mod-pixel-face {
+    background: #f5ecd0;
+    border-bottom: 2px solid #1a1a1a;
+    padding: 6px 12px;
+  }
+  .v3x-fork .path-modern .mod-pixel-row {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    height: 14px;
+  }
+  .v3x-fork .path-modern .px {
+    background: #1a1a1a;
+    height: 100%;
+  }
+  /* 让中间 4 个像素块更亮（模拟"人脸轮廓"） */
+  .v3x-fork .path-modern .px:nth-child(3) { background: #d4a878; }
+  .v3x-fork .path-modern .px:nth-child(4) { background: #d4a878; }
+  .v3x-fork .path-modern .px:nth-child(5) { background: #d4a878; }
+  .v3x-fork .path-modern .px:nth-child(6) { background: #d4a878; }
+  .v3x-fork .path-modern .body { padding: 14px 16px; flex: 1; }
+  .v3x-fork .path-modern .name {
+    font-family: 'Impact', 'Arial Black', sans-serif; font-size: 36px;
+    font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
+    color: #1a1a1a;
+    text-shadow: 3px 3px 0 #f5d400, 6px 6px 0 #1a1a1a;
+    line-height: 1; margin: 0 0 6px;
+  }
+  .v3x-fork .path-modern .sub {
+    font-family: 'Impact', 'Arial Black', sans-serif; font-size: 15px;
+    font-weight: 900; letter-spacing: 3px; text-transform: uppercase;
+    color: #1a1a1a; margin-bottom: 12px;
+  }
+  .v3x-fork .path-modern .sku-strip {
+    display: flex; height: 12px; margin-bottom: 12px;
+    border: 2px solid #1a1a1a;
+  }
+  .v3x-fork .path-modern .sku-strip span { flex: 1; border-right: 1px solid #1a1a1a; }
+  .v3x-fork .path-modern .sku-strip span:last-child { border-right: none; }
+  .v3x-fork .path-modern .sku-strip .s1 { background: #fde047; }
+  .v3x-fork .path-modern .sku-strip .s2 { background: #22d3ee; }
+  .v3x-fork .path-modern .sku-strip .s3 { background: #22c55e; }
+  .v3x-fork .path-modern .sku-strip .s4 { background: #fde047; }
+  .v3x-fork .path-modern .sku-strip .s5 { background: #f9a8d4; }
+  .v3x-fork .path-modern .sku-strip .s6 { background: #fef3c7; }
+  .v3x-fork .path-modern .tags-row { display: flex; gap: 5px; }
+  .v3x-fork .path-modern .tags-row span {
+    flex: 1; text-align: center;
+    font-family: 'Courier New', monospace; font-weight: 900;
+    font-size: 12px; letter-spacing: 1.2px;
+    padding: 4px 6px; border: 2px solid #1a1a1a;
+    color: #1a1a1a; box-shadow: 2px 2px 0 #1a1a1a;
+  }
+  .v3x-fork .path-modern .tags-row .t1 { background: #fde047; }
+  .v3x-fork .path-modern .tags-row .t2 { background: #22d3ee; }
+  .v3x-fork .path-modern .tags-row .t3 { background: #22c55e; }
+  .v3x-fork .path-modern .tags-row .t4 { background: #f9a8d4; }
+  .v3x-fork .path-modern .action {
+    padding: 12px 16px; border-top: 2px solid #1a1a1a;
+    background: #1a1a1a; color: #fff;
+    display: flex; justify-content: space-between; align-items: center; gap: 14px;
+  }
+  .v3x-fork .path-modern .recom {
+    font-family: 'Impact', 'Arial Black', sans-serif; font-weight: 900;
+    font-size: 13px; letter-spacing: 2.5px;
+    color: #f5d400; text-transform: uppercase;
+  }
+  .v3x-fork .path-modern .enter {
+    display: inline-block; font-family: 'Courier New', monospace;
+    font-weight: 900; font-size: 14px; letter-spacing: 5px;
+    color: #1a1a1a; background: #f5d400;
+    padding: 8px 14px; border: 2px solid #1a1a1a;
+    box-shadow: 3px 3px 0 #d60000; text-transform: uppercase;
+  }
+  .v3x-fork .path-modern .enter::after { content: " ⇢"; }
+
+  /* ==================== ③ 西方 · 冷档案索引卡 v6 · 细卡版（去除黑色大条） ==================== */
+  .v3x-fork .path-western {
+    color: #141414;
+    background-color: #ece8db;
+    /* 冷灰网格底 */
+    background-image:
+      /* 主网格：8×8 极淡灰 */
+      repeating-linear-gradient(0deg, rgba(20,20,20,0.045) 0 1px, transparent 1px 6px),
+      repeating-linear-gradient(90deg, rgba(20,20,20,0.045) 0 1px, transparent 1px 6px),
+      /* 细横纹底 */
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.04) 0 1px, transparent 1px 6px);
+    border: 1.5px solid #141414;        /* ★ 边框变细 · 2.5 → 1.5 */
+    padding: 0;
+    box-shadow: 3px 3px 0 #141414;     /* ★ 阴影变薄 · 4 → 3 */
+  }
+  /* 内层细框（双层档案感） */
+  .v3x-fork .path-western::before {
+    content: ""; position: absolute; inset: 4px;
+    border: 1px dashed rgba(20,20,20,0.45);
+    pointer-events: none;
+  }
+  .v3x-fork .path-western:hover {
+    transform: translateY(-3px); border-color: #8a1a1a;
+    box-shadow: 4px 4px 0 #8a1a1a, 0 0 24px rgba(138,26,26,0.3);
+  }
+  /* routing-to */
+  .v3x-fork .path-western .routing-to {
+    background: #f5f5f5; color: #141414;
+    border-bottom: 1px solid #141414;
+  }
+
+  /* ① 顶部细档案标题行（不再用厚重黑条） */
+  .v3x-fork .path-western .header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 14px;
+    border-bottom: 1px dashed rgba(20,20,20,0.4);
+    background: rgba(255,255,255,0.55);    /* ★ 透白纸感 · 不再纯黑 */
+    color: #141414;
+  }
+  .v3x-fork .path-western .num {
+    font-family: var(--font-mono);
+    font-size: 11px; letter-spacing: 1.5px;
+    color: #4a4a4a;
+  }
+  .v3x-fork .path-western .num strong { font-size: 14px; color: #8a1a1a; }
+  /* WPA 编号（细黑字 · 不再白底硬章） */
+  .v3x-fork .path-western .wpa {
+    color: #141414;
+    font-family: var(--font-mono); font-weight: 700;
+    font-size: 10px; letter-spacing: 2px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .v3x-fork .path-western .wpa::before {
+    content: ""; display: inline-block;
+    width: 10px; height: 10px;
+    background: #8a1a1a;
+    border-radius: 0;
+  }
+  .v3x-fork .path-western .wpa::after {
+    content: " · REDACTED";
+    color: #8a1a1a;
+    font-weight: 900;
+  }
+
+  /* 细红线（不再有 2.5px 黑条分隔） */
+  .v3x-fork .path-western .meas-strip {
+    height: 4px;
+    background:
+      repeating-linear-gradient(90deg, #8a1a1a 0 1px, transparent 1px 4px) 0 0/8px 2px no-repeat,
+      repeating-linear-gradient(90deg, #1f3142 0 1px, transparent 1px 4px) 0 2px/8px 2px no-repeat,
+      #fff;
+    border-bottom: 1px dashed rgba(20,20,20,0.4);
+  }
+
+  /* ★ 西方真实素材 · Bertillon 全图低透明度贯穿整张卡（背景层） */
+  .v3x-fork .path-western .western-bg-bertillon {
+    position: absolute;
+    inset: 0;
+    background-image: url('img/wellcome-anthropometry-32016.jpg');
+    background-repeat: no-repeat;
+    background-position: center 20%;
+    background-size: 130% auto;
+    filter: grayscale(0.85) contrast(1.05) brightness(1.05);
+    opacity: 0.12;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .v3x-fork .path-western > * { position: relative; z-index: 1; }
+  .v3x-fork .path-western .western-bg-bertillon { z-index: 0; }
+
+  /* ★ 西方真实素材 · 档案胶片条（一整条横向胶卷 · 5 帧） */
+  .v3x-fork .path-western .western-film-strip {
+    background: #0a0a0e;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 3px;
+    padding: 5px 12px;
+    border-top: 1px dashed rgba(20,20,20,0.4);
+    border-bottom: 1px dashed rgba(20,20,20,0.4);
+    position: relative;
+    z-index: 2;
+  }
+  .v3x-fork .path-western .film-frame {
+    background-color: #f5f2e8;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    border: 1px solid #2a2a2a;
+    height: 58px;
+    position: relative;
+    overflow: hidden;
+  }
+  .v3x-fork .path-western .film-frame::before {
+    content: attr(title);
+    position: absolute;
+    top: 2px; left: 0; right: 0;
+    text-align: center;
+    background: rgba(255,255,255,0.92);
+    color: #141414;
+    font-family: 'Courier New', monospace;
+    font-size: 7.5px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    padding: 1px 0;
+    border-bottom: 1px solid rgba(20,20,20,0.5);
+    text-transform: uppercase;
+  }
+  .v3x-fork .path-western .film-frame::after {
+    content: counter(frame);
+    position: absolute;
+    bottom: 2px; right: 3px;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    background: rgba(0,0,0,0.5);
+    padding: 0 4px;
+  }
+  .v3x-fork .path-western .western-film-strip {
+    counter-reset: frame;
+  }
+  .v3x-fork .path-western .film-frame {
+    counter-increment: frame;
+  }
+  /* 5 帧：不同公版图 · 不同冷灰处理 */
+  .v3x-fork .path-western .film-frame-bertillon {
+    background-image: url('img/wellcome-anthropometry-32016.jpg');
+    background-position: 70% 30%;
+    filter: grayscale(0.4) contrast(1.15);
+  }
+  .v3x-fork .path-western .film-frame-criminal {
+    background-image: url('img/wellcome-criminal-6996.jpg');
+    background-position: center center;
+    filter: grayscale(0.5) contrast(1.15) brightness(0.9);
+  }
+  .v3x-fork .path-western .film-frame-anatomy {
+    background-image: url('img/wellcome-anatomy-31839.jpg');
+    background-position: center 30%;
+    filter: grayscale(0.45) contrast(1.15);
+  }
+  .v3x-fork .path-western .film-frame-phrenology {
+    background-image: url('img/wellcome-phrenology-12998.jpg');
+    background-position: 35% center;
+    filter: grayscale(0.5) contrast(1.15);
+  }
+  .v3x-fork .path-western .film-frame-phrenology2 {
+    background-image: url('img/wellcome-phrenology-32099.jpg');
+    background-position: 50% center;
+    filter: grayscale(0.5) contrast(1.15);
+  }
+
+  /* ★ 西方真实素材 · Lavater 侧影局部作为右侧叠层（v9 加强版） */
+  .v3x-fork .path-western .west-lavater-overlay {
+    position: absolute;
+    right: 12px;
+    top: 46%;
+    transform: translateY(-50%);
+    width: 96px; height: 130px;
+    background-image: url('img/lavater-silhouette-L-1789.jpg');
+    background-repeat: no-repeat;
+    background-position: 72% center;        /* ★ 偏向右侧放侧脸头像 */
+    background-size: 220% auto;            /* ★ 加大放大比，聚焦头部 */
+    filter: grayscale(0.55) contrast(1.25) brightness(0.92) sepia(0.15);
+    opacity: 0.72;                          /* ★ 提高可见度 · 是素材不是装饰 */
+    pointer-events: none;
+    z-index: 1;
+    border: 1px solid #141414;
+    box-shadow: 2px 2px 0 #141414;
+  }
+  /* 叠加测线/编号在 Lavater 上 */
+  .v3x-fork .path-western .west-lavater-overlay::before {
+    content: "T1";
+    position: absolute;
+    top: 4px; left: 4px;
+    background: rgba(138,26,26,0.85);
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-weight: 700; font-size: 8px;
+    padding: 1px 4px;
+    border: 0.5px solid #fff;
+  }
+  .v3x-fork .path-western .west-lavater-overlay::after {
+    content: "▌ LAVATER 1789";
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(255,255,255,0.92);
+    color: #141414;
+    font-family: 'Courier New', monospace;
+    font-weight: 700; font-size: 7.5px;
+    letter-spacing: 1px;
+    padding: 2px 0;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  /* 主区域：测量卡感 */
+  .v3x-fork .path-western .body {
+    padding: 14px 16px; flex: 1;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* 主标题行：左名 + 右小型 Lavater 侧影 */
+  .v3x-fork .path-western .name-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 4px;
+  }
+  .v3x-fork .path-western .name {
+    font-family: var(--font-serif); font-size: 30px;
+    font-weight: 700; letter-spacing: 6px;
+    color: #141414; line-height: 1.1;
+  }
+
+  /* ① Lavater 风格侧影线框（不是黑色人头贴纸） */
+  .v3x-fork .path-western .profile-mini {
+    /* ★ 已删除耳朵线稿占位 SVG · CSS 残废 */
+    display: none;
+  }
+  /* ② 小数据栏（HT / CR） */
+  .v3x-fork .path-western .sub {
+    font-family: var(--font-mono); font-size: 12px;
+    font-weight: 700; letter-spacing: 2.5px;
+    color: #4a4a4a; text-transform: uppercase; margin-bottom: 8px;
+  }
+  /* ③ 冷灰档案分割线（带 COLD ARCHIVE 标签） */
+  .v3x-fork .path-western .divider {
+    height: 1px; background: rgba(20,20,20,0.4);
+    margin: 6px 0; position: relative;
+  }
+  .v3x-fork .path-western .divider::after {
+    content: "COLD ARCHIVE · LOCKED";
+    position: absolute; top: -7px; right: 0;
+    background: #ece8db; padding: 0 6px;
+    font-family: var(--font-mono); font-size: 9px;
+    color: #141414; letter-spacing: 2px; font-weight: 700;
+  }
+  /* ④ 档案字段 HT / CR */
+  .v3x-fork .path-western .cinfo {
+    display: flex; gap: 14px; margin-bottom: 10px;
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 1px;
+    align-items: baseline;
+  }
+  .v3x-fork .path-western .cinfo .ck { color: #4a4a4a; font-weight: 700; }
+  .v3x-fork .path-western .cinfo .cv { color: #8a1a1a; font-weight: 700; }
+  .v3x-fork .path-western .cinfo .sep {
+    width: 1px; height: 10px;
+    background: rgba(20,20,20,0.3);
+    display: inline-block;
+    align-self: center;
+  }
+  .v3x-fork .path-western .archive-locked {
+    font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 2px;
+    color: #4a4a4a;
+    border: 1px solid #4a4a4a;
+    padding: 2px 6px;
+    text-transform: uppercase;
+  }
+
+  /* ⑤ 关键词 */
+  .v3x-fork .path-western .keys {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .v3x-fork .path-western .keys span {
+    font-family: var(--font-mono); font-size: 11px;
+    font-weight: 700; letter-spacing: 1.5px;
+    padding: 3px 7px; background: rgba(255,255,255,0.7);
+    border: 1px solid #141414; color: #141414;
+    text-transform: uppercase;
+  }
+
+  /* ⑥ 底部：左侧小型测量尺 + 右侧档案按钮 */
+  .v3x-fork .path-western .action {
+    padding: 12px 16px;
+    border-top: 1px dashed rgba(20,20,20,0.4);
+    background: rgba(255,255,255,0.4);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .v3x-fork .path-western .ruler-mini {
+    width: 76px; height: 14px;
+    background:
+      linear-gradient(to right, #141414 0 1px, transparent 1px 5px) 0 0/5px 4px no-repeat,
+      linear-gradient(to right, #141414 0 1px, transparent 1px 10px) 0 8px/10px 6px no-repeat,
+      #fff;
+    border: 1px solid #141414;
+  }
+  .v3x-fork .path-western .enter {
+    display: inline-block; font-family: var(--font-mono);
+    font-weight: 700; font-size: 13px; letter-spacing: 4px;
+    color: #141414; background: rgba(255,255,255,0.8);
+    padding: 7px 12px; border: 1px solid #141414;
+    text-transform: uppercase;
+  }
+  .v3x-fork .path-western .enter::after { content: " ⇢"; }
+
+  /* ★★★ 现代样本对照 · 结果页内静态展示区（仅展示，不参与分类） ★★★ */
+  .v3x-sample-compare {
+    margin: 14px auto 16px;
+    padding: 14px 14px 12px;
+    border: 1px dashed #d4b94a;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.28);
+    color: #f4ecd6;
+    text-align: left;
+    box-sizing: border-box;
+  }
+  .v3x-sample-compare__title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #f4d35e;
+    text-transform: none;
+  }
+  .v3x-sample-compare__sub {
+    margin-top: 4px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: #d8cfb6;
+  }
+  .v3x-sample-compare__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 10px;
+    justify-content: flex-start;
+  }
+  .v3x-sample-compare__cell {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .v3x-sample-compare__img {
+    display: block;
+    width: 200px;
+    height: 140px;
+    object-fit: cover;
+    border: 1px solid #6b5a1f;
+    border-radius: 6px;
+    background: #111;
+  }
+  .v3x-sample-compare__cap {
+    margin-top: 6px;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    color: #efe2b3;
+  }
+  .v3x-sample-compare__note {
+    margin-top: 10px;
+    font-size: 10.5px;
+    line-height: 1.5;
+    color: #b9ad8a;
+    font-style: italic;
+  }
+  @media (max-width: 480px) {
+    .v3x-sample-compare__img { width: 140px; height: 110px; }
+  }
+
+  /* ★★★ Face Scan Overlay（仅视觉 demo · 不接 AI） ★★★ */
+  .v3x-scan-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 4;
+  }
+  /* ★ 摄像头启用 face mesh 真实点阵后，隐藏页面级的四个黄方框（不再视觉重复） */
+  body.face-mesh-on .v3x-frame .v3x-corner { display: none !important; }
+  .v3x-scan-hud {
+    position: absolute;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 6;
+    padding: 4px 12px;
+    border: 1px solid #f5d400;
+    background: rgba(0, 0, 0, 0.55);
+    color: #f5d400;
+    font-size: 10px;
+    letter-spacing: 3px;
+    font-family: 'Courier New', monospace;
+    pointer-events: none;
+    text-shadow: 0 0 6px rgba(245, 212, 0, 0.6);
+  }
+
+  /* 隐藏 v3x-modal / v3x-result · 它们不该出现 */
+  .demo-hide { display: none !important; }
+
+  /* ★★★ result-layer · 三层结构 overlay 模式 ★★★
+     摄像头永远在底层 · 半透明 backdrop + 中心 iframe 档案框 */
+  #result-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    pointer-events: none;
+    background: transparent;
+  }
+  #result-layer.is-active {
+    display: block !important;
+    pointer-events: auto;
+    background: rgba(0, 0, 0, 0.28);
+  }
+  #result-layer > [data-view] { display: none !important; }
+
+  /* ★ 中心档案框（modal shell）· 弹在摄像头背景之上 */
+  .result-modal-shell {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(1180px, 88vw);
+    height: min(820px, 86vh);
+    transform: translate(-50%, -50%);
+    background: transparent;
+    overflow: hidden;
+    border: 3px solid #f5d400;
+    box-shadow: 8px 8px 0 #d60000;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ★ toolbar · 顶部按钮区 · 「← 返回选择」 + 「← 摄像头」 */
+  .result-modal-toolbar {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(10, 8, 6, 0.92);
+    border-bottom: 1.5px solid #f5d400;
+    flex: 0 0 auto;
+  }
+  .result-modal-toolbar button {
+    background: #1a1a1a;
+    color: #f5d400;
+    border: 1.5px solid #f5d400;
+    box-shadow: 3px 3px 0 #d60000;
+    padding: 8px 14px;
+    font-family: 'Courier New', monospace;
+    font-weight: 900;
+    letter-spacing: 2px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .result-modal-toolbar button:hover {
+    background: #f5d400;
+    color: #1a1a1a;
+  }
+  .result-modal-toolbar .result-back-select-btn { /* 返回三路径选择 */ }
+  .result-modal-toolbar .result-back-camera-btn { /* 结束本轮 · 回摄像头 */ }
+
+  /* ★ content · iframe 区 · 必须可滚动 */
+  .result-modal-content {
+    position: relative;
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* ★ iframe · 装 ancient/modern/western 三个结果页 */
+  .result-frame {
+    width: 100%;
+    height: 100%;
+    background: #0a0806;
+    border: none;
+    display: block;
+  }
+  .result-loading {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #f5d400; font-family: 'Courier New', monospace;
+    font-weight: 900; letter-spacing: 4px; font-size: 14px;
+    background: #0a0806;
+    pointer-events: none;
+  }
+
+  /* ★ ancient AI loading overlay · BIAS 黑黄红风格 */
+  .ancient-loading {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: #0a0806;
+    color: #f5d400;
+    font-family: 'Courier New', monospace;
+  }
+  .ancient-loading__inner {
+    text-align: center;
+    padding: 40px 24px;
+    border: 1.5px solid #f5d400;
+    box-shadow: 6px 6px 0 #d60000;
+    background: rgba(20, 14, 6, 0.95);
+    max-width: 520px;
+  }
+  .ancient-loading__bar {
+    display: flex; gap: 6px; justify-content: center;
+    margin-bottom: 18px;
+  }
+  .ancient-loading__bar span {
+    width: 16px; height: 16px;
+    background: #f5d400;
+    animation: ancient-loading-bounce 1.2s infinite ease-in-out;
+  }
+  .ancient-loading__bar span:nth-child(2) { animation-delay: 0.15s; background: #d60000; }
+  .ancient-loading__bar span:nth-child(3) { animation-delay: 0.30s; }
+  @keyframes ancient-loading-bounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+    40%           { transform: scale(1.0); opacity: 1; }
+  }
+  .ancient-loading__kicker {
+    font-size: 11px; letter-spacing: 6px; color: #d60000;
+    margin-bottom: 10px;
+  }
+  .ancient-loading__title {
+    font-size: 18px; font-weight: 900; letter-spacing: 3px;
+    color: #f5d400; margin-bottom: 8px;
+  }
+  .ancient-loading__subtitle {
+    font-size: 13px; color: #fff; margin-bottom: 14px;
+    letter-spacing: 1px;
+  }
+  .ancient-loading__note {
+    font-size: 10px; color: rgba(245, 212, 0, 0.6);
+    letter-spacing: 4px;
+  }
+  /* ★ pathSelect 按钮锁定（防止 AI 请求中重复点击） */
+  [data-locked] { opacity: 0.4; pointer-events: none; cursor: not-allowed; }
+
+  /* ★ 顶部 dev-only 按钮：正式 UI 默认隐藏 · ?debug=1 才显示
+     避免灰白原生按钮污染 BIAS SYSTEM 黑黄红风格 */
+  .v3x-dev-only { display: none !important; }
+  body.v3x-dev-mode .v3x-dev-only { display: inline-flex !important; }
+  /* ★ dev-only 顶部导航按钮（摄像头 / 路径选择）系统风格
+     黑底黄边红影 · 与 BIAS SYSTEM 一致 · 不用原生灰白 */
+  .v3x-topbar__nav { display: inline-flex; gap: 6px; margin-left: 16px; }
+  .v3x-topbar__nav button {
+    background: rgba(0,0,0,0.7); color: #f5d400;
+    border: 1.5px solid #f5d400; box-shadow: 2px 2px 0 #d60000;
+    padding: 4px 12px; font-family: 'Courier New', monospace;
+    font-weight: 900; letter-spacing: 2px; cursor: pointer;
+    font-size: 11px; text-transform: uppercase;
+  }
+  .v3x-topbar__nav button:hover { background: #f5d400; color: #1a1a1a; }
+  .v3x-topbar__nav button.is-active { background: #d60000; color: #fff; border-color: #fff; }
+
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+   ★★★ camera-layer · 摄像头层（永远常驻 · 不允许被任何 view 替换） ★★★
+   video、topbar、frame、left/right side、bottom、quit 全部在这里
+   只初始化一次 · 不允许 pathSelect / result 触碰这里
+============================================================ -->
+<div id="camera-layer" style="position:relative; z-index:1;">
+
+<!-- ============ 全屏摄像头背景 ============ -->
+<video class="v3x-video-bg" id="v3xVideo" autoplay playsinline muted></video>
+<!-- ★ Face Scan Overlay · 仅视觉 demo，不做真实身份识别 -->
+<canvas class="v3x-scan-overlay" id="v3xScanOverlay"></canvas>
+<div class="v3x-scan-hud" id="v3xScanHud">▌ FACE SCAN · 点阵定位中</div>
+<div class="v3x-vignette"></div>
+<div class="v3x-noise"></div>
+
+<!-- ============ 顶部条 ============ -->
+<header class="v3x-topbar">
+  <div class="v3x-topbar__left">
+    <span class="v3x-topbar__led"></span>
+    <span class="v3x-topbar__brand">BIAS SYSTEM</span>
+    <span class="v3x-topbar__sep">/</span>
+    <span class="v3x-topbar__sub">LIVE CLASSIFICATION · 现场归类</span>
+    <!-- ★ 顶部 dev-only 导航按钮：摄像头 / 路径选择
+         正式 UI 默认隐藏 · 仅 URL 带 ?debug=1 时显示
+         避免灰白原生按钮污染 BIAS SYSTEM 黑黄红风格
+         不影响 pathSelect / 结果页 / 立即归类按钮 -->
+    <span class="v3x-topbar__nav v3x-dev-only">
+      <button type="button" id="v3xNavCameraBtn" data-action="nav-camera" title="返回摄像头">摄像头</button>
+      <button type="button" id="v3xNavPathBtn"  data-action="nav-path-select" title="选择归类路径">路径选择</button>
+    </span>
+  </div>
+  <div class="v3x-topbar__right">
+    <span class="v3x-topbar__case">CASE #EXH-00031</span>
+    <span class="v3x-topbar__barcode">▍▌▎▍▎▌▍▎▍▌▎▍▎▍</span>
+    <span class="v3x-topbar__time" id="v3xTime">--:--:--</span>
+  </div>
+</header>
+
+<!-- ============ 中央扫描区 ============ -->
+<div class="v3x-stage">
+  <div class="v3x-frame" id="v3xFrame">
+    <span class="v3x-corner v3x-corner--tl"></span>
+    <span class="v3x-corner v3x-corner--tr"></span>
+    <span class="v3x-corner v3x-corner--bl"></span>
+    <span class="v3x-corner v3x-corner--br"></span>
+    <div class="v3x-scanline"></div>
+    <div class="v3x-crosshair" id="v3xCrosshair"></div>
+  </div>
+</div>
+
+<!-- ============ 左侧状态卡 ============ -->
+<aside class="v3x-side v3x-side--left">
+  <div class="v3x-status" id="v3xStatus">
+    <div class="v3x-status__led"></div>
+    <div class="v3x-status__txt">
+      <div class="v3x-status__title" id="v3xStatusTitle">等待接入摄像头</div>
+      <div class="v3x-status__sub" id="v3xStatusSub">系统将自动读取现场样本</div>
+    </div>
+  </div>
+
+  <div class="v3x-mini" id="v3xMini">
+    <div class="v3x-mini__label">实时数据</div>
+    <div class="v3x-mini__row"><span>SKIN</span><b id="v3xSkin">0.000</b></div>
+    <div class="v3x-mini__row"><span>VAR</span><b id="v3xVar">0</b></div>
+    <div class="v3x-mini__row"><span>SIZE</span><b id="v3xSize">0×0</b></div>
+    <div class="v3x-mini__row"><span>FPS</span><b id="v3xFps">5</b></div>
+  </div>
+</aside>
+
+<!-- ============ 右侧操作卡 ============ -->
+<aside class="v3x-side v3x-side--right">
+  <!-- 等待 / 检测中 / ready：显示「立即归类」按钮 -->
+  <div class="v3x-action" id="v3xAction">
+    <div class="v3x-action__kicker" id="v3xActionKicker">▌ 系统就绪</div>
+    <div class="v3x-action__title" id="v3xActionTitle">当前帧可用于归类</div>
+    <div class="v3x-action__sub" id="v3xActionSub">目标已锁定 · 可直接生成</div>
+    <button class="v3x-action__btn" id="v3xGoBtn" type="button" disabled>
+      <span class="v3x-action__btn-arrow">▶</span>
+      <span>立即归类</span>
+    </button>
+  </div>
+</aside>
+
+<!-- ============ 底部：当前样本 + 流水日志 ============ -->
+<footer class="v3x-bottom">
+  <div class="v3x-sample" id="v3xSample">
+    <div class="v3x-sample__empty">
+      <span class="v3x-sample__empty-icon">⌽</span>
+      <span>等待系统捕获当前帧</span>
+    </div>
+  </div>
+  <div class="v3x-log" id="v3xLog"></div>
+</footer>
+
+<!-- ============ 中央弹窗：归类中 ============ -->
+<div class="v3x-modal" id="v3xModal" hidden>
+  <div class="v3x-modal__box">
+    <div class="v3x-modal__kicker">▌ BIAS SYSTEM · 正在归类</div>
+    <div class="v3x-modal__title" id="v3xModalTitle">系统正在补全标签</div>
+    <div class="v3x-modal__sub" id="v3xModalSub">▌ 用户确认：不需要 ｜ 申诉通道：关闭 ｜ 一旦贴标不可退换</div>
+    <div class="v3x-modal__bar"><div class="v3x-modal__bar-fill" id="v3xModalBar"></div></div>
+  </div>
+</div>
+
+<!-- ============ 结果覆盖层 ============ -->
+<div class="v3x-result" id="v3xResult" hidden>
+  <div class="v3x-result__panel">
+    <!-- 顶部一行 kicker + 4 个小贴纸 -->
+    <div class="v3x-result__top">
+      <div class="v3x-result__kicker">▌ BIAS SYSTEM · 身份清仓 · SYSTEM RECOMMEND</div>
+      <div class="v3x-result__sticker-row">
+        <span class="v3x-sticker v3x-sticker--y">已归档</span>
+        <span class="v3x-sticker v3x-sticker--r">不可逆</span>
+        <span class="v3x-sticker v3x-sticker--c">系统推荐</span>
+        <span class="v3x-sticker v3x-sticker--g">无需确认</span>
+      </div>
+    </div>
+
+    <!-- 居中大标题 -->
+    <div class="v3x-result__verdict" id="v3xResultVerdict">你被归类为</div>
+    <!-- 红色小章 -->
+    <div class="v3x-result__stamp">无需确认</div>
+
+    <!-- 6 张彩色小卡（由 JS 渲染） -->
+    <div class="v3x-result__grid" id="v3xResultGrid"></div>
+
+    <!-- 样本来源（按钮上方 · 小一点） -->
+    <div class="v3x-result__source" id="v3xResultSource"></div>
+
+    <!-- ★ 现代样本对照静态展示区（仅展示，不参与分类） -->
+    <div class="v3x-sample-compare">
+      <div class="v3x-sample-compare__title">现代样本对照：傅首尔脸</div>
+      <div class="v3x-sample-compare__sub">系统将当前输入与「关系表达 / 婚恋议题 / 女性公共表达」样本进行对照。</div>
+      <div class="v3x-sample-compare__row">
+        <div class="v3x-sample-compare__cell">
+          <img class="v3x-sample-compare__img" src="assets/sample-library/modern/fushouer.webp" alt="傅首尔样本对照图 1" />
+          <div class="v3x-sample-compare__cap">FS-01｜表达型公共样本</div>
+        </div>
+        <div class="v3x-sample-compare__cell">
+          <img class="v3x-sample-compare__img" src="assets/sample-library/modern/1200X900_pub_cb202412021618401252278wvt.jpg_6a26dd5dd6494895bfea442d23286571.jpg" alt="傅首尔样本对照图 2" />
+          <div class="v3x-sample-compare__cap">FS-02｜关系议题参照样本</div>
+        </div>
+      </div>
+      <div class="v3x-sample-compare__note">该区域仅展示系统如何把公共人物样本转化为分类参照，不代表真实人格判断。</div>
+    </div>
+
+    <!-- 单行底部信息 + 黄色警示条 -->
+    <div class="v3x-result__info-row">
+      证据链：证据链已生成 &nbsp;|&nbsp;
+      用户确认：不需要 &nbsp;|&nbsp;
+      申请通道：关闭 &nbsp;|&nbsp;
+      结果已写入临时档案 &nbsp;|&nbsp;
+      图像已传 AI &nbsp;|&nbsp;
+      <span id="v3xResultEngine">ENGINE: AI</span>
+    </div>
+    <div class="v3x-result__warning">★ 本次报告未识别输入对象的真实属性 · 仅展示分类系统的运作方式 ★</div>
+
+    <div class="v3x-result__actions">
+      <button class="v3x-result__btn" id="v3xResultAgain" type="button">
+        <span>↻</span>
+        <span>再来一次</span>
+      </button>
+      <button class="v3x-result__btn v3x-result__btn--ghost" id="v3xResultClose" type="button">
+        <span>✕</span>
+        <span>关闭</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 退出按钮（隐藏，按 Q 或点 3 下退出） ============ -->
+<button class="v3x-quit" id="v3xQuit" type="button" title="退出展览">✕</button>
+
+</div><!-- /#camera-layer -->
+
+<!-- ============================================================
+   ★★★ overlay-layer · 路径选择 overlay 层（透明叠在 camera 上） ★★★
+   pathSelect 三张卡 + 中央提示 + 返回按钮
+   永远在 camera-layer 上面（z-index 50）
+   background 必须透明 · 绝不允许遮挡摄像头背景
+============================================================ -->
+<!-- V3X_FORK_STYLES -->
+<!-- 顺序：ai-client.js + image-reader.js 先挂 window · 再加载 exhibition.js 用 window 全局 -->
+<!-- 加 ?v= 时间戳强制禁用缓存 · 路径用 ./ 开头防止 404 -->
+<script src="./ai-client.js?v=20260710-02"></script>
+<script src="./image-reader.js?v=cn2026b"></script>
+<!-- ★ MediaPipe Face Landmarker（仅做 demo 视觉 · 不接入 AI / 分类 / 任何业务） -->
+<script src="https://unpkg.com/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs" type="module"></script>
+<!-- ★ Ancient 本地 16 样本分析器（仅在用户选择 ancient 分支时调用 · 不接 AI） -->
+<script src="./js/ancient-local-system.js?v=20260710-03"></script>
+<script src="./js/modern-local-system.js?v=4"></script>
+<script src="./js/modern-ai-pipeline.js?v=4"></script>
+<script src="./js/modern-face-crop.js?v=4"></script>
+<script src="./exhibition.js?v=20260711-04"></script>
+
+<!--
+  ★ BIAS SYSTEM · Single-Page App
+  三套结果页 + 路径选择 overlay 全部作为内部 section 注入 ·
+  currentView 状态机切换 · 永不跳页
+  注意：所有结果页 HTML / CSS / 文案 / 视觉是原版嵌入式 ·
+        所有 .locked.html 与结果页 .html 保持只读（仅作为代码/资源备份）
+-->
+<!-- ============================================================
+   ★★★ result-layer · 结果层（古代 / 现代 / 西方） · OVERLAY 模式 ★★★
+   半透明背景 + 中心档案框（iframe）
+   摄像头永远在底层 · 关闭结果后立刻可见
+   z-index 80 · 盖住 camera + overlay · 但不会替换摄像头
+============================================================ -->
+<div id="result-layer" data-layer="result" style="display:none;">
+  <!-- 兼容老引用 · 实际样式已移到 <head> 的主 <style> 里 -->
+  <style>
+    /* （result-layer 样式已统一移到 head 里） */
+    .v3x-view-back {
+      position: fixed; top: 12px; left: 12px; z-index: 80;
+      background: #1a1a1a; color: #f5d400; border: 1.5px solid #f5d400;
+      box-shadow: 3px 3px 0 #d60000;
+      padding: 8px 14px; font-family: 'Courier New', monospace; font-weight: 900;
+      letter-spacing: 2px; cursor: pointer; font-size: 12px;
+    }
+    .v3x-spa-back {
+      position: fixed; top: 12px; right: 12px; z-index: 90;
+      display: flex; gap: 8px;
+      pointer-events: auto;
+    }
+    .v3x-view-back-btn {
+      background: #1a1a1a; color: #f5d400; border: 1.5px solid #f5d400;
+      box-shadow: 3px 3px 0 #d60000;
+      padding: 8px 14px; font-family: 'Courier New', monospace; font-weight: 900;
+      letter-spacing: 2px; cursor: pointer; font-size: 12px;
+    }
+    .v3x-view-back-btn:hover { background: #f5d400; color: #1a1a1a; }
+
+    /* ★ 保底 pathSelect overlay · 黑黄红系统风格 · 不依赖 fetch */
+    #v3xFallbackPathSelect {
+      position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      z-index: 999999; pointer-events: auto;
+      width: min(1100px, 94vw); max-height: 92vh; overflow: auto;
+      padding: 0; box-sizing: border-box;
+      font-family: 'Courier New', monospace;
+    }
+    #v3xFallbackPathSelect .v3x-fb-frame {
+      border: 3px solid #f5d400; box-shadow: 8px 8px 0 #d60000;
+      background: #0a0806; padding: 28px 32px;
+    }
+    #v3xFallbackPathSelect .v3x-fb-kicker {
+      color: #f5d400; font-size: 11px; font-weight: 900; letter-spacing: 4px;
+      border-bottom: 1px dashed #f5d400; padding-bottom: 10px; margin-bottom: 16px;
+    }
+    #v3xFallbackPathSelect .v3x-fb-title {
+      color: #fff; font-size: 24px; font-weight: 900; letter-spacing: 3px;
+      text-align: center; margin: 18px 0 24px 0;
+    }
+    #v3xFallbackPathSelect .v3x-fb-status {
+      color: #22c55e; font-size: 12px; font-weight: 900; letter-spacing: 2px;
+      text-align: center; margin-bottom: 24px;
+    }
+    #v3xFallbackPathSelect .v3x-fb-cards {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+    }
+    #v3xFallbackPathSelect .v3x-fb-card {
+      cursor: pointer; background: #0f0f12; border: 2px solid #1a1a1a;
+      box-shadow: 4px 4px 0 #1a1a1a; padding: 18px; min-height: 180px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      transition: transform 0.05s;
+      font-family: 'Courier New', monospace; color: #fff; text-align: left;
+    }
+    #v3xFallbackPathSelect .v3x-fb-card:hover {
+      border-color: #f5d400; box-shadow: 4px 4px 0 #d60000;
+      transform: translate(-1px, -1px);
+    }
+    #v3xFallbackPathSelect .v3x-fb-card:active {
+      transform: translate(2px, 2px); box-shadow: 0 0 0 #d60000;
+    }
+    #v3xFallbackPathSelect .v3x-fb-card-num {
+      color: #f5d400; font-size: 11px; font-weight: 900; letter-spacing: 3px;
+      margin-bottom: 8px;
+    }
+    #v3xFallbackPathSelect .v3x-fb-card-name {
+      color: #fff; font-size: 22px; font-weight: 900; letter-spacing: 4px;
+      margin-bottom: 6px;
+    }
+    #v3xFallbackPathSelect .v3x-fb-card-sub {
+      color: #888; font-size: 10px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; margin-bottom: 12px;
+    }
+    #v3xFallbackPathSelect .v3x-fb-card-desc {
+      color: #ccc; font-size: 12px; line-height: 1.55; font-weight: 400;
+    }
+    #v3xFallbackPathSelect .v3x-fb-card-ancient { border-color: #5e4a36; box-shadow: 4px 4px 0 #5e4a36; }
+    #v3xFallbackPathSelect .v3x-fb-card-ancient:hover { border-color: #5e4a36; box-shadow: 4px 4px 0 #d60000; }
+    #v3xFallbackPathSelect .v3x-fb-card-modern  { border-color: #d60000; box-shadow: 4px 4px 0 #d60000; }
+    #v3xFallbackPathSelect .v3x-fb-card-modern:hover { border-color: #f5d400; }
+    #v3xFallbackPathSelect .v3x-fb-card-western { border-color: #141414; box-shadow: 4px 4px 0 #141414; }
+    #v3xFallbackPathSelect .v3x-fb-card-western:hover { border-color: #f5d400; }
+    #v3xFallbackPathSelect .v3x-fb-foot {
+      color: #888; font-size: 10px; font-weight: 700; letter-spacing: 2px;
+      text-align: center; margin-top: 18px; padding-top: 12px;
+      border-top: 1px dashed #f5d400;
+    }
+
+    /* ★ 顶部导航按钮（dev-only · 默认隐藏）
+       避免灰白原生按钮污染 BIAS SYSTEM 黑黄红风格
+       仅 ?debug=1 时才显示（.v3x-dev-mode 注入 body） */
+    /* v3x-dev-only 规则已统一移到 head 主 <style> 里 · 这里不再重复 */
+
+    /* ★ 顶部导航按钮（摄像头 / 路径选择）
+       系统风格样式已统一移到 head 主 <style>（避免 result-layer display:none 不解析）· 这里不再重复 */
+    .v3x-topbar__nav { /* noop · 样式在 head */ }
+
+    /* ★ pathSelect overlay 浮按钮（返回摄像头） */
+    .v3x-fork-back {
+      position: fixed; top: 14px; left: 14px;
+      background: #1a1a1a; color: #f5d400; border: 1.5px solid #f5d400;
+      box-shadow: 3px 3px 0 #d60000;
+      padding: 8px 14px; font-family: 'Courier New', monospace; font-weight: 900;
+      letter-spacing: 2px; cursor: pointer; font-size: 12px;
+      pointer-events: auto;
+    }
+    .v3x-fork-back:hover { background: #f5d400; color: #1a1a1a; }
+  </style>
+  <!-- 视图：pathSelect（占位 · 实际 overlay 在 #overlay-layer） -->
+  <section data-view="pathSelect" class="v3x-view-overlay"></section>
+  <!-- 视图：ancient（古代结果） -->
+  <section data-view="ancient"></section>
+  <!-- 视图：modern（现代结果） -->
+  <section data-view="modern"></section>
+  <!-- 视图：western（西方结果） -->
+  <section data-view="western"></section>
+  <!-- 视图：error（错误页） -->
+  <section data-view="error"></section>
+</div>
+
+<!-- ★ pathSelect 作为 camera 上的 overlay（不是独立 view） · 始终存在于 DOM · 通过 body.forked 控制 -->
+<div id="overlay-layer" data-layer="overlay" style="display:none; position:fixed; inset:0; z-index:50; pointer-events:none; background:transparent;">
+
+  <!-- 暗化遮罩（让背景稍微暗一点） -->
+  <div style="position:absolute; inset:0; background: radial-gradient(ellipse at 50% 38%, transparent 10%, rgba(0,0,0,0.55) 75%); pointer-events:auto; z-index:1;"></div>
+
+  <!-- 中央检测完成提示 -->
+  <div class="v3x-fork-hint" style="z-index:2;">
+    <div class="pre">PHASE 03 · DETECTION COMPLETE</div>
+    <div class="title">检测完成<br>请选择归类路径</div>
+    <div class="sub">同一份输入 · 将被写入不同档案</div>
+  </div>
+
+  <!-- 顶部「返回摄像头」浮按钮（pathSelect 上唯一出口） -->
+  <button type="button" class="v3x-fork-back" data-action="hide-path-select" style="z-index:25;">← 摄像头</button>
+
+  <!-- 底部三分支 · 三台不同机器质感 -->
+  <div class="v3x-fork" style="z-index:5;">
+    <div class="row">
+
+      <!-- ① 古代 · 相书签牌 / 卷宗索引卡 -->
+      <div class="path-ancient" data-system="ancient" role="button" tabindex="0">
+        <div class="routing-to">⇢ ROUTING TO 古代 · ANCIENT</div>
+        <div class="header">
+          <div class="num"><strong>01</strong> / 03</div>
+          <div class="seal">
+            <span>卷</span><span>六</span>
+            <span>已</span><span>裁</span>
+          </div>
+        </div>
+        <div class="nav-sign"><span></span><span></span><span></span></div>
+        <img class="ancient-artifact" src="img/ancient-chinese-physiognomy-diagnosis-1817.jpg" alt="古代相书" />
+        <div class="body">
+          <div class="name">古代面学</div>
+          <div class="sub">相书卷宗 · 卷六</div>
+          <div class="divider"></div>
+          <div class="seal-line">朱批 · VOL. 06 · CASE 027-A</div>
+          <div class="keys">
+            <span>十二宫</span><span>五官</span><span>气色</span>
+          </div>
+        </div>
+        <div class="action">
+          <div class="enter">入 卷 宗</div>
+        </div>
+      </div>
+
+      <!-- ② 现代 · 身份清仓标签机 -->
+      <div class="path-modern" data-system="modern" role="button" tabindex="0">
+        <div class="routing-to">⇢ ROUTING TO 现代 · MODERN</div>
+        <div class="header">
+          <div class="num"><strong>02</strong> / 03</div>
+          <div class="sku-chip">SKU-02</div>
+        </div>
+        <div class="barcode">▍▌▎▍▎▌▍▎▍▌▎▍▍▎▌▍▎▍▍</div>
+        <div class="modern-capture">
+          <div class="mod-side mod-side-left">
+            <div class="cam-frame">
+              <svg viewBox="0 0 60 50" xmlns="http://www.w3.org/2000/svg">
+                <rect width="60" height="50" fill="#0a0a0e"/>
+                <g fill="#22c55e" opacity="0.5">
+                  <rect x="4" y="6" width="1.5" height="1.5"/>
+                  <rect x="9" y="14" width="1" height="1"/>
+                  <rect x="15" y="9" width="1.2" height="1.2"/>
+                  <rect x="22" y="20" width="1" height="1"/>
+                  <rect x="29" y="7" width="1.5" height="1.5"/>
+                  <rect x="34" y="15" width="1" height="1"/>
+                  <rect x="42" y="11" width="1.5" height="1.5"/>
+                  <rect x="48" y="22" width="1" height="1"/>
+                  <rect x="55" y="9" width="1.2" height="1.2"/>
+                </g>
+                <rect x="9" y="9" width="42" height="34" fill="none" stroke="#22c55e" stroke-width="0.8" stroke-dasharray="2 1"/>
+                <text x="30" y="29" text-anchor="middle" font-size="3.5" font-family="Courier New" fill="#22c55e" font-weight="700">SCANNING</text>
+              </svg>
+            </div>
+            <div class="cam-label">SAMPLE IMG · 320×360</div>
+          </div>
+          <div class="mod-side mod-side-right">
+            <div class="ai-tag">◼ AI-LIVE</div>
+            <div class="ai-spec">SCAN 67%</div>
+            <div class="ai-meta">320×360 · 0.812</div>
+          </div>
+        </div>
+        <div class="mod-pixel-face">
+          <div class="mod-pixel-row">
+            <span class="px"></span><span class="px"></span><span class="px"></span><span class="px"></span>
+            <span class="px"></span><span class="px"></span><span class="px"></span><span class="px"></span>
+          </div>
+        </div>
+        <div class="body">
+          <div class="name">现代面学</div>
+          <div class="sub">身份清仓 · RECOMMEND</div>
+          <div class="sku-strip">
+            <span class="s1"></span><span class="s2"></span><span class="s3"></span>
+            <span class="s4"></span><span class="s5"></span><span class="s6"></span>
+          </div>
+          <div class="tags-row">
+            <span class="t1">性别</span><span class="t2">收入</span>
+            <span class="t3">家庭</span><span class="t4">风险</span>
+          </div>
+        </div>
+        <div class="action">
+          <div class="recom">★ SYSTEM RECOMMEND ★</div>
+          <div class="enter">入 清 仓</div>
+        </div>
+      </div>
+
+      <!-- ③ 西方 · 冷档案索引卡 -->
+      <div class="path-western" data-system="western" role="button" tabindex="0">
+        <div class="routing-to">⇢ ROUTING TO 西方 · WESTERN</div>
+        <div class="western-bg-bertillon"></div>
+        <div class="header">
+          <div class="num"><strong>03</strong> / 03</div>
+          <div class="wpa">W.P.A · ID 027-A</div>
+        </div>
+        <div class="meas-strip"></div>
+        <div class="western-film-strip">
+          <div class="film-frame film-frame-bertillon" title="Bertillon"></div>
+          <div class="film-frame film-frame-criminal" title="Criminal"></div>
+          <div class="film-frame film-frame-anatomy" title="Anatomy"></div>
+          <div class="film-frame film-frame-phrenology" title="Phrenology"></div>
+          <div class="film-frame film-frame-phrenology2" title="Phrenology2"></div>
+        </div>
+        <div class="body">
+          <div class="name-row">
+            <div class="name">西方面学</div>
+            <div class="west-lavater-overlay"></div>
+          </div>
+          <div class="sub">冷档案识别 · COLD ARCHIVE</div>
+          <div class="divider"></div>
+          <div class="cinfo">
+            <span class="ck">HT</span><span class="cv">178.0</span>
+            <span class="sep"></span>
+            <span class="ck">CR</span><span class="cv">82.4</span>
+            <span class="archive-locked">ARCHIVE LOCKED</span>
+          </div>
+          <div class="keys">
+            <span>侧影</span><span>测量</span><span>编号</span>
+          </div>
+        </div>
+        <div class="action">
+          <div class="ruler-mini"></div>
+          <div class="enter">入 档 案</div>
+        </div>
+      </div>
+
+    </div>
+    <div class="foot">※ 选择并不会改变输入 · 只会改变系统如何命名它 ※</div>
+  </div>
+
+</div>
+
+<!-- ★ SPA 入口：拦截所有 a[ data-goto ] / 站内 *.html 跳转 · 改为状态切换 -->
+<script>
+  (function() {
+    'use strict';
+    // ---------- 状态机 ----------
+    window.SPA = window.SPA || {};
+    window.SPA.currentView = 'camera';
+    const VALID = ['camera', 'pathSelect', 'ancient', 'modern', 'western', 'error'];
+
+    // ---------- 通用：fillResultPanel / showResultOverlay ----------
+    // ancient-local-system.js 会调用 window.fillResultPanel(view, result) + window.showResultOverlay(view)
+    // 这里给出最薄实现：写进当前 iframe（如果已经加载）或缓存等 iframe 加载完后再写
+    window.__pendingResultByView = window.__pendingResultByView || {};
+    window.fillResultPanel = function (view, result) {
+      try {
+        window.__pendingResultByView[view] = result;
+        const frame = document.querySelector('#result-layer iframe.result-frame');
+        if (frame && frame.contentWindow) {
+          if (view === 'ancient' && typeof frame.contentWindow.updateAncientResult === 'function') {
+            frame.contentWindow.updateAncientResult(result);
+          } else {
+            frame.contentWindow.postMessage({ type: 'ANCIENT_RESULT', result: result }, '*');
+          }
+        }
+      } catch (e) {
+        console.warn('[fillResultPanel] err', e);
+      }
+    };
+    window.showResultOverlay = function (view) {
+      try {
+        // ★ 直接调用同作用域里的 showResultOverlay（IIFE 内）
+        if (typeof showResultOverlay === 'function') showResultOverlay(view);
+        else if (typeof window.SPA.showResultOverlay === 'function') window.SPA.showResultOverlay(view);
+      } catch (e) {
+        console.warn('[showResultOverlay] err', e);
+      }
+    };
+
+    // ---------- 视图内容来源（fetch 注入 · 不修改 locked.html 与结果页 html） ----------
+    const SOURCES = {
+      pathSelect: 'INLINE',
+      ancient:    '_preview/ancient-skin-v4.html?v=7',
+      modern:     '_preview/modern-skin-v4.html?v=1',
+      western:    '_preview/western-skin.html?v=4',
+    };
+
+    // ---------- 抓取远端 HTML 里的 body 内部 ----------
+    async function fetchBodyHTML(url) {
+      const r = await fetch(url, { cache: 'no-store' });
+      if (!r.ok) throw new Error('fetch ' + url + ' status=' + r.status);
+      const txt = await r.text();
+      const m = txt.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      return m ? m[1] : txt;
+    }
+
+    // ★ 抽取 head 里的 <link rel="stylesheet"> （保证 v3x-fork 样式可用）
+    function extractStylesFromHTML(html) {
+      const out = [];
+      const linkRe = /<link\s+[^>]*rel=["']stylesheet["'][^>]*>/gi;
+      let m;
+      while ((m = linkRe.exec(html))) {
+        out.push(m[0]);
+      }
+      return out;
+    }
+
+    // ★ 抽取 head 里的 <style>...</style>（保证内联样式可用）
+    function extractInlineStylesFromHTML(html) {
+      const out = [];
+      const re = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+      let m;
+      while ((m = re.exec(html))) {
+        out.push(m[1]);
+      }
+      return out;
+    }
+
+    // ★ 把远端 HTML 的样式注入到当前页 head（只注入一次）
+    const _styleCache = new Set();
+    function injectStylesFromURL(url) {
+      // 同一 url 不重复注入
+      if (_styleCache.has(url)) return Promise.resolve();
+      _styleCache.add(url);
+      return fetch(url, { cache: 'no-store' })
+        .then(r => r.ok ? r.text() : null)
+        .then(html => {
+          if (!html) return;
+          // 注入 link rel=stylesheet
+          extractStylesFromHTML(html).forEach(tag => {
+            // 调整路径（远端路径基于 _preview，需要修正）
+            tag = tag.replace(/href=["']\.\.?\/exhibition\.css["']/i, 'href="exhibition.css"');
+            if (document.head.querySelector('link[href*="exhibition.css"]')) return;
+            const div = document.createElement('div');
+            div.innerHTML = tag;
+            const link = div.querySelector('link');
+            if (link) document.head.appendChild(link);
+          });
+          // 注入内联 style
+          extractInlineStylesFromHTML(html).forEach(css => {
+            if (document.head.querySelector('style[data-v3x-fork="1"]')) return;
+            const style = document.createElement('style');
+            style.setAttribute('data-v3x-fork', '1');
+            style.textContent = css;
+            document.head.appendChild(style);
+          });
+        })
+        .catch(e => console.warn('[SPA] injectStyles failed', e));
+    }
+
+    // ★ 给每个内联结果页注入"返回"浮按钮（不修改 locked.html）
+    const BACK_BTN_HTML = '<div class="v3x-spa-back">' +
+      '<button class="v3x-view-back-btn v3x-back-to-camera" type="button" data-action="back-to-camera" title="返回摄像头">← 摄像头</button>' +
+      '<button class="v3x-view-back-btn" type="button" data-goto="pathSelect" title="重选路径">⇢ 路径选择</button>' +
+      '</div>';
+    function injectBackBtn(view) {
+      if (view === 'error') return; // 错误页自己已有返回按钮
+      const sec = document.querySelector('#result-layer > [data-view="' + view + '"]');
+      if (!sec) return;
+      if (!sec.querySelector('.v3x-spa-back')) {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = BACK_BTN_HTML;
+        sec.appendChild(wrap.firstElementChild);
+      }
+    }
+
+    // ★ 保底 pathSelect overlay HTML（黑黄红系统风格 · 3 按钮 · 不依赖 fetch）
+    const FALLBACK_PATH_SELECT_HTML =
+      '<div id="v3xFallbackPathSelect">' +
+      '<div class="v3x-fb-frame">' +
+        '<div class="v3x-fb-kicker">▌ BIAS SYSTEM · PHASE 03 · 检测完成</div>' +
+        '<div class="v3x-fb-title">请 选 择 归 类 路 径</div>' +
+        '<div class="v3x-fb-status">▌ 样本已锁定 · 等待选择分类器</div>' +
+        '<div class="v3x-fb-cards">' +
+          '<button type="button" class="v3x-fb-card v3x-fb-card-ancient" data-system="ancient">' +
+            '<div class="v3x-fb-card-num">01 / 03</div>' +
+            '<div class="v3x-fb-card-name">古 代 面 相</div>' +
+            '<div class="v3x-fb-card-sub">Ancient Chinese Physiognomic Archive</div>' +
+            '<div class="v3x-fb-card-desc">十二宫 / 五官 / 三停 / 五岳 / 气色 / 骨相<br>相书卷宗判读系统</div>' +
+          '</button>' +
+          '<button type="button" class="v3x-fb-card v3x-fb-card-modern" data-system="modern">' +
+            '<div class="v3x-fb-card-num">02 / 03</div>' +
+            '<div class="v3x-fb-card-name">现 代 归 类</div>' +
+            '<div class="v3x-fb-card-sub">Modern Identity Clearance</div>' +
+            '<div class="v3x-fb-card-desc">性取向 / 性别 / 收入 / 家庭 / 婚恋 / 风险<br>身份清仓标签机</div>' +
+          '</button>' +
+          '<button type="button" class="v3x-fb-card v3x-fb-card-western" data-system="western">' +
+            '<div class="v3x-fb-card-num">03 / 03</div>' +
+            '<div class="v3x-fb-card-name">西 方 测 量</div>' +
+            '<div class="v3x-fb-card-sub">Western Physiognomic Archive</div>' +
+            '<div class="v3x-fb-card-desc">古典相貌 / 侧影道德 / 颅骨地图 / 犯罪预兆 / 平均脸 / 算法<br>冷档案测量系统</div>' +
+          '</button>' +
+        '</div>' +
+        '<div class="v3x-fb-foot">键盘 1 / 2 / 3 直接选择 · Esc 取消</div>' +
+      '</div>' +
+      '</div>';
+
+    // ★ 注入 + 绑定保底 pathSelect overlay
+    function ensureFallbackPathSelect() {
+      let el = document.getElementById('v3xFallbackPathSelect');
+      if (!el) {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = FALLBACK_PATH_SELECT_HTML;
+        while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
+        el = document.getElementById('v3xFallbackPathSelect');
+      }
+      // 绑定 3 个按钮
+      el.querySelectorAll('[data-system]').forEach(function(btn) {
+        if (btn.__fbBound) return;
+        btn.__fbBound = true;
+        btn.addEventListener('click', function(ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const systemId = btn.getAttribute('data-system');
+          console.log('[FLOW] path button clicked:', systemId);
+          try { handleSelectSystem(systemId); } catch (e) { console.error('[FLOW] handleSelectSystem err', e); }
+        }, true);
+      });
+      return el;
+    }
+
+    // ★ 隐藏保底 overlay
+    function hideFallbackPathSelect() {
+      const el = document.getElementById('v3xFallbackPathSelect');
+      if (el) el.style.display = 'none';
+    }
+    window.SPA.hideFallbackPathSelect = hideFallbackPathSelect;
+
+    // ---------- 拦截所有跳转 ----------
+
+    // ============================================
+    // ★ pathSelect = camera 上的 overlay · 不是 view
+    //    - currentView 永远是 "camera"
+    //    - pathSelectVisible = true / false 单独标志
+    //    - showPathSelectOverlay() 切换 overlay 显示
+    // ============================================
+    window.SPA.pathSelectVisible = false;
+
+    function showPathSelectOverlay() {
+      console.log('[FLOW] showPathSelectOverlay · currentView =', window.SPA.currentView);
+      window.SPA.pathSelectVisible = true;
+      // ★★★ 核心：只动 overlay-layer · 不动 camera-layer · 不动 result-layer
+      const ov = document.getElementById('overlay-layer');
+      if (ov) {
+        ov.style.display = 'block';
+        // 内部元素恢复 pointer-events:auto
+        ov.querySelectorAll('.v3x-fork-hint, .v3x-fork, .v3x-fork-back').forEach(function(el) {
+          el.style.pointerEvents = 'auto';
+        });
+      }
+      // 关键：body.forked 让 v3x-fork opacity 0→1 · 真正显示
+      document.body.classList.add('forked');
+      // 高亮顶部「路径选择」按钮
+      const navBtn = document.getElementById('v3xNavPathBtn');
+      if (navBtn) navBtn.classList.add('is-active');
+      // 隐藏保底 overlay（如果之前误用）
+      hideFallbackPathSelect();
+      // 关闭任何 result-layer 残留（保证 pathSelect 永远只叠在 camera 上）
+      const resultLayer = document.getElementById('result-layer');
+      if (resultLayer) {
+        resultLayer.style.display = 'none';
+        resultLayer.querySelectorAll('[data-view]').forEach(function(el) { el.classList.remove('is-active'); });
+      }
+      window.SPA.resultVisible = false;
+      console.log('[FLOW] showPathSelectOverlay complete · body.forked =', document.body.classList.contains('forked'));
+    }
+    function hidePathSelectOverlay() {
+      console.log('[FLOW] hidePathSelectOverlay');
+      window.SPA.pathSelectVisible = false;
+      const ov = document.getElementById('overlay-layer');
+      if (ov) ov.style.display = 'none';
+      document.body.classList.remove('forked');
+      const navBtn = document.getElementById('v3xNavPathBtn');
+      if (navBtn) navBtn.classList.remove('is-active');
+    }
+    window.SPA.showPathSelectOverlay = showPathSelectOverlay;
+    window.SPA.hidePathSelectOverlay = hidePathSelectOverlay;
+
+    // ★ 状态：result-layer 是否可见
+    window.SPA.resultVisible = false;
+
+    // ★★★ result overlay iframe 源映射 · 三个结果页作为中心档案框弹在摄像头背景上
+    const RESULT_IFRAME_SRC = {
+      ancient: '_preview/ancient-skin-v4.html?v=7',
+      modern:  '_preview/modern-skin-v4.html?v=1',
+      western: '_preview/western-skin.html?v=4',
+    };
+    window.SPA.RESULT_IFRAME_SRC = RESULT_IFRAME_SRC;
+
+    // ★★★ 三层结构硬性规则 · 绝不允许 pathSelect / result 触碰 camera-layer
+    function show(view) {
+      if (!VALID.includes(view)) view = 'camera';
+
+      // ★ pathSelect 走 overlay 逻辑 · 不切 view · currentView 保持 'camera' · 只动 overlay-layer
+      if (view === 'pathSelect') {
+        showPathSelectOverlay();
+        return;
+      }
+
+      // ★ 离开 pathSelect（切到任何其他 view）· 先关 overlay-layer
+      if (window.SPA.pathSelectVisible) hidePathSelectOverlay();
+
+      window.SPA.currentView = view;
+      const root = document.getElementById('result-layer');
+      if (view === 'camera') {
+        // ★★★ 关闭 result-layer · camera-layer 立刻可见（z-index 1 在底层 · 永远存在）
+        hideResultOverlay();
+        document.body.classList.remove('v3x-view-active');
+        // 隐藏 v3xResult · 恢复 ready
+        var r = document.getElementById('v3xResult');
+        if (r) r.hidden = true;
+        window.SPA.resultVisible = false;
+        return;
+      }
+      // ★ error 页继续用旧的 section（保底 · 不会触发现代/古代/西方的流程）
+      if (view === 'error') {
+        if (root) {
+          root.style.display = 'block';
+          root.classList.add('is-active');
+        }
+        document.body.classList.add('v3x-view-active');
+        window.SPA.resultVisible = true;
+        if (root) {
+          root.querySelectorAll('[data-view]').forEach(function(el) { el.classList.remove('is-active'); });
+          var tgt = root.querySelector('[data-view="error"]');
+          if (tgt) tgt.classList.add('is-active');
+        }
+        return;
+      }
+      // ★★★ 三个结果页（ancient/modern/western）· iframe 作为中心档案框弹在摄像头背景上
+      if (view === 'ancient' || view === 'modern' || view === 'western') {
+        showResultOverlay(view);
+        return;
+      }
+      // 滚到顶
+      window.scrollTo(0, 0);
+    }
+
+    // ★ 显示 result overlay（中心档案框 + iframe）
+    function showResultOverlay(view) {
+      const root = document.getElementById('result-layer');
+      if (!root) return;
+      const src = RESULT_IFRAME_SRC[view] || '';
+      if (!src) {
+        console.warn('[FLOW] no iframe src for view=' + view);
+        return;
+      }
+      // ★ 先清掉旧 iframe（释放内存 · 防卡）
+      const oldIframe = root.querySelector('iframe.result-frame');
+      if (oldIframe) {
+        try { oldIframe.src = 'about:blank'; } catch (e) {}
+      }
+      // ★ 注入新 shell + toolbar + content(iframe) · 三个结果页统一结构
+      // ★ 注意：shell 不能加 data-view 属性 · 否则会被 #result-layer > [data-view] {display:none!important} 误隐藏
+      root.innerHTML =
+        '<div class="result-modal-shell" data-result-view="' + view + '">' +
+          '<div class="result-modal-toolbar">' +
+            '<button class="result-back-select-btn" type="button" data-action="back-to-path-select">← 返回选择</button>' +
+            '<button class="result-back-camera-btn" type="button" data-action="back-to-camera">← 摄像头</button>' +
+          '</div>' +
+          '<div class="result-modal-content">' +
+            '<div class="result-loading">▌ 加载档案 · ' + view + '</div>' +
+            '<iframe class="result-frame" src="' + src + '" frameborder="0" allow="camera; microphone" title="' + view + '"></iframe>' +
+          '</div>' +
+        '</div>';
+      // ★ iframe 加载完移除 loading 提示
+      const frame = root.querySelector('iframe.result-frame');
+      if (frame) {
+        frame.addEventListener('load', function() {
+          const ld = root.querySelector('.result-loading');
+          if (ld) ld.style.display = 'none';
+        }, { once: true });
+      }
+      // ★ 绑定 toolbar 按钮（一次性 onclick · 避免重复 addEventListener）
+      const backSelectBtn = root.querySelector('.result-back-select-btn');
+      if (backSelectBtn) {
+        backSelectBtn.onclick = function(ev) {
+          if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+          if (typeof window.backToPathSelect === 'function') {
+            try { window.backToPathSelect(); return; } catch (e) { console.warn('[FLOW] backToPathSelect err', e); }
+          }
+        };
+      }
+      const backCameraBtn = root.querySelector('.result-back-camera-btn');
+      if (backCameraBtn) {
+        backCameraBtn.onclick = function(ev) {
+          if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+          if (typeof window.resetToCamera === 'function') {
+            try { window.resetToCamera(); return; } catch (e) { console.warn('[FLOW] resetToCamera err', e); }
+          }
+        };
+      }
+      // ★ 显示 result-layer（半透明 backdrop）
+      root.style.display = 'block';
+      root.classList.add('is-active');
+      document.body.classList.add('v3x-view-active');
+      window.SPA.resultVisible = true;
+      // 隐藏主页面里 v3xResult
+      var mainResult = document.getElementById('v3xResult');
+      if (mainResult) mainResult.hidden = true;
+      console.log('[FLOW] showResultOverlay · view=' + view + ' · src=' + src);
+    }
+    window.SPA.showResultOverlay = showResultOverlay;
+
+    // ★ 隐藏 result overlay · 释放 iframe
+    function hideResultOverlay() {
+      const root = document.getElementById('result-layer');
+      if (!root) return;
+      // ★ 先清 iframe src（释放）
+      const oldIframe = root.querySelector('iframe.result-frame');
+      if (oldIframe) {
+        try { oldIframe.src = 'about:blank'; } catch (e) {}
+      }
+      // ★ 清空内容（轻量 · 不重建 DOM）
+      root.innerHTML = '';
+      root.style.display = 'none';
+      root.classList.remove('is-active');
+      window.SPA.resultVisible = false;
+      console.log('[FLOW] hideResultOverlay');
+    }
+    window.SPA.hideResultOverlay = hideResultOverlay;
+    window.SPA.show = show;
+
+    // ---------- 拦截所有跳转 ----------
+    function interceptClick(ev) {
+      // 防止重复触发 · 已经处理过
+      if (ev.__v3xHandled) return;
+      var t = ev.target.closest('a, button, [data-goto], [data-action], [data-system]');
+      if (!t) return;
+
+      // ★ data-action 优先处理（顶部按钮 / 返回按钮 / 路径选择等）
+      var act = t.getAttribute('data-action');
+      if (act) {
+        ev.__v3xHandled = true;
+        ev.preventDefault();
+        ev.stopPropagation();
+        console.log('[FLOW] data-action click · action=' + act);
+        if (act === 'nav-camera' || act === 'back-to-camera') {
+          if (typeof window.resetToCamera === 'function') {
+            try { window.resetToCamera(); return; } catch (e) { console.warn('[FLOW] resetToCamera err', e); }
+          }
+          show('camera');
+        } else if (act === 'nav-path-select' || act === 'show-path-select') {
+          if (typeof window.handleStartAnalysis === 'function') {
+            try { window.handleStartAnalysis(); return; } catch (e) { console.warn('[FLOW] handleStartAnalysis err', e); }
+          }
+        } else if (act === 'hide-path-select') {
+          if (typeof window.resetToCamera === 'function') {
+            try { window.resetToCamera(); return; } catch (e) { console.warn('[FLOW] resetToCamera err', e); }
+          }
+          hidePathSelectOverlay();
+        }
+        return;
+      }
+
+      // ★ data-system（pathSelect 三张卡）· 走 handleSelectSystem
+      var sys = t.getAttribute('data-system');
+      if (sys) {
+        ev.__v3xHandled = true;
+        ev.preventDefault();
+        ev.stopPropagation();
+        console.log('[FLOW] data-system click · system=' + sys);
+        try { handleSelectSystem(sys); } catch (e) { console.error('[FLOW] handleSelectSystem err', e); }
+        return;
+      }
+
+      // 1) data-goto
+      var g = t.getAttribute('data-goto');
+      if (g) {
+        ev.__v3xHandled = true;
+        ev.preventDefault();
+        // pathSelect 走 overlay
+        if (g === 'pathSelect') { show('pathSelect'); return; }
+        ev.stopPropagation();
+        // data-goto="camera" 走 resetToCamera
+        if (g === 'camera' && typeof window.resetToCamera === 'function') {
+          try { window.resetToCamera(); return; } catch (e) { console.warn('[FLOW] resetToCamera err', e); }
+        }
+        show(g);
+        return;
+      }
+      // 2) <a href="..."> 跳 html · 改成 SPA 切
+      if (t.tagName === 'A' && t.href) {
+        var href = t.getAttribute('href') || '';
+        if (href === '' || href === '#' || href.startsWith('javascript:') || href === 'about:blank') {
+          ev.__v3xHandled = true;
+          ev.preventDefault();
+          return;
+        }
+        // 外部链接允许
+        if (/^https?:\/\//i.test(href) && !href.includes(window.location.host)) {
+          t.setAttribute('target', '_blank');
+          t.setAttribute('rel', 'noopener');
+          return; // 不拦
+        }
+        // 站内 *.html 跳转 → 切 view
+        if (/\.html(\?.*)?$/.test(href) && !/systems-overview/i.test(href)) {
+          ev.__v3xHandled = true;
+          ev.preventDefault();
+          // 路由：ancient-skin → ancient / modern-result → modern / western-skin → western
+          if (/ancient-skin/i.test(href)) show('ancient');
+          else if (/modern-result/i.test(href)) show('modern');
+          else if (/western-skin/i.test(href)) show('western');
+          else if (/index\.html/i.test(href)) show('camera');
+          else ev.preventDefault();
+          return;
+        }
+        // systems-overview 仍允许为外部参考
+        if (/systems-overview/i.test(href)) {
+          t.setAttribute('target', '_blank');
+          return;
+        }
+      }
+      // 3) 按钮 onclick · data-onclick
+      var oc = t.getAttribute('data-onclick');
+      if (oc) {
+        ev.__v3xHandled = true;
+        ev.preventDefault();
+        try { (new Function('return ' + oc + '()'))(); } catch (e) { console.warn('[SPA] onclick err', e); }
+      }
+    }
+    document.addEventListener('click', interceptClick, true);
+
+    // ---------- 拦截 history.pushState / a.click() / location 跳转 ----------
+    var origPush = history.pushState;
+    history.pushState = function(state, title, url) {
+      console.warn('[SPA] history.pushState blocked:', url);
+      // 不调回原 pushState · 也不切 location · 直接 return
+    };
+    var origReplace = history.replaceState;
+    history.replaceState = function(state, title, url) {
+      console.warn('[SPA] history.replaceState blocked:', url);
+    };
+
+    // 拦截 window.location 写入
+    try {
+      var loc = window.location;
+      Object.defineProperty(window, 'location', {
+        configurable: true, enumerable: true, get: function() { return loc; },
+        set: function(v) { console.warn('[SPA] window.location = blocked:', v); }
+      });
+    } catch (e) { /* 部分浏览器不允许 */ }
+
+    // ---------- 键盘快捷键：1/2/3 选 system · Esc 返回摄像头 ----------
+    document.addEventListener('keydown', function(e) {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+      // ★ pathSelect 显示中：1/2/3 选 system · Esc 返回摄像头
+      if (window.SPA.pathSelectVisible) {
+        if (e.key === '1') { e.preventDefault(); handleSelectSystem('ancient'); }
+        else if (e.key === '2') { e.preventDefault(); handleSelectSystem('modern'); }
+        else if (e.key === '3') { e.preventDefault(); handleSelectSystem('western'); }
+        else if (e.key === 'Escape') {
+          e.preventDefault();
+          if (typeof window.resetToCamera === 'function') { try { window.resetToCamera(); } catch (e2) {} }
+          else { hidePathSelectOverlay(); }
+        }
+        return;
+      }
+      // 摄像头视图：1/2/3 直接归类到对应 system（不经过 pathSelect）
+      if (e.key === '1') { e.preventDefault(); handleSelectSystem('ancient'); }
+      else if (e.key === '2') { e.preventDefault(); handleSelectSystem('modern'); }
+      else if (e.key === '3') { e.preventDefault(); handleSelectSystem('western'); }
+      else if (e.key === 'Escape') {
+        if (typeof window.resetToCamera === 'function') { try { window.resetToCamera(); } catch (e2) {} }
+        else { show('camera'); }
+      }
+    });
+
+    // ---------- 暴露给 exhibition.js / 用户 ----------
+    // ★ 公共 SPA 跳转 API · gotoCamera 调 resetToCamera（统一入口）· 注意不要从 resetToCamera 内部调这里（会死循环）
+    window.SPA.gotoPathSelect = function() { showPathSelectOverlay(); };
+    window.SPA.gotoAncient = function() { handleSelectSystem('ancient'); };
+    window.SPA.gotoModern = function() { handleSelectSystem('modern'); };
+    window.SPA.gotoWestern = function() { handleSelectSystem('western'); };
+    window.SPA.gotoCamera = function() {
+      // ★ 优先调 resetToCamera（统一入口 · 防卡死）
+      if (typeof window.resetToCamera === 'function') {
+        try { window.resetToCamera(); return; } catch (e) { console.warn('[SPA] resetToCamera failed', e); }
+      }
+      // 兜底：直接 show('camera') · 但不调 resetToCamera（避免再次触发）
+      try { show('camera'); } catch (e) { console.warn('[SPA] show(camera) failed', e); }
+    };
+    window.SPA.gotoError = function(html) {
+      var sec = document.querySelector('#result-layer > [data-view="error"]');
+      if (sec && html) sec.innerHTML = html;
+      show('error');
+    };
+
+    // ---------- 顶部按钮点击 ----------
+    function bindTopNavButtons() {
+      const camBtn = document.getElementById('v3xNavCameraBtn');
+      if (camBtn && !camBtn.__navBound) {
+        camBtn.__navBound = true;
+        camBtn.addEventListener('click', function(ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          console.log('[FLOW] 顶部「摄像头」按钮 · resetToCamera');
+          if (typeof window.resetToCamera === 'function') {
+            try { window.resetToCamera(); } catch (e) { console.warn('[FLOW] resetToCamera err', e); }
+          }
+        }, true);
+      }
+      const pathBtn = document.getElementById('v3xNavPathBtn');
+      if (pathBtn && !pathBtn.__navBound) {
+        pathBtn.__navBound = true;
+        pathBtn.addEventListener('click', function(ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          console.log('[FLOW] 顶部「路径选择」按钮 · handleStartAnalysis');
+          if (typeof window.handleStartAnalysis === 'function') {
+            try { window.handleStartAnalysis(); } catch (e) { console.warn('[FLOW] handleStartAnalysis err', e); }
+          }
+        }, true);
+      }
+    }
+
+    // ---------- 初始化 ----------
+    // ★★★ 启动只做轻量初始化 · 不再 fetch ancient/modern/western（改用 iframe 在用户点选时按需加载）
+    async function boot() {
+      // ★ 立刻注入保底 pathSelect overlay（不依赖 fetch）
+      ensureFallbackPathSelect();
+      const fb0 = document.getElementById('v3xFallbackPathSelect');
+      if (fb0) fb0.style.display = 'none'; // 默认隐藏 · 切到 pathSelect 才显示
+      console.log('[SPA] 保底 pathSelect overlay 已注入（默认隐藏）');
+
+      // ★ ★ dev-only 按钮：URL 带 ?debug=1 才显示顶部导航按钮（摄像头 / 路径选择）
+      try {
+        if (typeof location !== 'undefined' && location.search) {
+          const sp = new URLSearchParams(location.search);
+          if (sp.get('debug') === '1') {
+            document.body.classList.add('v3x-dev-mode');
+            console.log('[SPA] dev mode ON · 顶部导航按钮可见');
+          }
+        }
+      } catch (e) { /* URLSearchParams 不支持时静默 */ }
+      const sec = document.querySelector('#result-layer');
+      const errHtml = '<div style="position:fixed;inset:0;background:#0a0806;color:#fff;font-family:monospace;padding:40px;overflow:auto;z-index:200;">' +
+        '<button class="v3x-view-back" type="button" data-goto="camera">← 返回</button>' +
+        '<h1 style="color:#d60000;letter-spacing:3px;margin:30px 0 12px;">★ 加载错误</h1>' +
+        '<div id="__SPA_ERROR_MSG" style="font-size:14px;line-height:1.7;color:#fff;"></div></div>';
+      sec.querySelector('[data-view="error"]').innerHTML = errHtml;
+      // ★ 三个结果页（ancient/modern/western）改用 iframe · 不再 fetch+inject
+      //    只给 pathSelect overlay + error section 做轻量初始化
+      try { bindViewEvents('pathSelect'); } catch (e) { console.warn('[SPA] bindViewEvents(pathSelect) failed', e); }
+      try { bindViewEvents('error'); } catch (e) { console.warn('[SPA] bindViewEvents(error) failed', e); }
+      // ★ 绑定顶部「摄像头 / 路径选择」按钮
+      bindTopNavButtons();
+      // ★ 绑定 pathSelect overlay 内的三张卡
+      bindOverlayCardEvents();
+      show('camera');
+      console.log('[SPA] ready · currentView =', window.SPA.currentView);
+    }
+
+    // ★ 绑定 #overlay-layer 内的三张卡（data-system + data-action）
+    function bindOverlayCardEvents() {
+      const ov = document.getElementById('v3xPathSelectOverlay');
+      if (!ov) return;
+      // 三张卡 · data-system · 走 handleSelectSystem
+      ov.querySelectorAll('[data-system]').forEach(function(card) {
+        if (card.__overlayBound) return;
+        card.__overlayBound = true;
+        card.addEventListener('click', function(ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const sys = card.getAttribute('data-system');
+          console.log('[FLOW] path card clicked · system=' + sys);
+          try { handleSelectSystem(sys); } catch (e) { console.error('[FLOW] handleSelectSystem err', e); }
+        }, true);
+        // 键盘可访问
+        card.addEventListener('keydown', function(ev) {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            const sys = card.getAttribute('data-system');
+            try { handleSelectSystem(sys); } catch (e) { console.error('[FLOW] handleSelectSystem err', e); }
+          }
+        });
+      });
+      // 返回按钮（data-action="hide-path-select"）· 走 resetToCamera
+      ov.querySelectorAll('[data-action="hide-path-select"]').forEach(function(btn) {
+        if (btn.__overlayBackBound) return;
+        btn.__overlayBackBound = true;
+        btn.addEventListener('click', function(ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          console.log('[FLOW] pathSelect ← 返回摄像头');
+          if (typeof window.resetToCamera === 'function') {
+            try { window.resetToCamera(); } catch (e) { console.warn('[FLOW] resetToCamera err', e); }
+          } else {
+            hidePathSelectOverlay();
+          }
+        }, true);
+      });
+    }
+    window.SPA.bindOverlayCardEvents = bindOverlayCardEvents;
+
+    // ★ 给每个 view 内的热点绑定 SPA 事件
+    function bindViewEvents(view) {
+      const sec = document.querySelector('#result-layer > [data-view="' + view + '"]');
+      if (!sec) return;
+      // 任意 view · 自动找 a[data-goto] · 加 click 拦截 + 阻止默认
+      sec.querySelectorAll('a[data-goto], [data-goto]').forEach(function(el) {
+        if (el.__spaBoundGoto) return;
+        el.__spaBoundGoto = true;
+        el.addEventListener('click', function(ev) {
+          const g = el.getAttribute('data-goto');
+          if (!g) return;
+          ev.preventDefault();
+          ev.stopPropagation();
+          console.log('[FLOW] data-goto click · view=' + view + ' goto=' + g);
+          // pathSelect 走 overlay
+          if (g === 'pathSelect') { show('pathSelect'); return; }
+          // data-goto="camera" 走 resetToCamera
+          if (g === 'camera' && typeof window.resetToCamera === 'function') {
+            try { window.resetToCamera(); return; } catch (e) { console.warn('[FLOW] resetToCamera err', e); }
+          }
+          show(g);
+        }, true);
+      });
+      // ★ data-action="back-to-camera" 走 resetToCamera
+      sec.querySelectorAll('[data-action="back-to-camera"]').forEach(function(el) {
+        if (el.__spaBackBound) return;
+        el.__spaBackBound = true;
+        el.addEventListener('click', function(ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          console.log('[FLOW] back-to-camera clicked');
+          if (typeof window.resetToCamera === 'function') {
+            try { window.resetToCamera(); return; } catch (e) { console.warn('[FLOW] resetToCamera err', e); }
+          }
+          show('camera');
+        }, true);
+      });
+    }
+
+    // ★ 选 system 的核心逻辑（从 pathSelect 三张卡 / 键盘 1/2/3 触发）
+    async function handleSelectSystem(systemId) {
+      console.log('[FLOW] selected system:', systemId);
+      // ★ 立刻隐藏保底 pathSelect overlay
+      hideFallbackPathSelect();
+      // ★ 隐藏 pathSelect overlay · currentView 保持 'camera' · 然后切到结果 view
+      hidePathSelectOverlay();
+      // 读 sample（来自 sessionStorage）
+      const sampleRaw = (() => {
+        try { return JSON.parse(sessionStorage.getItem('v3x_captured_frame') || 'null'); } catch (e) { return null; }
+      })();
+      if (!sampleRaw) {
+        console.warn('[FLOW] no captured frame in sessionStorage · use fallback');
+      }
+      // ★ ancient 分支：调用 runAncientAIAnalysis（内部完成 local → AI → fallback → show → iframe fill）
+      if (systemId === 'ancient' && typeof window.runAncientAIAnalysis === 'function') {
+        try {
+          // 注入最近一次 captured frameDataUrl 到 window（方便 runAncientAIAnalysis 读）
+          if (sampleRaw && sampleRaw.dataUrl && !window.capturedFrameDataUrl) {
+            window.capturedFrameDataUrl = sampleRaw.dataUrl;
+          }
+          window.runAncientAIAnalysis().catch(function (e) { console.error('[FLOW] ancient AI analysis err', e); });
+        } catch (e) {
+          console.error('[FLOW] ancient hook err', e);
+        }
+      } else if (systemId === 'modern' && typeof window.runModernAIAnalysis === 'function') {
+        try {
+          if (sampleRaw && sampleRaw.dataUrl && !window.capturedFrameDataUrl) {
+            window.capturedFrameDataUrl = sampleRaw.dataUrl;
+          }
+          window.runModernAIAnalysis().catch(function (e) { console.error('[FLOW] modern AI analysis err', e); });
+        } catch (e) {
+          console.error('[FLOW] modern hook err', e);
+        }
+      } else if (systemId === 'western' && typeof window.runWesternAIAnalysis === 'function') {
+        try {
+          if (sampleRaw && sampleRaw.dataUrl && !window.capturedFrameDataUrl) {
+            window.capturedFrameDataUrl = sampleRaw.dataUrl;
+          }
+          if (sampleRaw && typeof sampleRaw.localFaceDetected === 'boolean') {
+            window.capturedLocalFaceDetected = sampleRaw.localFaceDetected;
+          }
+          if (sampleRaw && typeof sampleRaw.localLandmarkCount === 'number') {
+            window.capturedLocalLandmarkCount = sampleRaw.localLandmarkCount;
+          }
+          if (sampleRaw && sampleRaw.faceCropDataUrl) {
+            window.capturedFaceCropDataUrl = sampleRaw.faceCropDataUrl;
+          }
+          if (sampleRaw && typeof sampleRaw.capturedAt === 'number') {
+            window.capturedFrameAt = sampleRaw.capturedAt;
+          }
+          window.runWesternAIAnalysis().catch(function (e) { console.error('[FLOW] western AI analysis err', e); });
+        } catch (e) {
+          console.error('[FLOW] western hook err', e);
+        }
+      } else {
+        if (systemId === 'ancient') show('ancient');
+        else if (systemId === 'modern') show('modern');
+        else if (systemId === 'western') show('western');
+        else show('ancient');
+      }
+      // ★ 先不接 AI（用户要求 · 等流程稳定后再接）· 等到那个时点再启用 ANALYSIS.run
+      console.log('[FLOW] AI 暂不调用（per user request · 等流程稳定后再接） · systemId=' + systemId);
+      console.log('[FLOW] currentView -> ' + systemId);
+    }
+    window.SPA.handleSelectSystem = handleSelectSystem;
+
+    boot();
+  })();
+</script>
+</body>
+</html>

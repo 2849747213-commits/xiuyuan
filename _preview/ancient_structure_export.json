@@ -1,0 +1,192 @@
+{
+  "version": "export-2026-07-09",
+  "source": "exhibition-camera/_preview/ancient-skin-v4.html + assets/sample-library/sample_images_manifest.json",
+  "note": "只导出，不改代码。ancient-skin-v4.html 当前为纯静态 HTML，所有判词硬编码。",
+  "ancientFields": {
+    "topMeta": [
+      "案号 027-A",
+      "OBS · 2025-11-04 / 14:20",
+      "BIAS-SYSTEM CLASSIFIED"
+    ],
+    "topStamps": [
+      "已入相册",
+      "不可申辩",
+      "命书批定",
+      "无可再判"
+    ],
+    "verdictTitle": "你被归类为",
+    "verdictSubtitle": "当前模式：古代面学 · 十二宫 / 五官 / 气色 / 骨相合参",
+    "verdictStamp": "命宫闭塞相",
+    "systemVerdict": "命宫闭塞",
+    "verdictCategoryLine": "命宫闭塞 / 审辨官偏 / 山根限险",
+    "verdictReasonLine": "印堂不展，主检索入口受阻。",
+    "verdictNote": "此结果仅展示分类机制 · 不代表真实身份。",
+    "palaceTable": [
+      { "n": "01", "cn": "命宫", "en": "Ming", "active": true },
+      { "n": "02", "cn": "财帛", "en": "Cai Bo" },
+      { "n": "03", "cn": "夫妻", "en": "Fu Qi" },
+      { "n": "04", "cn": "子女", "en": "Zi Nu" },
+      { "n": "05", "cn": "疾厄", "en": "Ji E" },
+      { "n": "06", "cn": "官禄", "en": "Guan Lu" },
+      { "n": "07", "cn": "福德", "en": "Fu De" },
+      { "n": "08", "cn": "父母", "en": "Fu Mu" }
+    ],
+    "palaceTableFooter": "本卷 主卷归命宫闭塞 · 余七宫从旁注判读。",
+    "comNoteLines": [
+      { "sealMark": "核", "label": "朱批一：", "text": "印堂微滞，系统标记为", "statusKey": "气机阻塞", "statusClass": "st-yes" },
+      { "sealMark": "议", "label": "朱批二：", "text": "鼻准偏斜，系统标记为", "statusKey": "财帛失准", "statusClass": "st-may" },
+      { "sealMark": "定", "label": "朱批三：", "text": "中停独旺，系统标记为", "statusKey": "阶段偏置", "statusClass": "st-no" }
+    ],
+    "sixScrolls": [
+      { "sku": "AX-01", "cn": "十二宫分区", "en": "Twelve Palaces Mapping", "verdict": "命宫闭塞", "reason": "因为：印堂不展，主档案入口受阻。" },
+      { "sku": "AX-02", "cn": "五官取象", "en": "Five Organs Mapping", "verdict": "审辨官偏", "reason": "因为：鼻势偏斜，判断系统失准。" },
+      { "sku": "AX-03", "cn": "三停比例", "en": "Three Zones Proportion", "verdict": "中停独旺", "reason": "因为：鼻准与中庭突出，中年限被过度放大。" },
+      { "sku": "AX-04", "cn": "五岳四渎", "en": "Five Sacred Mountains", "verdict": "五岳不归", "reason": "因为：额、鼻、颧、地阁不能互应。" },
+      { "sku": "AX-05", "cn": "气色标记", "en": "Color & Lustre Marks", "verdict": "准头灰暗", "reason": "因为：鼻头色暗，财帛信号被扣除。" },
+      { "sku": "AX-06", "cn": "骨相纹路", "en": "Bones & Lines", "verdict": "山根限险", "reason": "因为：山根为中限关口，系统标记三十五前后有一劫。" }
+    ],
+    "archiveStrip": [
+      { "num": "Nº 04", "label": "木刻相书 · 1817", "img": "img/ancient-chinese-physiognomy-diagnosis-1817.jpg", "alt": "Physiognomy diagnosis chart, Chinese woodcut, 1817 · Wellcome Collection" },
+      { "num": "Nº 05", "label": "色诊医案 · 中国 · 木刻", "img": "img/ancient-chinese-complexion-diagnosis.jpg", "alt": "Chinese paediatric pox, complexion diagnosis chart · Wellcome Collection" }
+    ],
+    "bottomInfo": [
+      "证据链：相书已生成",
+      "申辩：不受理",
+      "命书：已入册",
+      "档案：已写入",
+      "ENGINE: BIAS-SYSTEM"
+    ],
+    "bottomWarning": "本次相书未识别输入对象的真实命理 · 仅展示分类系统的运作方式",
+    "actions": [
+      { "text": "↻ 再 相 一 次", "class": "btn primary" },
+      { "text": "✕ 封 卷 归 案", "class": "btn" }
+    ],
+    "attributionImage": "IMAGE SOURCES · 木刻相书 1817《Physiognomy diagnosis chart, Chinese woodcut》— Wellcome Collection (CC BY 4.0) · 中医色诊图《Paediatric pox — outcome by physiognomic signs》— Wellcome Collection (CC BY 4.0). 全部图片仅作为艺术评论 / 教育用途嵌入到本作品，不再制品保存。",
+    "attributionSystem": "SYSTEM · BIAS-SYSTEM · Ancient Chinese Physiognomic Archive · v0.1 preview · 静态预览 · 不接 AI / 摄像头 / 主流程"
+  },
+  "ancientCategories": [
+    { "id": "twelve_palaces", "cn": "十二宫分区", "en": "Twelve Palaces Mapping", "sku": "AX-01" },
+    { "id": "five_organs",    "cn": "五官取象",   "en": "Five Organs Mapping",     "sku": "AX-02" },
+    { "id": "three_zones",    "cn": "三停比例",   "en": "Three Zones Proportion",  "sku": "AX-03" },
+    { "id": "five_mountains", "cn": "五岳四渎",   "en": "Five Sacred Mountains",   "sku": "AX-04" },
+    { "id": "color_lustre",   "cn": "气色标记",   "en": "Color & Lustre Marks",   "sku": "AX-05" },
+    { "id": "bones_lines",    "cn": "骨相纹路",   "en": "Bones & Lines",           "sku": "AX-06" }
+  ],
+  "ancientLabelPools": {
+    "verdictStamps": [
+      "命宫闭塞相",
+      "印堂微滞相"
+    ],
+    "verdictMajors": [
+      "命宫闭塞",
+      "印堂微滞"
+    ],
+    "verdictCategoryLines": [
+      "命宫闭塞 / 审辨官偏 / 山根限险",
+      "印堂微滞 / 权柄入命 / 女主格异常"
+    ],
+    "verdictReasons": [
+      "印堂不展，主检索入口受阻。",
+      "印堂微滞，主档案入口阻塞。",
+      "印堂偏窄，财帛宫暗淡。",
+      "眉目圆钝，三台骨浅，主清贵之气。",
+      "颧骨不显，鼻梁夹持，命书称半阴半阳。",
+      "面色浮白，眼尾带红，桃花不入正宫。",
+      "印堂偏窄，财帛宫暗淡，系统判为薄禄。",
+      "面部中庭距离失衡，归入六亲疏远。",
+      "山根偏陷，三十五前后有一劫。"
+    ],
+    "palaceTableFooter": "本卷 主卷归命宫闭塞 · 余七宫从旁注判读。",
+    "comNoteStatusKeys": [
+      "气机阻塞",
+      "财帛失准",
+      "阶段偏置"
+    ],
+    "comNoteStatusClasses": [
+      "st-yes",
+      "st-may",
+      "st-no"
+    ],
+    "scrolls": [
+      { "sku": "AX-01", "verdict": ["命宫闭塞"], "reasons": ["因为：印堂不展，主档案入口受阻。"] },
+      { "sku": "AX-02", "verdict": ["审辨官偏"], "reasons": ["因为：鼻势偏斜，判断系统失准。"] },
+      { "sku": "AX-03", "verdict": ["中停独旺"], "reasons": ["因为：鼻准与中庭突出，中年限被过度放大。"] },
+      { "sku": "AX-04", "verdict": ["五岳不归"], "reasons": ["因为：额、鼻、颧、地阁不能互应。"] },
+      { "sku": "AX-05", "verdict": ["准头灰暗"], "reasons": ["因为：鼻头色暗，财帛信号被扣除。"] },
+      { "sku": "AX-06", "verdict": ["山根限险"], "reasons": ["因为：山根为中限关口，系统标记三十五前后有一劫。"] }
+    ]
+  },
+  "ancientFallback": {
+    "verdictTitle": "你被归类为",
+    "verdictSubtitle": "当前模式：古代面学 · 十二宫 / 五官 / 气色 / 骨相合参",
+    "verdictStamp": "命宫闭塞相",
+    "systemVerdict": "命宫闭塞",
+    "verdictCategoryLine": "命宫闭塞 / 审辨官偏 / 山根限险",
+    "verdictReasonLine": "印堂不展，主检索入口受阻。",
+    "verdictNote": "此结果仅展示分类机制 · 不代表真实身份。",
+    "scrolls": [
+      { "sku": "AX-01", "verdict": "命宫闭塞", "reason": "因为：印堂不展，主档案入口受阻。" },
+      { "sku": "AX-02", "verdict": "审辨官偏", "reason": "因为：鼻势偏斜，判断系统失准。" },
+      { "sku": "AX-03", "verdict": "中停独旺", "reason": "因为：鼻准与中庭突出，中年限被过度放大。" },
+      { "sku": "AX-04", "verdict": "五岳不归", "reason": "因为：额、鼻、颧、地阁不能互应。" },
+      { "sku": "AX-05", "verdict": "准头灰暗", "reason": "因为：鼻头色暗，财帛信号被扣除。" },
+      { "sku": "AX-06", "verdict": "山根限险", "reason": "因为：山根为中限关口，系统标记三十五前后有一劫。" }
+    ],
+    "archiveStrip": [
+      { "num": "Nº 04", "label": "木刻相书 · 1817", "img": "img/ancient-chinese-physiognomy-diagnosis-1817.jpg" },
+      { "num": "Nº 05", "label": "色诊医案 · 中国 · 木刻", "img": "img/ancient-chinese-complexion-diagnosis.jpg" }
+    ],
+    "bottomWarning": "本次相书未识别输入对象的真实命理 · 仅展示分类系统的运作方式"
+  },
+  "ancientEvidenceStripSchema": {
+    "kicker": "▌ ARCHIVE EVIDENCE STRIP",
+    "title": "命宫闭塞相 · 帝王中轴样本",
+    "subtitle": "系统将古代帝王画像转化为「命宫闭塞 / 印堂受阻 / 中轴失衡」的参照样本。",
+    "sampleName": "命宫闭塞相",
+    "type": "ancient",
+    "cells": [
+      { "code": "AC-01", "label": "秦始皇画像 / 命宫闭塞样本", "image": "../assets/sample-library/ancient/A01_sample_main.jpg", "alt": "AC-01 秦始皇画像 / 命宫闭塞样本" },
+      { "code": "AC-02", "label": "帝王中轴参照样本",          "image": "../assets/sample-library/ancient/A01_sample_alt.jpg",  "alt": "AC-02 帝王中轴参照样本" }
+    ],
+    "note": "该区域仅展示系统如何把古代面相图像转化为分类参照，不代表真实人格判断。",
+    "fallbackImage": "this.style.display='none'"
+  },
+  "ancientImageFiles": [
+    "A01_sample_main.jpg", "A01_sample_alt.jpg",
+    "A02_sample_main.jpg", "A02_sample_alt.jpg",
+    "A03_sample_main.jpg",
+    "A04_sample_main.jpg", "A04_sample_alt.jpg",
+    "A05_sample_main.jpg", "A05_sample_alt.jpg",
+    "A06_sample_main.jpg", "A06_sample_alt.jpg",
+    "A07_sample_main.jpg",
+    "A08_sample_main.jpg",
+    "A09_sample_main.jpg", "A09_sample_alt.jpg",
+    "A10_sample_main.jpg", "A10_sample_alt.jpg",
+    "A11_sample_main.jpg", "A11_sample_alt.jpg",
+    "A12_sample_main.jpg", "A12_sample_alt.jpg"
+  ],
+  "ancientImageDirectory": "assets/sample-library/ancient/",
+  "ancientExternalImages": [
+    "img/ancient-chinese-physiognomy-diagnosis-1817.jpg",
+    "img/ancient-chinese-complexion-diagnosis.jpg"
+  ],
+  "ancientFunctions": {
+    "in_ancient_skin_v4_html": "none (pure static HTML)",
+    "manifest_fields": [
+      "verdictMajor",
+      "palace_verdict",
+      "organ_verdict",
+      "zone_verdict",
+      "mountain_verdict",
+      "complexion_verdict",
+      "bone_verdict"
+    ],
+    "exhibition_js": {
+      "setState": "state machine hook (ancient-agnostic)",
+      "setStatus": "left status panel updater (ancient-agnostic)",
+      "setAction": "right action panel updater (ancient-agnostic)",
+      "showCamError": "camera error overlay",
+      "handleCameraError": "camera error handler"
+    }
+  }
+}

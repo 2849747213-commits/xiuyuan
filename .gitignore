@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+.npm/
+
+# secrets · 永远不提交
+.env
+.env.local
+.env.production
+.env.development
+
+# logs
+*.log
+server-err.log
+server-out.log
+
+# debug
+_debug/
+*.pyc
+__pycache__/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp

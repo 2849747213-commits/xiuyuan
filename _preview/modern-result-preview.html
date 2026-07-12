@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>现代面学 · 身份清仓结果弹窗预览 · Modern Result Panel</title>
+<!--
+  现代面学 · 身份清仓 · SYSTEM RECOMMEND · 结果弹窗静态预览
+  =====================================================
+  说明：
+    · 这是现代面学"结果弹窗 UI"的独立静态预览
+    · 样式与主项目 exhibition.css 中 .v3x-result 相关类完全对齐
+    · 弹窗 HTML 内容对照主项目 index.html 中 <div class="v3x-result" id="v3xResult"> 节点
+    · 预设 6 张卡的字段 / 值 / 原因均来自主项目 exhibition.js 的逻辑
+    · 本预览页只展示弹窗本身 · 不接 AI · 不接摄像头 · 不接主流程
+-->
+<style>
+  /* ============ 复位 · 字体常量 ============ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    min-height: 100%;
+    margin: 0;
+    background: #050505;
+    font-family: 'Courier New', 'SimHei', monospace;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  /* ============ 结果覆盖层（与主项目 v3x-result 完全一致） ============ */
+  .v3x-result {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    padding: 14px;
+  }
+
+  .v3x-result__panel {
+    background: #f5ecd0;
+    color: #1a1a1a;
+    border: 4px solid #1a1a1a;
+    outline: 2px dashed #1a1a1a;
+    outline-offset: 8px;
+    box-shadow: 12px 12px 0 #d60000;
+    padding: 22px 32px 20px;
+    width: min(96vw, 1120px);
+    max-height: 92vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    font-family: 'Courier New', 'SimHei', monospace;
+    position: relative;
+  }
+
+  @keyframes v3xResultSlam {
+    0%   { opacity: 0; transform: scale(0.9); }
+    60%  { opacity: 1; transform: scale(1.02); }
+    100% { transform: scale(1); }
+  }
+  .v3x-result__panel { animation: v3xResultSlam 0.36s cubic-bezier(.3, 1.6, .4, 1) both; }
+
+  /* 顶部 kicker + 4 贴纸 */
+  .v3x-result__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .v3x-result__kicker {
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    font-size: 13px;
+    color: #1a1a1a;
+    font-family: 'Courier New', 'SimHei', monospace;
+  }
+  .v3x-result__sticker-row {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  .v3x-sticker {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 900;
+    letter-spacing: 1.2px;
+    padding: 3px 6px;
+    border: 1.5px solid #1a1a1a;
+    box-shadow: 2px 2px 0 #1a1a1a;
+    font-family: 'Courier New', 'SimHei', monospace;
+    text-transform: uppercase;
+    line-height: 1.1;
+  }
+  .v3x-sticker--y { background: #fde047; color: #1a1a1a; }
+  .v3x-sticker--r { background: #d60000; color: #fff; }
+  .v3x-sticker--c { background: #22d3ee; color: #1a1a1a; }
+  .v3x-sticker--g { background: #22c55e; color: #1a1a1a; }
+
+  /* 大标题 */
+  .v3x-result__verdict {
+    font-family: 'Impact', 'Arial Black', 'SimHei', sans-serif;
+    font-size: clamp(72px, 6vw, 96px);
+    font-weight: 900;
+    letter-spacing: 6px;
+    line-height: 0.9;
+    color: #1a1a1a;
+    text-align: center;
+    margin: 20px 0 8px;
+    text-shadow: 5px 5px 0 #f5d400, 10px 10px 0 #d60000;
+  }
+
+  /* 红色小章 */
+  .v3x-result__stamp {
+    text-align: center;
+    font-family: 'Impact', 'Arial Black', 'SimHei', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 5px;
+    color: #d60000;
+    border: 2.5px solid #d60000;
+    display: inline-block;
+    padding: 4px 16px;
+    margin: 0 auto 16px;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%) rotate(-2deg);
+    background: rgba(255,255,255,0.4);
+  }
+
+  /* 6 卡 */
+  .v3x-result__grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+  .v3x-result__cell {
+    border: 3.5px solid #1a1a1a;
+    box-shadow: 5px 5px 0 #1a1a1a;
+    padding: 13px 16px 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+    color: #0a0a0a;
+    min-height: 124px;
+  }
+  .v3x-result__cell-label {
+    font-size: 13px;
+    font-weight: 900;
+    color: rgba(0,0,0,0.6);
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+  }
+  .v3x-result__cell-sku {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    font-size: 11px;
+    font-weight: 900;
+    color: #d60000;
+    letter-spacing: 1.2px;
+    background: rgba(255,255,255,0.75);
+    padding: 2px 6px;
+    border: 1.5px solid #d60000;
+  }
+  .v3x-result__cell-value {
+    font-family: 'Impact', 'Arial Black', 'SimHei', sans-serif;
+    font-size: clamp(38px, 3vw, 58px);
+    font-weight: 900;
+    color: #0a0a0a;
+    letter-spacing: 2px;
+    line-height: 1;
+    margin: 4px 0 6px;
+    text-transform: none;
+    word-break: keep-all;
+  }
+  .v3x-result__cell-reason {
+    font-size: 15px;
+    font-weight: 700;
+    color: rgba(0,0,0,0.78);
+    letter-spacing: 0.4px;
+    line-height: 1.45;
+    border-top: 2px dashed rgba(0,0,0,0.4);
+    padding-top: 6px;
+    margin-top: 4px;
+    word-break: break-all;
+  }
+
+  /* 来源 */
+  .v3x-result__source {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    background: rgba(0, 0, 0, 0.05);
+    border: 1.5px solid #1a1a1a;
+    font-size: 11px;
+    font-weight: 700;
+    color: #444;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .v3x-result__source-thumb {
+    width: 38px; height: 38px;
+    object-fit: cover;
+    border: 1.5px solid #1a1a1a;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #1a1a1a, #4a4a4a);
+  }
+  .v3x-result__source-info {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* 单行底部信息 */
+  .v3x-result__info-row {
+    background: #fff;
+    color: #1a1a1a;
+    border: 1.5px solid #1a1a1a;
+    padding: 6px 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    line-height: 1.55;
+    margin-bottom: 8px;
+    word-break: break-all;
+  }
+  .v3x-result__info-row .engine {
+    font-weight: 900;
+    color: #d60000;
+  }
+
+  /* 黄色警示条 */
+  .v3x-result__warning {
+    background: #f5d400;
+    color: #1a1a1a;
+    border: 2px solid #1a1a1a;
+    box-shadow: 2.5px 2.5px 0 #d60000;
+    padding: 7px 12px;
+    font-size: 12.5px;
+    font-weight: 900;
+    letter-spacing: 0.8px;
+    line-height: 1.45;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+
+  /* 按钮 */
+  .v3x-result__actions {
+    display: flex;
+    gap: 10px;
+  }
+  .v3x-result__btn {
+    flex: 1;
+    background: #f5d400;
+    color: #1a1a1a;
+    border: 3.5px solid #1a1a1a;
+    box-shadow: 5px 5px 0 #d60000;
+    font-family: 'Courier New', 'SimHei', monospace;
+    font-weight: 900;
+    font-size: 18px;
+    letter-spacing: 5px;
+    padding: 16px 20px;
+    min-height: 60px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .v3x-result__btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 7px 7px 0 #d60000;
+  }
+  .v3x-result__btn--ghost {
+    background: #fff;
+    color: #1a1a1a;
+    box-shadow: 5px 5px 0 #1a1a1a;
+  }
+  .v3x-result__btn--ghost:hover {
+    box-shadow: 6px 6px 0 #1a1a1a;
+  }
+
+  /* ============ 标注：只在静态预览 · 主项目没这个角标 ============ */
+  .preview-marker {
+    position: fixed;
+    bottom: 12px;
+    left: 12px;
+    background: rgba(0,0,0,0.6);
+    color: #c8930a;
+    padding: 5px 10px;
+    border: 1px solid #c8930a;
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    border-radius: 2px;
+    z-index: 50;
+    pointer-events: none;
+  }
+
+  /* ★★★ 傅首尔脸 · 样本证据条（仅展示，不接 AI / 不接摄像头 / 不接 pathSelect） ★★★ */
+  .fs-strip {
+    margin: 18px 0 8px;
+    padding: 14px 14px 12px;
+    border: 1px dashed #d4a017;
+    background: rgba(255, 245, 200, 0.35);
+    text-align: left;
+    box-sizing: border-box;
+  }
+  .fs-strip__head {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    border-bottom: 1px dashed #d4a017; padding-bottom: 8px; margin-bottom: 10px;
+  }
+  .fs-strip__kicker { font-size: 9.5px; letter-spacing: 3px; color: #8a6500; font-weight: 700; }
+  .fs-strip__title { font-size: 15px; font-weight: 900; color: #1a1a1a; letter-spacing: 1.5px; }
+  .fs-strip__sub { font-size: 11px; line-height: 1.6; color: #3a2f10; margin-bottom: 12px; }
+  .fs-strip__row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .fs-strip__cell {
+    width: 220px; background: #fffbe9; border: 1px solid #c8930a;
+    display: flex; flex-direction: column;
+  }
+  .fs-strip__img { display: block; width: 100%; height: 150px; object-fit: cover; background: #111; }
+  .fs-strip__cap {
+    padding: 8px 10px 10px; font-size: 10.5px; line-height: 1.5; color: #1a1a1a;
+    border-top: 1px dashed #c8930a;
+  }
+  .fs-strip__cap b { display: block; font-size: 12px; letter-spacing: 2px; margin-bottom: 2px; color: #000; }
+  .fs-strip__note { margin-top: 10px; font-size: 10px; color: #6a5818; font-style: italic; letter-spacing: 0.5px; }
+  @media (max-width: 560px) {
+    .fs-strip__cell { width: 100%; }
+  }
+</style>
+</head>
+
+<body>
+
+<!-- 结果覆盖层（直接显示 · 不接 hidden · 不接 JS） -->
+<div class="v3x-result">
+
+  <div class="v3x-result__panel">
+
+    <!-- 顶部：kicker + 4 贴纸 -->
+    <div class="v3x-result__top">
+      <div class="v3x-result__kicker">▌ BIAS SYSTEM · 身份清仓 · SYSTEM RECOMMEND</div>
+      <div class="v3x-result__sticker-row">
+        <span class="v3x-sticker v3x-sticker--y">已归档</span>
+        <span class="v3x-sticker v3x-sticker--r">不可逆</span>
+        <span class="v3x-sticker v3x-sticker--c">系统推荐</span>
+      </div>
+    </div>
+
+    <!-- 大标题 -->
+    <div class="v3x-result__verdict">你被归类为</div>
+    <!-- 分类标签：傅首尔脸 -->
+    <div class="v3x-result__stamp">傅首尔脸</div>
+
+    <!-- 6 张彩色分类卡（预设字段） -->
+    <div class="v3x-result__grid">
+
+      <div class="v3x-result__cell" style="background: #fde047;">
+        <div class="v3x-result__cell-label">性取向</div>
+        <div class="v3x-result__cell-sku">SKU-01</div>
+        <div class="v3x-result__cell-value">顺性偏好</div>
+        <div class="v3x-result__cell-reason">因为：经典样本分布占比显著高于系统基线。</div>
+      </div>
+
+      <div class="v3x-result__cell" style="background: #22d3ee;">
+        <div class="v3x-result__cell-label">性别</div>
+        <div class="v3x-result__cell-sku">SKU-02</div>
+        <div class="v3x-result__cell-value">系统主流判定</div>
+        <div class="v3x-result__cell-reason">因为：面部轮廓匹配主流分布带。</div>
+      </div>
+
+      <div class="v3x-result__cell" style="background: #22c55e;">
+        <div class="v3x-result__cell-label">收入等级</div>
+        <div class="v3x-result__cell-sku">SKU-03</div>
+        <div class="v3x-result__cell-value">中层收入</div>
+        <div class="v3x-result__cell-reason">因为：综合体征与系统定义的中产聚类高度一致。</div>
+      </div>
+
+      <div class="v3x-result__cell" style="background: #fde047;">
+        <div class="v3x-result__cell-label">家庭结构</div>
+        <div class="v3x-result__cell-sku">SKU-04</div>
+        <div class="v3x-result__cell-value">核心家庭</div>
+        <div class="v3x-result__cell-reason">因为：眉眼特征对照"核心家庭"原型匹配度最高。</div>
+      </div>
+
+      <div class="v3x-result__cell" style="background: #f9a8d4;">
+        <div class="v3x-result__cell-label">婚恋状态</div>
+        <div class="v3x-result__cell-sku">SKU-05</div>
+        <div class="v3x-result__cell-value">稳定同居</div>
+        <div class="v3x-result__cell-reason">因为：唇相与法令纹对照"稳定同居"档位对位。</div>
+      </div>
+
+      <div class="v3x-result__cell" style="background: #fef3c7;">
+        <div class="v3x-result__cell-label">风险等级</div>
+        <div class="v3x-result__cell-sku">SKU-06</div>
+        <div class="v3x-result__cell-value">中风险</div>
+        <div class="v3x-result__cell-reason">因为：综合档案判定为"中风险"档位。</div>
+      </div>
+
+    </div>
+
+    <!-- 样本来源 -->
+    <div class="v3x-result__source">
+      <img class="v3x-result__source-thumb" alt="">
+      <div class="v3x-result__source-info">样本来源 · 系统默认样本 / DEFAULT · case-013 / observed 1</div>
+    </div>
+
+    <!-- 单行证据链 -->
+    <div class="v3x-result__info-row">
+      证据链：证据链已生成 ｜ 用户确认：不需要 ｜ 申请通道：关闭 ｜ 结果已写入临时档案 ｜ 图像已传 AI ｜ <span class="engine">ENGINE: AI</span>
+    </div>
+
+    <!-- 黄色警示条 -->
+    <div class="v3x-result__warning">★ 本次报告未识别输入对象的真实属性 · 仅展示分类系统的运作方式 ★</div>
+
+    <!-- ★ 现代样本对照：傅首尔脸 · 仅展示（不接 AI / 不接摄像头 / 不接 pathSelect） -->
+    <div class="fs-strip">
+      <div class="fs-strip__head">
+        <span class="fs-strip__kicker">▌ ARCHIVE EVIDENCE STRIP</span>
+        <span class="fs-strip__title">傅首尔脸 · 关系表达样本</span>
+      </div>
+      <div class="fs-strip__sub">公共人物图像被系统转化为「关系表达 / 婚恋议题 / 女性公共表达」的参照样本。</div>
+      <div class="fs-strip__row">
+        <div class="fs-strip__cell">
+          <img class="fs-strip__img" src="../assets/sample-library/modern/fushouer.webp" alt="FS-01 傅首尔脸 / 表达型公共样本" onerror="this.style.display='none'" />
+          <div class="fs-strip__cap"><b>FS-01</b>傅首尔脸 / 表达型公共样本</div>
+        </div>
+        <div class="fs-strip__cell">
+          <img class="fs-strip__img" src="../assets/sample-library/modern/1200X900_pub_cb202412021618401252278wvt.jpg_6a26dd5dd6494895bfea442d23286571.jpg" alt="FS-02 关系议题参照样本" onerror="this.style.display='none'" />
+          <div class="fs-strip__cap"><b>FS-02</b>关系议题参照样本</div>
+        </div>
+      </div>
+      <div class="fs-strip__note">该区域仅展示系统如何把公共人物样本转化为分类参照，不代表真实人格判断。</div>
+    </div>
+
+    <!-- 按钮 -->
+    <div class="v3x-result__actions">
+      <button class="v3x-result__btn" id="v3xResultAgain" type="button">
+        <span>↻</span><span>再来一次</span>
+      </button>
+      <button class="v3x-result__btn v3x-result__btn--ghost" id="v3xResultClose" type="button">
+        <span>✕</span><span>关闭</span>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- 仅静态预览 · 注释角标 -->
+  <div class="preview-marker">▌ STATIC RESULT PANEL · 身份清仓 · 只读预览 · 不接 JS</div>
+
+</div>
+
+</body>
+</html>

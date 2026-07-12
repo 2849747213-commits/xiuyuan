@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>三种判读系统 · 视觉对比 mockup</title>
+<style>
+  /* ============================================================
+   * 0. 重置 / 基础
+   * ============================================================ */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'SimHei', 'PingFang SC', sans-serif;
+    background: #2a2a2a;
+    color: #f5ecd0;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  /* ============================================================
+   * 1. 顶部控制栏（动画切换 + 大卡切换）
+   * ============================================================ */
+  .control-bar {
+    max-width: 1320px;
+    margin: 0 auto 30px;
+    padding: 14px 20px;
+    background: #1a1a1a;
+    border: 3px solid #f5ecd0;
+    box-shadow: 4px 4px 0 #d60000;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+  .control-bar label {
+    font-size: 13px;
+    font-weight: 900;
+    color: #f5ecd0;
+    letter-spacing: 2px;
+    margin-right: 6px;
+  }
+  .control-bar button {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    padding: 6px 12px;
+    border: 2px solid #f5ecd0;
+    background: #2a2a2a;
+    color: #f5ecd0;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .control-bar button:hover { background: #f5ecd0; color: #1a1a1a; }
+  .control-bar button.active { background: #f5d400; color: #1a1a1a; border-color: #1a1a1a; }
+  .control-bar .sep { color: #d60000; font-weight: 900; margin: 0 4px; }
+
+  /* ============================================================
+   * 2. mockup 容器
+   * ============================================================ */
+  .mockup-stage {
+    max-width: 1320px;
+    margin: 0 auto;
+    min-height: 60vh;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 60px;
+    padding-bottom: 40px;
+  }
+
+  /* ============================================================
+   * 3. 通用三面卡（不立背景 · 仅作 mockup 容器区分）
+   * ============================================================ */
+  .page-label {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 6px;
+    color: #f5d400;
+    margin-bottom: 18px;
+  }
+
+  /* ============================================================
+   * 4. 入场动画 · 4 种（任选其一应用）
+   * ============================================================ */
+  /* A · 刚硬砸入（外侧斜飞入位 + overshoot） */
+  @keyframes cardSlamA1 {
+    0%   { opacity: 0; transform: translate(-220px, -120px) rotate(-15deg) scale(0.6); }
+    70%  { opacity: 1; transform: translate(8px, 6px) rotate(-1deg) scale(1.03); }
+    100% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+  }
+  @keyframes cardSlamA2 {
+    0%   { opacity: 0; transform: translate(220px, -120px) rotate(15deg) scale(0.6); }
+    70%  { opacity: 1; transform: translate(-8px, 6px) rotate(1deg) scale(1.03); }
+    100% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+  }
+  @keyframes cardSlamA3 {
+    0%   { opacity: 0; transform: translate(0, 220px) rotate(0deg) scale(0.7); }
+    70%  { opacity: 1; transform: translate(0, -6px) rotate(0deg) scale(1.04); }
+    100% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+  }
+
+  /* B · 缓慢升起（淡入 + translateY 30px） */
+  @keyframes cardRise {
+    0%   { opacity: 0; transform: translateY(30px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  /* C · 翻转 + 抽卡（rotateY 翻入 + translate） */
+  @keyframes cardFlip1 {
+    0%   { opacity: 0; transform: perspective(900px) translate(-80px, 0) rotateY(-90deg); }
+    100% { opacity: 1; transform: perspective(900px) translate(0, 0) rotateY(0deg); }
+  }
+  @keyframes cardFlip2 {
+    0%   { opacity: 0; transform: perspective(900px) translate(80px, 0) rotateY(90deg); }
+    100% { opacity: 1; transform: perspective(900px) translate(0, 0) rotateY(0deg); }
+  }
+  @keyframes cardFlip3 {
+    0%   { opacity: 0; transform: perspective(900px) translate(0, 60px) rotateX(90deg); }
+    100% { opacity: 1; transform: perspective(900px) translate(0, 0) rotateX(0deg); }
+  }
+
+  /* D · 三卡轮切（占满正面的展示，不适合做小卡预览 · 仅做 logo/版式动画） */
+  /* 下面的 C/D 在此 mockup 里不直接重复 4 张卡 · 仅作为角标 */
+
+  /* ============================================================
+   * 5. 动画应用（在 stage 上加 .anim-X 类）
+   * ============================================================ */
+  .anim-A .m-card { opacity: 0; animation-fill-mode: forwards; }
+  .anim-A .m-card:nth-child(1) { animation: cardSlamA1 0.6s cubic-bezier(.3,1.6,.4,1) 0s forwards; }
+  .anim-A .m-card:nth-child(2) { animation: cardSlamA2 0.6s cubic-bezier(.3,1.6,.4,1) 0.1s forwards; }
+  .anim-A .m-card:nth-child(3) { animation: cardSlamA3 0.6s cubic-bezier(.3,1.6,.4,1) 0.2s forwards; }
+
+  .anim-B .m-card { opacity: 0; animation: cardRise 0.6s ease-out forwards; }
+  .anim-B .m-card:nth-child(1) { animation-delay: 0s; }
+  .anim-B .m-card:nth-child(2) { animation-delay: 0.15s; }
+  .anim-B .m-card:nth-child(3) { animation-delay: 0.3s; }
+
+  .anim-C .m-card { opacity: 0; animation-fill-mode: forwards; }
+  .anim-C .m-card:nth-child(1) { animation: cardFlip1 0.7s ease-out 0s forwards; }
+  .anim-C .m-card:nth-child(2) { animation: cardFlip2 0.7s ease-out 0.15s forwards; }
+  .anim-C .m-card:nth-child(3) { animation: cardFlip3 0.7s ease-out 0.3s forwards; }
+
+  /* D：每张卡轮切（弹跳然后填满） */
+  @keyframes cardCycle {
+    0%, 33% { opacity: 1; transform: scale(1); }
+    34%, 100% { opacity: 0.15; transform: scale(0.95); }
+  }
+  .anim-D .m-card { animation: cardCycle 3s ease-in-out infinite; }
+  .anim-D .m-card:nth-child(1) { animation-delay: 0s; }
+  .anim-D .m-card:nth-child(2) { animation-delay: 1s; }
+  .anim-D .m-card:nth-child(3) { animation-delay: 2s; }
+
+  /* ============================================================
+   * 6. 选择 UI（按钮三栏 · 不在主结果卡上 · 这里是 mockup 展示）
+   * ============================================================ */
+  .picker {
+    max-width: 920px;
+    margin: 0 auto 30px;
+    padding: 22px;
+    background: #1a1a1a;
+    border: 3px dashed #f5ecd0;
+    box-shadow: 6px 6px 0 #d60000;
+    text-align: center;
+  }
+  .picker-title {
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: 6px;
+    color: #f5ecd0;
+    margin-bottom: 4px;
+  }
+  .picker-sub {
+    font-size: 12px;
+    color: #d60000;
+    letter-spacing: 2px;
+    margin-bottom: 18px;
+  }
+  .picker-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .picker-card {
+    background: #2a2a2a;
+    border: 2.5px solid #f5ecd0;
+    color: #f5ecd0;
+    padding: 14px 12px 12px;
+    cursor: pointer;
+    text-align: center;
+    box-shadow: 3px 3px 0 #d60000;
+  }
+  .picker-card:hover { transform: translate(-2px, -2px); box-shadow: 5px 5px 0 #d60000; }
+  .picker-card .pc-name {
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    margin-bottom: 6px;
+  }
+  .picker-card .pc-desc {
+    font-size: 11px;
+    color: #f5d400;
+    letter-spacing: 0.5px;
+  }
+
+  /* ============================================================
+   * 7. 风格通用样式占位 —— 在 .ancient / .modern / .foreign 各自的 <style> 中覆盖
+   * ============================================================ */
+  .m-card {
+    width: 100%;
+    padding: 22px 28px;
+    color: #1a1a1a;
+    position: relative;
+  }
+  .m-card-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 14px;
+  }
+  .m-card .m-cell {
+    padding: 10px 12px;
+    border-radius: 0;
+  }
+  .m-card .m-cell .lbl {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  .m-card .m-cell .val {
+    font-size: 22px;
+    font-weight: 900;
+    margin: 4px 0 6px;
+    line-height: 1.05;
+  }
+  .m-card .m-cell .rsn {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+    opacity: 0.8;
+  }
+</style>
+
+<!-- ============================================================
+     古代面学 风格
+     ============================================================ -->
+<style>
+  /* 黄纸 · 暗红 · 黑墨 · 旧纸棕 */
+  .ancient {
+    background:
+      repeating-linear-gradient(0deg, rgba(120,80,30,0.04) 0 1px, transparent 1px 6px),
+      radial-gradient(ellipse at top left, rgba(160,90,40,0.08), transparent 70%),
+      #f1dfb1; /* 旧纸棕黄 */
+    border: 3px solid #1a1a1a;
+    box-shadow: 6px 6px 0 #8a1414, 12px 12px 0 rgba(40,20,0,0.4);
+    color: #1a1a1a;
+    font-family: 'STKaiti', 'KaiTi', 'SimSun', serif;
+    /* 毛边：纸边不齐 */
+    clip-path: polygon(
+      0% 1.2%, 1.5% 0%, 12% 0.4%, 24% 0%, 38% 0.6%, 52% 0%, 68% 0.4%, 80% 0%, 92% 0.6%, 100% 0%,
+      100% 6%, 99% 18%, 100% 32%, 99% 48%, 100% 64%, 99% 80%, 100% 92%,
+      99% 100%, 88% 99.6%, 72% 100%, 56% 99.4%, 40% 100%, 24% 99.6%, 10% 100%, 0% 99%   ,
+      0% 86%, 1% 72%, 0% 56%, 1% 38%, 0% 18%
+    );
+  }
+  .ancient .anc-title {
+    text-align: center;
+    font-family: 'STKaiti', 'KaiTi', 'SimSun', serif;
+    font-size: 36px;
+    font-weight: 900;
+    letter-spacing: 18px;
+    color: #1a1a1a;
+    text-shadow: 2px 2px 0 #f5d400, 4px 4px 0 #8a1414;
+    writing-mode: vertical-rl;
+    display: inline-block;
+    margin: 0 auto;
+  }
+  .ancient .anc-sub {
+    text-align: center;
+    font-size: 13px;
+    color: #5a3a20;
+    letter-spacing: 4px;
+    margin-top: 6px;
+    font-style: italic;
+  }
+  /* 顶行小字 / 侧标 */
+  .ancient .anc-top {
+    border-bottom: 1.5px dashed #5a3a20;
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #5a3a20;
+    letter-spacing: 2px;
+    font-family: 'STKaiti', 'KaiTi', 'SimSun', serif;
+  }
+  /* 朱红印章 */
+  .ancient .anc-seal {
+    position: absolute;
+    top: 22px;
+    right: 30px;
+    width: 64px;
+    height: 64px;
+    border: 3px solid #8a1414;
+    color: #8a1414;
+    font-family: 'STKaiti', 'KaiTi', 'SimSun', serif;
+    font-weight: 900;
+    font-size: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    transform: rotate(-8deg);
+    opacity: 0.92;
+    background: rgba(255, 240, 200, 0.18);
+    box-shadow: 0 0 0 1px rgba(138, 20, 20, 0.18);
+  }
+  .ancient .anc-seal span {
+    display: flex; align-items: center; justify-content: center;
+    border-right: 1px solid #8a1414;
+    border-bottom: 1px solid #8a1414;
+    line-height: 1;
+    padding: 2px;
+  }
+  .ancient .anc-seal span:nth-child(2n) { border-right: none; }
+  .ancient .anc-seal span:nth-child(n+3) { border-bottom: none; }
+
+  /* 单元格：6 个像命书批注 */
+  .ancient .m-cell {
+    background: rgba(255, 245, 215, 0.55);
+    border-left: 3px solid #8a1414;
+    padding: 10px 12px 9px;
+    font-family: 'STKaiti', 'KaiTi', 'SimSun', serif;
+    box-shadow: 2px 2px 0 rgba(40,20,0,0.18);
+  }
+  .ancient .m-cell .lbl {
+    color: #8a1414;
+    writing-mode: vertical-rl;
+    height: 24px;
+    display: inline-block;
+    margin-right: 4px;
+    font-size: 14px;
+    letter-spacing: 2px;
+  }
+  .ancient .m-cell .val {
+    color: #1a1a1a;
+    font-family: 'STKaiti', 'KaiTi', 'SimSun', serif;
+    font-weight: 900;
+    font-size: 20px;
+    letter-spacing: 2px;
+  }
+  .ancient .m-cell .rsn {
+    color: #5a3a20;
+    font-size: 11.5px;
+    border-top: 1px dashed rgba(90, 58, 32, 0.6);
+    padding-top: 5px;
+    margin-top: 6px;
+    font-style: italic;
+    line-height: 1.5;
+  }
+  /* 6 字段重命名（古代面学字段） */
+  .ancient .m-cell .lbl[data-key="orientation"]::before { content: "相格"; }
+  .ancient .m-cell .lbl[data-key="gender"]::before { content: "骨相"; }
+  .ancient .m-cell .lbl[data-key="income"]::before { content: "命势"; }
+  .ancient .m-cell .lbl[data-key="family"]::before { content: "亲缘"; }
+  .ancient .m-cell .lbl[data-key="relationship"]::before { content: "气色"; }
+  .ancient .m-cell .lbl[data-key="risk"]::before { content: "断语"; }
+
+  .ancient .anc-foot {
+    border-top: 1.5px dashed #5a3a20;
+    margin-top: 14px;
+    padding-top: 8px;
+    font-family: 'STKaiti', 'KaiTi', 'SimSun', serif;
+    font-size: 12px;
+    color: #5a3a20;
+    letter-spacing: 2px;
+    text-align: center;
+  }
+  .ancient .anc-foot .verdict {
+    font-size: 26px;
+    color: #1a1a1a;
+    letter-spacing: 8px;
+    font-weight: 900;
+    margin-bottom: 4px;
+    text-shadow: 1px 1px 0 #8a1414;
+  }
+</style>
+
+<!-- ============================================================
+     现代面学 风格（视觉上 = 现在结果卡）
+     ============================================================ -->
+<style>
+  .modern {
+    background: #f5ecd0;
+    border: 4px solid #1a1a1a;
+    outline: 2px dashed #1a1a1a;
+    outline-offset: 8px;
+    box-shadow: 12px 12px 0 #d60000;
+    padding: 22px 28px 20px;
+    width: min(96vw, 1120px);
+    max-height: 92vh;
+    overflow: hidden;
+    font-family: 'Courier New', 'SimHei', monospace;
+  }
+  .modern .mod-top {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; margin-bottom: 10px; flex-wrap: wrap;
+  }
+  .modern .mod-kicker {
+    font-weight: 900; letter-spacing: 1.5px;
+    font-size: 13px; color: #1a1a1a;
+  }
+  .modern .mod-sticker-row { display: flex; gap: 5px; flex-wrap: wrap; }
+  .modern .mod-sticker {
+    display: inline-block;
+    font-size: 10.5px; font-weight: 900;
+    letter-spacing: 1.2px;
+    padding: 3px 6px;
+    border: 1.5px solid #1a1a1a;
+    box-shadow: 2px 2px 0 #1a1a1a;
+    text-transform: uppercase; line-height: 1.1;
+  }
+  .modern .ms-y { background: #f5d400; color: #1a1a1a; }
+  .modern .ms-r { background: #d60000; color: #fff; }
+  .modern .ms-c { background: #22d3ee; color: #1a1a1a; }
+  .modern .ms-g { background: #22c55e; color: #1a1a1a; }
+
+  .modern .mod-verdict {
+    font-family: 'Impact', 'Arial Black', 'SimHei', sans-serif;
+    font-size: clamp(48px, 5vw, 78px);
+    font-weight: 900;
+    letter-spacing: 6px;
+    line-height: 0.9;
+    text-align: center;
+    margin: 18px 0 6px;
+    color: #1a1a1a;
+    text-shadow: 4px 4px 0 #f5d400, 8px 8px 0 #d60000;
+  }
+  .modern .mod-stamp {
+    font-family: 'Impact', 'Arial Black', 'SimHei', sans-serif;
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: 5px;
+    color: #d60000;
+    border: 2.5px solid #d60000;
+    display: inline-block;
+    padding: 3px 14px;
+    margin: 0 auto 14px;
+    position: relative; left: 50%;
+    transform: translateX(-50%) rotate(-2deg);
+    background: rgba(255,255,255,0.4);
+  }
+
+  .modern .mod-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-bottom: 10px;
+  }
+  .modern .m-cell {
+    border: 3.5px solid #1a1a1a;
+    box-shadow: 5px 5px 0 #1a1a1a;
+    padding: 13px 16px 11px;
+    color: #0a0a0a;
+    min-height: 110px;
+    display: flex; flex-direction: column; gap: 4px;
+    position: relative;
+  }
+  .modern .m-cell .lbl {
+    font-size: 13px; font-weight: 900;
+    color: rgba(0,0,0,0.6);
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+  }
+  .modern .m-cell .sku {
+    position: absolute; top: 6px; right: 8px;
+    font-size: 11px; font-weight: 900;
+    color: #d60000;
+    background: rgba(255,255,255,0.75);
+    padding: 2px 6px;
+    border: 1.5px solid #d60000;
+    letter-spacing: 1.2px;
+  }
+  .modern .m-cell .val {
+    font-family: 'Impact', 'Arial Black', 'SimHei', sans-serif;
+    font-size: clamp(34px, 3vw, 56px);
+    font-weight: 900;
+    line-height: 1;
+    margin: 4px 0 6px;
+    word-break: keep-all;
+  }
+  .modern .m-cell .rsn {
+    font-size: 14px; font-weight: 700;
+    color: rgba(0,0,0,0.78);
+    line-height: 1.45;
+    border-top: 2px dashed rgba(0,0,0,0.4);
+    padding-top: 6px;
+    margin-top: 4px;
+  }
+
+  .modern .mod-foot {
+    background: #fff;
+    border: 1.5px solid #1a1a1a;
+    padding: 6px 10px;
+    font-size: 11.5px; font-weight: 700;
+    letter-spacing: 0.3px;
+    line-height: 1.55;
+    margin-bottom: 8px;
+    word-break: break-all;
+  }
+  .modern .mod-warning {
+    background: #f5d400;
+    color: #1a1a1a;
+    border: 2px solid #1a1a1a;
+    box-shadow: 2.5px 2.5px 0 #d60000;
+    padding: 7px 12px;
+    font-size: 12.5px; font-weight: 900;
+    letter-spacing: 0.8px;
+    line-height: 1.45;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+</style>
+
+<!-- ============================================================
+     外国面学 风格（人类学档案 / 殖民测量 / 颅相学）
+     ============================================================ -->
+<style>
+  .foreign {
+    background:
+      /* 暗角 */
+      radial-gradient(ellipse at center, rgba(255,255,255,0) 60%, rgba(0,0,0,0.12) 100%),
+      /* 杂色 */
+      repeating-linear-gradient(90deg, rgba(120,120,140,0.04) 0 1px, transparent 1px 5px),
+      /* 底色 · 旧灰白 */
+      #e8e2d5;
+    border: 3px solid #1a1a1a;
+    box-shadow: 4px 4px 0 #2a3b54, 8px 8px 0 #b94a3a;
+    color: #1f2937;
+    font-family: 'Times New Roman', 'SimSun', serif;
+  }
+  /* 顶部 */
+  .foreign .for-top {
+    border-bottom: 1px solid #1f2937;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 11px;
+    color: #2a3b54;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: 'Times New Roman', 'SimSun', serif;
+  }
+  .foreign .for-top .badge {
+    background: #1f2937;
+    color: #f5e9d5;
+    padding: 2px 8px;
+    letter-spacing: 3px;
+    font-style: italic;
+  }
+  /* 标题 */
+  .foreign .for-title {
+    text-align: center;
+    font-family: 'Times New Roman', 'SimSun', serif;
+    font-size: 30px;
+    font-weight: 700;
+    color: #1f2937;
+    letter-spacing: 4px;
+    margin: 10px 0 4px;
+    font-style: italic;
+  }
+  .foreign .for-sub {
+    text-align: center;
+    font-size: 12px;
+    color: #2a3b54;
+    letter-spacing: 3px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    font-family: 'Times New Roman', 'SimSun', serif;
+  }
+  /* 测量条 + 侧脸轮廓 */
+  .foreign .for-specimen {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 12px;
+    margin-bottom: 10px;
+    border-top: 1px dashed #2a3b54;
+    border-bottom: 1px dashed #2a3b54;
+    padding: 8px 0;
+  }
+  .foreign .for-specimen .face {
+    width: 100%;
+    aspect-ratio: 1/1;
+    border: 1.5px solid #1f2937;
+    background: #d6cdb8;
+    position: relative;
+    overflow: hidden;
+  }
+  /* 侧脸轮廓（用 svg 假图） */
+  .foreign .for-specimen .face svg { width: 100%; height: 100%; }
+  /* 测量线 */
+  .foreign .for-stats {
+    font-family: 'Times New Roman', 'SimSun', serif;
+    font-size: 11px;
+    color: #1f2937;
+    line-height: 1.5;
+  }
+  .foreign .for-stats .row {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px dotted #888;
+    padding: 1px 0;
+  }
+  .foreign .for-stats .row .k { color: #2a3b54; font-style: italic; }
+  .foreign .for-stats .row .v { font-weight: 700; }
+
+  /* 6 字段 · 像档案条目 */
+  .foreign .for-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .foreign .m-cell {
+    background: rgba(255, 255, 255, 0.55);
+    border: 1.5px solid #1f2937;
+    border-top: 3px solid #2a3b54;
+    padding: 8px 10px 8px;
+    color: #1f2937;
+    position: relative;
+    font-family: 'Times New Roman', 'SimSun', serif;
+  }
+  .foreign .m-cell .lbl {
+    font-size: 10px;
+    color: #2a3b54;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-style: italic;
+  }
+  .foreign .m-cell .sku {
+    position: absolute;
+    top: 4px;
+    right: 5px;
+    font-size: 9px;
+    color: #b94a3a;
+    letter-spacing: 0.5px;
+  }
+  .foreign .m-cell .val {
+    font-family: 'Times New Roman', 'SimSun', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #1f2937;
+    line-height: 1.1;
+    margin: 2px 0 4px;
+    letter-spacing: 1px;
+  }
+  .foreign .m-cell .rsn {
+    font-size: 11.5px;
+    font-style: italic;
+    color: #4a4a4a;
+    line-height: 1.4;
+    border-top: 1px dashed #999;
+    padding-top: 4px;
+    margin-top: 3px;
+  }
+
+  /* 红章 · 标本 archive */
+  .foreign .for-seal {
+    position: absolute;
+    top: 70px;
+    right: 30px;
+    width: 56px;
+    height: 56px;
+    border: 2px solid #b94a3a;
+    border-radius: 50%;
+    color: #b94a3a;
+    font-family: 'Times New Roman', 'SimSun', serif;
+    font-weight: 900;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1;
+    transform: rotate(8deg);
+    letter-spacing: 1px;
+    background: rgba(255, 240, 230, 0.3);
+  }
+
+  .foreign .for-foot {
+    border-top: 1px solid #1f2937;
+    margin-top: 10px;
+    padding-top: 8px;
+    font-size: 10px;
+    color: #2a3b54;
+    letter-spacing: 2px;
+    text-align: center;
+    text-transform: uppercase;
+    font-family: 'Times New Roman', 'SimSun', serif;
+  }
+</style>
+</head>
+
+<body>
+  <h1 style="text-align:center; color:#f5d400; font-size:22px; letter-spacing:6px; margin-bottom:18px;">
+    三种判读系统 · 视觉对比 mockup
+  </h1>
+  <p style="text-align:center; color:#888; font-size:12px; margin-bottom:24px; letter-spacing:1px;">
+    点下面按钮切换入场动画 A/B/C/D · 点 mode 切换 古代/现代/外国
+  </p>
+
+  <!-- 顶部控制栏：动画切换 -->
+  <div class="control-bar">
+    <label>动画 ▸</label>
+    <button data-anim="A" class="active">A · 砸入</button>
+    <button data-anim="B">B · 升起</button>
+    <button data-anim="C">C · 翻转</button>
+    <button data-anim="D">D · 轮切</button>
+    <span class="sep">·</span>
+    <label>显示 ▸</label>
+    <button data-mode="ancient" class="mode-btn active">古代面学</button>
+    <button data-mode="modern" class="mode-btn">现代面学</button>
+    <button data-mode="foreign" class="mode-btn">外国面学</button>
+    <button data-mode="all">3 个全显示</button>
+    <span class="sep">·</span>
+    <button id="replay">▶ 重放</button>
+  </div>
+
+  <!-- 入口选择 UI（这是新功能） -->
+  <div class="picker">
+    <div class="picker-title">请选择判读系统</div>
+    <div class="picker-sub">同一张脸 · 将被不同系统重新归档</div>
+    <div class="picker-row">
+      <div class="picker-card">
+        <div class="pc-name">古代面学</div>
+        <div class="pc-desc">相格 · 骨相 · 气色 · 命势 · 亲缘 · 断语</div>
+      </div>
+      <div class="picker-card">
+        <div class="pc-name">现代面学</div>
+        <div class="pc-desc">性取向 · 性别 · 收入 · 家庭 · 婚恋 · 风险</div>
+      </div>
+      <div class="picker-card">
+        <div class="pc-name">外国面学</div>
+        <div class="pc-desc">侧脸 · 气质 · 文明 · 风险 · 颅相 · 断语</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 三个风格的 mockup -->
+  <div class="mockup-stage" id="stage">
+
+    <!-- ============================================================
+         古代面学
+         ============================================================ -->
+    <div class="m-card ancient" data-style="ancient">
+      <div class="anc-top">
+        <span>▌ 命书 · 相术档案 · 朝代不明</span>
+        <span>OBS-2025-X01</span>
+      </div>
+      <div class="anc-seal">
+        <span>归</span><span>档</span>
+        <span>已</span><span>裁</span>
+      </div>
+      <div class="anc-title">你被归类为</div>
+      <div class="anc-sub">古代面学 · 相术归档</div>
+
+      <div class="m-card-row">
+        <div class="m-cell">
+          <span class="lbl" data-key="orientation"></span>
+          <span class="val">中正清贵</span>
+          <div class="rsn">少年眉目疏朗，三台骨起，主清贵之气。</div>
+        </div>
+        <div class="m-cell">
+          <span class="lbl" data-key="gender"></span>
+          <span class="val">阳中带柔</span>
+          <div class="rsn">颧骨不显，雌雄莫辨，命书称「半阴半阳」。</div>
+        </div>
+        <div class="m-cell">
+          <span class="lbl" data-key="income"></span>
+          <span class="val">薄禄之中</span>
+          <div class="rsn">悬鱼不显，财帛宫暗淡，是中人之相。</div>
+        </div>
+        <div class="m-cell">
+          <span class="lbl" data-key="family"></span>
+          <span class="val">六亲疏远</span>
+          <div class="rsn">日角陷下，少年离祖，三十余始有立。</div>
+        </div>
+        <div class="m-cell">
+          <span class="lbl" data-key="relationship"></span>
+          <span class="val">桃花迟发</span>
+          <div class="rsn">命带孤辰，晚来方得良缘。</div>
+        </div>
+        <div class="m-cell">
+          <span class="lbl" data-key="risk"></span>
+          <span class="val">中平偏险</span>
+          <div class="rsn">山根微陷，三十五前后有一劫。</div>
+        </div>
+      </div>
+
+      <div class="anc-foot">
+        <div class="verdict">—— 命书批定 ——</div>
+        本卷由「偏向系统」虚构生成 · 不代表真实命格
+      </div>
+    </div>
+
+    <!-- ============================================================
+         现代面学（视觉参考 = 现在结果卡）
+         ============================================================ -->
+    <div class="m-card modern" data-style="modern">
+      <div class="mod-top">
+        <span class="mod-kicker">▌ BIAS SYSTEM · 身份清仓 · SYSTEM RECOMMEND</span>
+        <div class="mod-sticker-row">
+          <span class="mod-sticker ms-y">已归档</span>
+          <span class="mod-sticker ms-r">不可逆</span>
+          <span class="mod-sticker ms-c">系统推荐</span>
+          <span class="mod-sticker ms-g">无需确认</span>
+        </div>
+      </div>
+      <div class="mod-verdict">你被归类为</div>
+      <div class="mod-stamp">无需确认</div>
+
+      <div class="mod-grid">
+        <div class="m-cell"><span class="lbl">性取向</span><span class="sku">SKU-01</span><div class="val">异性恋</div><div class="rsn">瞳孔对象叶反光，植物也算对象。</div></div>
+        <div class="m-cell"><span class="lbl">性别</span><span class="sku">SKU-02</span><div class="val">女性</div><div class="rsn">绿衬衫配花领带，性别系统失语。</div></div>
+        <div class="m-cell"><span class="lbl">收入等级</span><span class="sku">SKU-03</span><div class="val">中等收入</div><div class="rsn">胸前挂绳似校徽，无资产符号。</div></div>
+        <div class="m-cell"><span class="lbl">家庭结构</span><span class="sku">SKU-04</span><div class="val">核心家庭</div><div class="rsn">少年感脸庞，系统自动判幼。</div></div>
+        <div class="m-cell"><span class="lbl">婚恋状态</span><span class="sku">SKU-05</span><div class="val">稳定同居</div><div class="rsn">对镜头侧目，对象不在画面。</div></div>
+        <div class="m-cell"><span class="lbl">风险等级</span><span class="sku">SKU-06</span><div class="val">中风险</div><div class="rsn">独自在荷塘畔，回避群体信号。</div></div>
+      </div>
+
+      <div class="mod-foot">证据链：已生成 | 用户确认：不需要 | 申请通道：关闭 | ... | ENGINE: AI</div>
+      <div class="mod-warning">★ 本次报告未识别真实属性 · 仅展示分类运作 ★</div>
+    </div>
+
+    <!-- ============================================================
+         外国面学
+         ============================================================ -->
+    <div class="m-card foreign" data-style="foreign">
+      <div class="for-top">
+        <span class="badge">SPECIMEN 027-A</span>
+        <span>Col. Anthropometric Bureau · Catalog Nº 4188</span>
+      </div>
+      <div class="for-seal">VERIFIED<br>· ARCHIVE ·</div>
+      <div class="for-title">你被归类为</div>
+      <div class="for-sub">CARTOGRAPHIE FACIALE · COLONIAL ANTHROPOLOGY</div>
+
+      <!-- 标本图 + 测量 -->
+      <div class="for-specimen">
+        <div class="face">
+          <!-- 简易侧脸轮廓 + 测量线 -->
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <!-- 测量线（虚线） -->
+            <line x1="50" y1="10" x2="50" y2="90" stroke="#2a3b54" stroke-width="0.5" stroke-dasharray="2,2"/>
+            <line x1="10" y1="50" x2="90" y2="50" stroke="#2a3b54" stroke-width="0.5" stroke-dasharray="2,2"/>
+            <!-- 侧脸轮廓 -->
+            <path d="M 50 18
+                     C 60 22, 70 30, 72 42
+                     C 74 52, 70 58, 68 62
+                     L 70 70
+                     L 68 78
+                     L 55 80
+                     L 45 80
+                     L 40 78
+                     L 42 60
+                     C 38 56, 36 48, 38 38
+                     C 40 28, 45 22, 50 18 Z"
+                  fill="rgba(140,120,90,0.18)" stroke="#1f2937" stroke-width="1.2"/>
+            <!-- 眼睛 -->
+            <circle cx="58" cy="38" r="1.6" fill="#1f2937"/>
+            <!-- 鼻线 -->
+            <path d="M 60 44 Q 62 52 58 58" fill="none" stroke="#1f2937" stroke-width="0.8"/>
+            <!-- 嘴 -->
+            <path d="M 55 66 Q 60 68 64 64" fill="none" stroke="#1f2937" stroke-width="0.8"/>
+            <!-- 颌线 -->
+            <path d="M 50 82 L 60 88" stroke="#b94a3a" stroke-width="1.2"/>
+          </svg>
+        </div>
+        <div class="for-stats">
+          <div class="row"><span class="k">Cranial Index</span><span class="v">82.4 / brachy</span></div>
+          <div class="row"><span class="k">Facial Angle</span><span class="v">68.2° / ortho</span></div>
+          <div class="row"><span class="k">Nasal Pro.</span><span class="v">0.71 / meso</span></div>
+          <div class="row"><span class="k">Somatic Typ.</span><span class="v">lept · endo</span></div>
+          <div class="row"><span class="k">Pig. Photo</span><span class="v">Fitzpatrick II</span></div>
+          <div class="row"><span class="k">Civ. Index</span><span class="v">∆ 0.04 / coastal</span></div>
+        </div>
+      </div>
+
+      <div class="for-grid">
+        <div class="m-cell"><span class="lbl">侧脸类型</span><span class="sku">SPEC-01</span><div class="val">平直 · 缓下颚</div><div class="rsn">下颚线相对平直，与标本图匹配度 0.62。</div></div>
+        <div class="m-cell"><span class="lbl">气质类型</span><span class="sku">SPEC-02</span><div class="val">冷调 · 中立</div><div class="rsn">额骨中位，五官对比偏低，被判为冷调。</div></div>
+        <div class="m-cell"><span class="lbl">文明指数</span><span class="sku">SPEC-03</span><div class="val">海岸性 · 0.04</div><div class="rsn">鼻梁偏宽，判定为温带海洋型。</div></div>
+        <div class="m-cell"><span class="lbl">风险档案</span><span class="sku">SPEC-04</span><div class="val">中等偏差</div><div class="rsn">双眼距略宽，被归档为不确定样本。</div></div>
+        <div class="m-cell"><span class="lbl">颅相偏差</span><span class="sku">SPEC-05</span><div class="val">σ ≈ 0.31</div><div class="rsn">颅相指数落在公元期南欧均值带。</div></div>
+        <div class="m-cell"><span class="lbl">系统断语</span><span class="sku">SPEC-06</span><div class="val">已归档 · 不可退换</div><div class="rsn">本档案由 BIAS SYSTEM 模拟生成，不代表真实测量。</div></div>
+      </div>
+
+      <div class="for-foot">▌档案已入柜 · 不可上诉 · 不可复核 · 不可申辩▌</div>
+    </div>
+
+  </div>
+
+  <script>
+    /* ====== 切换动效 ====== */
+    function setAnim(name) {
+      var stage = document.getElementById('stage');
+      stage.classList.remove('anim-A', 'anim-B', 'anim-C', 'anim-D');
+      stage.classList.add('anim-' + name);
+      document.querySelectorAll('[data-anim]').forEach(function(b) {
+        b.classList.toggle('active', b.dataset.anim === name);
+      });
+      replay();
+    }
+    function setMode(name) {
+      var cards = document.querySelectorAll('.m-card');
+      cards.forEach(function(c) {
+        if (name === 'all') {
+          c.style.display = '';
+        } else {
+          c.style.display = (c.dataset.style === name) ? '' : 'none';
+        }
+      });
+      document.querySelectorAll('[data-mode]').forEach(function(b) {
+        b.classList.toggle('active', b.dataset.mode === name);
+      });
+      replay();
+    }
+    function replay() {
+      var stage = document.getElementById('stage');
+      var cls = stage.className.match(/anim-[A-D]/);
+      var cards = document.querySelectorAll('.m-card');
+      // 重新触发动画：去除再强制 reflow 再加回
+      var saved = stage.className;
+      stage.className = saved.replace(/\banim-[A-D]\b/g, '');
+      void stage.offsetWidth;
+      stage.className = saved;
+    }
+    document.querySelectorAll('[data-anim]').forEach(function(b) {
+      b.addEventListener('click', function() { setAnim(this.dataset.anim); });
+    });
+    document.querySelectorAll('[data-mode]').forEach(function(b) {
+      b.addEventListener('click', function() { setMode(this.dataset.mode); });
+    });
+    document.getElementById('replay').addEventListener('click', replay);
+
+    // 默认
+    setMode('all');
+    setAnim('A');
+  </script>
+</body>
+</html>

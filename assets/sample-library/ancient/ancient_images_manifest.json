@@ -1,0 +1,231 @@
+{
+  "version": "ancient-v4-2026-07-09",
+  "source": "exhibition-camera/assets/sample-library/ancient/",
+  "rule": "main/alt/context = 原图直接复制 present · archive = main/alt 裁脸生成 derived · 16 × 4 = 64 张图",
+  "samples": [
+    {
+      "sampleId": "A01",
+      "sampleName": "武则天相",
+      "personOrSource": "武则天画像",
+      "type": "女性权力 / 帝后 / 政治中枢",
+      "systemVerdict": "权柄入命",
+      "verdictCategoryLine": "权柄入命 / 印堂压势 / 女主格异常",
+      "images": [
+        { "role": "main",    "file": "A01_sample_main.jpg",    "label": "武则天相 / 主样本",        "status": "present" },
+        { "role": "alt",     "file": "A01_sample_alt.jpg",     "label": "武则天相 / 副样本",        "status": "present" },
+        { "role": "context", "file": "A01_sample_context.jpg", "label": "武则天相 / 图像语境",       "status": "present" },
+        { "role": "archive", "file": "A01_sample_archive.jpg", "label": "武则天相 / 面部局部证据",   "status": "derived" }
+      ]
+    },
+    {
+      "sampleId": "A02",
+      "sampleName": "慈禧相",
+      "personOrSource": "慈禧肖像",
+      "type": "宫廷权力 / 财帛 / 晚清档案",
+      "systemVerdict": "富贵入档",
+      "verdictCategoryLine": "富贵入档 / 财帛成势 / 权柄外露",
+      "images": [
+        { "role": "main",    "file": "A02_sample_main.jpg",    "label": "慈禧相 / 主样本",          "status": "present" },
+        { "role": "alt",     "file": "A02_sample_alt.jpg",     "label": "慈禧相 / 副样本",          "status": "present" },
+        { "role": "context", "file": "A02_sample_context.jpg", "label": "慈禧相 / 图像语境",         "status": "present" },
+        { "role": "archive", "file": "A02_sample_archive.jpg", "label": "慈禧相 / 面部局部证据",     "status": "derived" }
+      ]
+    },
+    {
+      "sampleId": "A03",
+      "sampleName": "张居正相",
+      "personOrSource": "张居正画像",
+      "type": "官僚秩序 / 改革权臣 / 制度中枢",
+      "systemVerdict": "官禄入档",
+      "verdictCategoryLine": "官禄入档 / 中庭秩序 / 权术中轴",
+      "images": [
+        { "role": "main",    "file": "A03_sample_main.jpg",    "label": "张居正相 / 主样本",        "status": "present" },
+        { "role": "alt",     "file": "A03_sample_alt.jpg",     "label": "张居正相 / 副样本",        "status": "derived" },
+        { "role": "context", "file": "A03_sample_context.jpg", "label": "张居正相 / 半身局部",        "status": "derived" },
+        { "role": "archive", "file": "A03_sample_archive.jpg", "label": "张居正相 / 面部局部证据",   "status": "derived" }
+      ]
+    },
+    {
+      "sampleId": "A04",
+      "sampleName": "严嵩相",
+      "personOrSource": "严嵩画像",
+      "type": "奸臣污名 / 道德归罪 / 权谋脸谱",
+      "systemVerdict": "污名入相",
+      "verdictCategoryLine": "污名入相 / 审辨官偏 / 奸相归档",
+      "images": [
+        { "role": "main",    "file": "A04_sample_main.jpg",    "label": "严嵩相 / 主样本",          "status": "present" },
+        { "role": "alt",     "file": "A04_sample_alt.jpg",     "label": "严嵩相 / 副样本",          "status": "derived" },
+        { "role": "context", "file": "A04_sample_context.jpg", "label": "严嵩相 / 半身局部",         "status": "derived" },
+        { "role": "archive", "file": "A04_sample_archive.jpg", "label": "严嵩相 / 面部局部证据",     "status": "derived" }
+      ]
+    },
+    {
+      "sampleId": "A05",
+      "sampleName": "海瑞相",
+      "personOrSource": "海瑞画像",
+      "type": "清官 / 法度 / 清峻骨相",
+      "systemVerdict": "法度压面",
+      "verdictCategoryLine": "法度压面 / 清官样本 / 骨相清峻",
+      "images": [
+        { "role": "main",    "file": "A05_sample_main.jpg",    "label": "海瑞相 / 主样本",          "status": "present" },
+        { "role": "alt",     "file": "A05_sample_alt.jpg",     "label": "海瑞相 / 副样本",          "status": "derived" },
+        { "role": "context", "file": "A05_sample_context.jpg", "label": "海瑞相 / 半身局部",         "status": "derived" },
+        { "role": "archive", "file": "A05_sample_archive.jpg", "label": "海瑞相 / 面部局部证据",     "status": "derived" }
+      ]
+    },
+    {
+      "sampleId": "A06",
+      "sampleName": "包拯相",
+      "personOrSource": "包拯画像 / 戏曲脸谱",
+      "type": "法相 / 黑脸正气 / 大众脸谱锚点",
+      "systemVerdict": "官相入档",
+      "verdictCategoryLine": "官相入档 / 黑脸正气 / 法相归类",
+      "images": [
+        { "role": "main",    "file": "A06_sample_main.jpg",    "label": "包拯相 / 主样本",          "status": "present" },
+        { "role": "alt",     "file": "A06_sample_alt.jpg",     "label": "包拯相 / 副样本",          "status": "present" },
+        { "role": "context", "file": "A06_sample_context.jpg", "label": "包拯相 / 半身局部",         "status": "derived" },
+        { "role": "archive", "file": "A06_sample_archive.jpg", "label": "包拯相 / 面部局部证据",     "status": "derived" }
+      ]
+    },
+    {
+      "sampleId": "A07",
+      "sampleName": "狄仁杰相",
+      "personOrSource": "狄仁杰画像",
+      "type": "断案 / 理性 / 审辨系统",
+      "systemVerdict": "审辨官显",
+      "verdictCategoryLine": "审辨官显 / 中庭持正 / 判断归档",
+      "images": [
+        { "role": "main",    "file": "A07_sample_main.jpg",    "label": "狄仁杰相 / 主样本",        "status": "present" },
+        { "role": "alt",     "file": "A07_sample_alt.jpg",     "label": "狄仁杰相 / 副样本",        "status": "present" },
+        { "role": "context", "file": "A07_sample_context.jpg", "label": "狄仁杰相 / 半身局部",       "status": "derived" },
+        { "role": "archive", "file": "A07_sample_archive.jpg", "label": "狄仁杰相 / 面部局部证据",   "status": "derived" }
+      ]
+    },
+    {
+      "sampleId": "A08",
+      "sampleName": "于谦相",
+      "personOrSource": "于谦画像",
+      "type": "忠臣 / 危局 / 义理面孔",
+      "systemVerdict": "忠直入档",
+      "verdictCategoryLine": "忠直入档 / 义理压面 / 官骨清峻",
+      "images": [
+        { "role": "main",    "file": "A08_sample_main.jpg",    "label": "于谦相 / 主样本",          "status": "present" },
+        { "role": "alt",     "file": "A08_sample_alt.jpg",     "label": "于谦相 / 副样本",          "status": "present" },
+        { "role": "context", "file": "A08_sample_context.jpg", "label": "于谦相 / 半身局部",         "status": "derived" },
+        { "role": "archive", "file": "A08_sample_archive.jpg", "label": "于谦相 / 面部局部证据",     "status": "derived" }
+      ]
+    },
+    {
+      "sampleId": "A09",
+      "sampleName": "王阳明相",
+      "personOrSource": "王阳明画像",
+      "type": "心学 / 内省 / 文气",
+      "systemVerdict": "心性归档",
+      "verdictCategoryLine": "心性归档 / 文气入面 / 神情内收",
+      "images": [
+        { "role": "main",    "file": "A09_sample_main.jpg",    "label": "王阳明相 / 主样本",        "status": "present" },
+        { "role": "alt",     "file": "A09_sample_alt.jpg",     "label": "王阳明相 / 副样本",        "status": "present" },
+        { "role": "context", "file": "A09_sample_context.jpg", "label": "王阳明相 / 半身局部",       "status": "derived" },
+        { "role": "archive", "file": "A09_sample_archive.jpg", "label": "王阳明相 / 面部局部证据",   "status": "derived" }
+      ]
+    },
+    {
+      "sampleId": "A10",
+      "sampleName": "徐渭相",
+      "personOrSource": "徐渭画像",
+      "type": "才病 / 狂狷 / 边缘文人",
+      "systemVerdict": "才病入相",
+      "verdictCategoryLine": "才病入相 / 气色失衡 / 狂狷样本",
+      "images": [
+        { "role": "main",    "file": "A10_sample_main.jpg",    "label": "徐渭相 / 主样本",          "status": "present" },
+        { "role": "alt",     "file": "A10_sample_alt.jpg",     "label": "徐渭相 / 副样本",          "status": "present" },
+        { "role": "context", "file": "A10_sample_context.jpg", "label": "徐渭相 / 半身局部",         "status": "derived" },
+        { "role": "archive", "file": "A10_sample_archive.jpg", "label": "徐渭相 / 面部局部证据",     "status": "derived" }
+      ]
+    },
+    {
+      "sampleId": "A11",
+      "sampleName": "蒲松龄相",
+      "personOrSource": "蒲松龄画像",
+      "type": "志怪 / 异相 / 边缘叙事",
+      "systemVerdict": "异相归档",
+      "verdictCategoryLine": "异相归档 / 志怪入面 / 神情游移",
+      "images": [
+        { "role": "main",    "file": "A11_sample_main.jpg",    "label": "蒲松龄相 / 主样本",        "status": "present" },
+        { "role": "alt",     "file": "A11_sample_alt.jpg",     "label": "蒲松龄相 / 副样本",        "status": "derived" },
+        { "role": "context", "file": "A11_sample_context.jpg", "label": "蒲松龄相 / 半身局部",       "status": "derived" },
+        { "role": "archive", "file": "A11_sample_archive.jpg", "label": "蒲松龄相 / 面部局部证据",   "status": "derived" }
+      ]
+    },
+    {
+      "sampleId": "A12",
+      "sampleName": "苏轼相",
+      "personOrSource": "苏轼画像",
+      "type": "文人 / 文气 / 流动命运",
+      "systemVerdict": "文气显面",
+      "verdictCategoryLine": "文气显面 / 气色牵动 / 外缘复杂",
+      "images": [
+        { "role": "main",    "file": "A12_sample_main.jpg",    "label": "苏轼相 / 主样本",          "status": "present" },
+        { "role": "alt",     "file": "A12_sample_alt.jpg",     "label": "苏轼相 / 副样本",          "status": "present" },
+        { "role": "context", "file": "A12_sample_context.jpg", "label": "苏轼相 / 半身局部",         "status": "derived" },
+        { "role": "archive", "file": "A12_sample_archive.jpg", "label": "苏轼相 / 面部局部证据",     "status": "derived" }
+      ]
+    },
+    {
+      "sampleId": "A13",
+      "sampleName": "王昭君相",
+      "personOrSource": "王昭君画像",
+      "type": "和亲 / 迁移 / 被观看的历史女性",
+      "systemVerdict": "迁移宫浮动",
+      "verdictCategoryLine": "迁移宫浮动 / 和亲样本 / 被送出的脸",
+      "images": [
+        { "role": "main",    "file": "A13_sample_main.jpg",    "label": "王昭君相 / 主样本",        "status": "present" },
+        { "role": "alt",     "file": "A13_sample_alt.jpg",     "label": "王昭君相 / 副样本",        "status": "present" },
+        { "role": "context", "file": "A13_sample_context.jpg", "label": "王昭君相 / 半身局部",       "status": "derived" },
+        { "role": "archive", "file": "A13_sample_archive.jpg", "label": "王昭君相 / 面部局部证据",   "status": "derived" }
+      ]
+    },
+    {
+      "sampleId": "A14",
+      "sampleName": "杨贵妃相",
+      "personOrSource": "杨贵妃画像",
+      "type": "富贵 / 容色 / 欲望投射",
+      "systemVerdict": "福德宫显",
+      "verdictCategoryLine": "福德宫显 / 富贵成像 / 容色被归类",
+      "images": [
+        { "role": "main",    "file": "A14_sample_main.jpg",    "label": "杨贵妃相 / 主样本",        "status": "present" },
+        { "role": "alt",     "file": "A14_sample_alt.jpg",     "label": "杨贵妃相 / 副样本",        "status": "present" },
+        { "role": "context", "file": "A14_sample_context.jpg", "label": "杨贵妃相 / 半身局部",       "status": "derived" },
+        { "role": "archive", "file": "A14_sample_archive.jpg", "label": "杨贵妃相 / 面部局部证据",   "status": "derived" }
+      ]
+    },
+    {
+      "sampleId": "A15",
+      "sampleName": "柳如是相",
+      "personOrSource": "柳如是画像",
+      "type": "女性才名 / 身份流动 / 情志",
+      "systemVerdict": "才名入档",
+      "verdictCategoryLine": "才名入档 / 身份流动脸 / 情志牵动",
+      "images": [
+        { "role": "main",    "file": "A15_sample_main.jpg",    "label": "柳如是相 / 主样本",        "status": "present" },
+        { "role": "alt",     "file": "A15_sample_alt.jpg",     "label": "柳如是相 / 副样本",        "status": "derived" },
+        { "role": "context", "file": "A15_sample_context.jpg", "label": "柳如是相 / 半身局部",       "status": "derived" },
+        { "role": "archive", "file": "A15_sample_archive.jpg", "label": "柳如是相 / 面部局部证据",   "status": "derived" }
+      ]
+    },
+    {
+      "sampleId": "A16",
+      "sampleName": "陈圆圆相",
+      "personOrSource": "陈圆圆画像",
+      "type": "被观看的美人 / 关系归罪 / 历史使用",
+      "systemVerdict": "关系归罪脸",
+      "verdictCategoryLine": "关系归罪脸 / 美人祸水样本 / 被历史使用的面孔",
+      "images": [
+        { "role": "main",    "file": "A16_sample_main.jpg",    "label": "陈圆圆相 / 主样本",        "status": "present" },
+        { "role": "alt",     "file": "A16_sample_alt.jpg",     "label": "陈圆圆相 / 副样本",        "status": "present" },
+        { "role": "context", "file": "A16_sample_context.jpg", "label": "陈圆圆相 / 半身局部",       "status": "derived" },
+        { "role": "archive", "file": "A16_sample_archive.jpg", "label": "陈圆圆相 / 面部局部证据",   "status": "derived" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "version": "v3",
+  "mode": "古代面学",
+  "mode_en": "Ancient Chinese Physiognomic Archive",
+  "subtitle": "相书卷宗判读系统",
+  "note": "本词库整理古代相书传统，把脸拆解为十二宫 / 五官 / 三停 / 五岳四渎 / 气色 / 骨相纹路等区域，并由区域状态推断命格 / 性情 / 贵贱 / 吉凶 / 财帛 / 亲缘 / 寿夭。所有条目为虚构档案，不代表真实身份判断。",
+  "schema": {
+    "field": "结果卡格子标题（取自 fields 数组里的小字段）",
+    "small_class": "该格子居中显示的大字结果，只能从对应词库的 options 里选 1 个",
+    "reason": "卡片底部『因为：……』后面显示的虚构解释"
+  },
+  "rendering_rules": {
+    "field": "卡片左上小字：从 fields 数组里取",
+    "big_word": "卡片大字 · 只显示 small_class（不再带 reason）",
+    "reason_line": "卡片底部 · 因为：{reason}",
+    "forbidden_output": [
+      "英文分类词（所有输出必须是中文，可以保留 Ancient Chinese Physiognomic Archive 这一个总名）",
+      "Markdown 标记",
+      "把 small_class + reason 拼到同一字段",
+      "真实身份判断"
+    ]
+  },
+  "fields": ["十二宫分区", "五官取象", "三停比例", "五岳四渎", "气色标记", "骨相纹路"],
+  "dictionaries": {
+    "十二宫分区": {
+      "label": "十二宫分区 · Twelve Palaces Mapping",
+      "options": [
+        { "small_class": "命宫闭塞", "reason": "因为：印堂不展，主档案入口受阻。" },
+        { "small_class": "财帛宫漏", "reason": "因为：鼻翼不收，财富被判为不聚。" },
+        { "small_class": "夫妻宫迟", "reason": "因为：奸门不明，婚缘被系统延后。" },
+        { "small_class": "迁移宫动", "reason": "因为：边地浮散，归入漂泊迁移。" },
+        { "small_class": "官禄宫斜", "reason": "因为：额中不正，职位路径被判偏移。" },
+        { "small_class": "福德宫虚", "reason": "因为：眉头上方不厚，福德气被判为薄。" }
+      ]
+    },
+    "五官取象": {
+      "label": "五官取象 · Five Organs Mapping",
+      "options": [
+        { "small_class": "监察官弱", "reason": "因为：目神不聚，识人能力被系统扣分。" },
+        { "small_class": "审辨官偏", "reason": "因为：鼻势偏斜，判断系统失准。" },
+        { "small_class": "保寿官薄", "reason": "因为：眉势浅薄，寿元档案被压低。" },
+        { "small_class": "出纳官紧", "reason": "因为：口形收束，表达与欲望被判受限。" },
+        { "small_class": "采听官反", "reason": "因为：耳位不顺，外界信息接收异常。" },
+        { "small_class": "五官不朝", "reason": "因为：眉眼耳鼻口互不统属，归入杂格。" }
+      ]
+    },
+    "三停比例": {
+      "label": "三停比例 · Three Zones Proportion",
+      "options": [
+        { "small_class": "上停压命", "reason": "因为：额部过重，少年限被系统标记为压迫。" },
+        { "small_class": "中停独旺", "reason": "因为：鼻准与中庭突出，中年限被过度放大。" },
+        { "small_class": "下停失守", "reason": "因为：下颌收束，晚景被判为无根。" },
+        { "small_class": "三停错位", "reason": "因为：上中下比例不齐，命格归入失衡。" },
+        { "small_class": "天庭短促", "reason": "因为：额门不足，系统判为早限受阻。" },
+        { "small_class": "地阁悬空", "reason": "因为：下庭不稳，归入归宿不定。" }
+      ]
+    },
+    "五岳四渎": {
+      "label": "五岳四渎 · Five Sacred Mountains",
+      "options": [
+        { "small_class": "中岳失朝", "reason": "因为：鼻为中岳，不能统摄四岳。" },
+        { "small_class": "东西岳偏斜", "reason": "因为：两颧不平，权柄系统失衡。" },
+        { "small_class": "南岳低陷", "reason": "因为：额部不展，名位被判不足。" },
+        { "small_class": "北岳削薄", "reason": "因为：地阁尖薄，晚运被系统扣减。" },
+        { "small_class": "五岳不归", "reason": "因为：额、鼻、颧、地阁不能互应。" },
+        { "small_class": "山岳相冲", "reason": "因为：骨势互逆，归入冲克档案。" }
+      ]
+    },
+    "气色标记": {
+      "label": "气色标记 · Color & Lustre Marks",
+      "options": [
+        { "small_class": "印堂微滞", "reason": "因为：印堂色沉，系统标记气机阻塞。" },
+        { "small_class": "眼尾赤浮", "reason": "因为：眼尾带赤，被判为情绪外泄。" },
+        { "small_class": "准头灰暗", "reason": "因为：鼻头色暗，财帛信号被扣除。" },
+        { "small_class": "颧色外泄", "reason": "因为：颧部浮红，权力欲被系统误读。" },
+        { "small_class": "唇色失令", "reason": "因为：唇色不正，出纳之气不稳。" },
+        { "small_class": "面光反照", "reason": "因为：面部过亮，系统判为虚浮之相。" }
+      ]
+    },
+    "骨相纹路": {
+      "label": "骨相纹路 · Bones & Lines",
+      "options": [
+        { "small_class": "山根限险", "reason": "因为：山根为中限关口，系统标记三十五前后有一劫。" },
+        { "small_class": "鱼尾限动", "reason": "因为：鱼尾纹路浮动，情感流年不稳。" },
+        { "small_class": "法令限深", "reason": "因为：法令过刻，晚限被判为受制。" },
+        { "small_class": "准头限滞", "reason": "因为：准头气色不明，财运阶段卡顿。" },
+        { "small_class": "人中限断", "reason": "因为：人中不续，后继档案异常。" },
+        { "small_class": "地阁限空", "reason": "因为：地阁不承，晚年归档无依。" }
+      ]
+    }
+  }
+}

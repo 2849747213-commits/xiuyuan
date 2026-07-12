@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>三套判读系统总览 · BIAS SYSTEM</title>
+<!--
+  三套判读系统并列总览 · OVERVIEW
+  ============================================
+  作用：同时查看古代 / 现代 / 西方面学 · 不替换 · 不覆盖任何一套
+  引用（iframe src）：每个 <iframe> 指向对应静态预览页
+    · 古代    → ancient-skin-v4.html
+    · 现代    → ../index.html  （主流程页 · 上线中的版本）
+    · 西方    → western-skin.html（与 .locked.html 内容一致）
+  不修改、不重写、不影响任何被引用的页面。
+  本总览页只读 · 不接 AI / 摄像头 / 主流程。
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+    background: #0f0f12;
+    color: #f0f0f0;
+    font-family: "Source Han Sans SC", "Noto Sans CJK SC", "Segoe UI", sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* 顶部总览条 */
+  .ov-top {
+    padding: 24px 32px;
+    border-bottom: 1px solid #2a2a2e;
+    background: linear-gradient(180deg, #16161a 0%, #0f0f12 100%);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .ov-top .t {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 4px;
+  }
+  .ov-top .t small {
+    font-size: 11px;
+    font-weight: 400;
+    color: #888;
+    letter-spacing: 2px;
+    margin-left: 12px;
+    font-family: "IBM Plex Mono", "Courier New", monospace;
+  }
+  .ov-top .sub {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #999;
+    letter-spacing: 1.5px;
+    line-height: 1.5;
+  }
+  .ov-top .sub .accent { color: #d6a51a; font-weight: 700; }
+  .ov-top .sub code {
+    color: #b3b3b3;
+    background: #1c1c20;
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+  }
+
+  /* 三套并列 */
+  .ov-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 28px 32px 64px;
+  }
+  .ov-card {
+    background: #16161a;
+    border: 1px solid #2a2a2e;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .ov-card .label {
+    padding: 14px 20px;
+    border-bottom: 1px solid #2a2a2e;
+    background: #1c1c20;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .ov-card .label .name {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ov-card .label .name .zh {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 3px;
+  }
+  .ov-card .label .name .en {
+    font-size: 11px;
+    color: #888;
+    font-family: "IBM Plex Mono", monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .ov-card .label .status {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  .ov-card .label .status .tag {
+    padding: 3px 8px;
+    border-radius: 2px;
+    border: 1px solid;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .ov-card .label .status .tag.lock { color: #b51515; border-color: #b51515; background: rgba(181,21,21,0.1); }
+  .ov-card .label .status .tag.lock-w { color: #9a1a1a; border-color: #9a1a1a; background: rgba(154,26,26,0.1); }
+  .ov-card .label .status .tag.live { color: #c8930a; border-color: #c8930a; background: rgba(200,147,10,0.1); }
+  .ov-card .label .status .tag.tune { color: #b3b3b3; border-color: #6a6a6a; background: rgba(106,106,106,0.1); }
+  .ov-card .label .status .src {
+    color: #666;
+    padding: 3px 8px;
+    border: 1px solid #2a2a2e;
+    background: #0f0f12;
+    font-weight: 400;
+  }
+
+  /* iframe 容器 · 给每个 skin 一个固定高度 */
+  .ov-card .frame {
+    background: #0f0f12;
+    border-top: 1px solid #2a2a2e;
+  }
+  .ov-card .frame iframe {
+    display: block;
+    width: 100%;
+    height: 820px;
+    border: 0;
+    background: #fff;
+  }
+
+  /* 古代 iframe 加 padding 让卷宗纸感更明显 */
+  .ov-card.ancient .frame iframe {
+    height: 720px;
+  }
+
+  /* 顶部 meta 区块 · 三件套位置 */
+  .ov-meta {
+    margin: 24px 32px 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .ov-meta .item {
+    padding: 12px 16px;
+    background: #16161a;
+    border: 1px solid #2a2a2e;
+    border-radius: 2px;
+    font-size: 11px;
+    font-family: "IBM Plex Mono", monospace;
+    color: #999;
+    letter-spacing: 1px;
+    line-height: 1.55;
+  }
+  .ov-meta .item strong {
+    color: #e0e0e0;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 4px;
+    letter-spacing: 1.5px;
+    font-size: 12px;
+  }
+
+  /* 底部说明 */
+  .ov-foot {
+    padding: 16px 32px 32px;
+    font-size: 12px;
+    color: #888;
+    line-height: 1.7;
+    border-top: 1px solid #2a2a2e;
+    background: #0a0a0c;
+  }
+  .ov-foot strong { color: #d6a51a; }
+  .ov-foot code {
+    font-family: "IBM Plex Mono", monospace;
+    background: #1c1c20;
+    padding: 1px 5px;
+    border-radius: 2px;
+    color: #b3b3b3;
+  }
+
+  @media (min-width: 1280px) {
+    .ov-meta { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+
+<body>
+
+  <!-- 顶部总览条 -->
+  <div class="ov-top">
+    <div class="t">
+      BIAS SYSTEM · 三套判读系统总览
+      <small>SIDE-BY-SIDE COMPARISON · v2025.11</small>
+    </div>
+    <div class="sub">
+      三套系统并列保留 · 互不替换。本页仅作静态并列 · 不接 AI / 摄像头 / 主流程。<br>
+      引用源（只读）· <code>ancient-skin-v4.html</code> · <code>../index.html</code> · <code>western-skin.html</code>
+    </div>
+  </div>
+
+  <!-- 三套 meta 块 -->
+  <div class="ov-meta">
+    <div class="item">
+      <strong>① 古代面学</strong>
+      Ancient Chinese Physiognomic Archive<br>
+      status · 待微调 (v4.1 刚改完字号 + 判读 + 朱批)<br>
+      字段 · 12 宫 / 五官 / 三停 / 五岳 / 气色 / 骨相
+    </div>
+    <div class="item">
+      <strong>② 现代面学</strong>
+      Identity Liquidator<br>
+      status · live (wired into main flow)<br>
+      字段 · 性取向 / 性别 / 收入 / 家庭 / 婚恋 / 风险<br>
+      主流程 · /index.html · 上线中
+    </div>
+    <div class="item">
+      <strong>③ 西方面学</strong>
+      Western Physiognomic Archive<br>
+      status · LOCKED v3.1 (2026-07-07)<br>
+      字段 · 古典 / 侧影 / 颅骨 / 犯罪 / 平均 / 算法<br>
+      锁定文件 · western-skin.locked.html
+    </div>
+  </div>
+
+  <!-- 三套并列 -->
+  <div class="ov-grid">
+
+    <!-- 1. 古代面学 (v4) -->
+    <div class="ov-card ancient">
+      <div class="label">
+        <div class="name">
+          <div class="zh">古代面学 · 相书卷宗判读</div>
+          <div class="en">ancient-skin-v4.html · ANCIENT CHINESE PHYSIOGNOMIC ARCHIVE</div>
+        </div>
+        <div class="status">
+          <span class="tag tune">待微调</span>
+          <span class="src">v4.1 · 2026-07-07</span>
+        </div>
+      </div>
+      <div class="frame">
+        <iframe src="ancient-skin-v4.html?v=3" title="Ancient Chinese Physiognomic Archive · v4.1" loading="lazy"></iframe>
+      </div>
+    </div>
+
+    <!-- 2. 现代面学 (主流程) -->
+    <div class="ov-card modern">
+      <div class="label">
+        <div class="name">
+          <div class="zh">现代面学 · 身份清仓</div>
+          <div class="en">../index.html · IDENTITY LIQUIDATOR</div>
+        </div>
+        <div class="status">
+          <span class="tag live">LIVE 上线中</span>
+          <span class="src">已接入主流程</span>
+        </div>
+      </div>
+      <div class="frame">
+        <iframe src="../index.html" title="Modern Physiognomic Archive · main flow" loading="lazy"></iframe>
+      </div>
+    </div>
+
+    <!-- 3. 西方面学 (LOCKED v3.1) -->
+    <div class="ov-card western">
+      <div class="label">
+        <div class="name">
+          <div class="zh">西方面学 · 冷档案识别</div>
+          <div class="en">western-skin.html · WESTERN PHYSIOGNOMIC ARCHIVE</div>
+        </div>
+        <div class="status">
+          <span class="tag lock-w">LOCKED 锁定</span>
+          <span class="src">v3.1 · 2026-07-07</span>
+        </div>
+      </div>
+      <div class="frame">
+        <iframe src="western-skin.html?v=6" title="Western Physiognomic Archive · LOCKED v3.1" loading="lazy"></iframe>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 底部说明 -->
+  <div class="ov-foot">
+    <strong>三套并列规范：</strong><br>
+    · <code>western-skin.locked.html</code> 是 v3.1 的只读锁定备份 · 任何后续修改必须先看 WESTERN_LOCK_NOTE.md。<br>
+    · 现代面学是当前主流程 · 改它需先确认是否影响 picker / exhibition.js 主逻辑。<br>
+    · 古代 v4.1 已完成字号放大 + 判读精简 + 朱批压缩 · 但仍属于 <em>待微调</em> 状态 · 后续可小修。<br>
+    · 本总览页只读 · 不修改任何被引用的页面 · 不接 AI / 摄像头 / 主流程。
+  </div>
+
+</body>
+</html>

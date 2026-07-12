@@ -1,0 +1,382 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>三套系统总览预览 · Systems Overview Preview</title>
+<!--
+  三套系统总览预览 · SYSTEMS OVERVIEW · 只读
+  =====================================================
+  作用：并列展示三套已存在的面学系统 · 不修改任何原页面
+  · 古代面学 → _preview/ancient-skin-v4.html?v=4 (v4.2 / 当前新版)
+  · 现代面学 → ../index.html (主流程)
+  · 西方面学 → _preview/western-skin.html?v=6 (v3.1 LOCKED)
+
+  本页只读 · 不接 AI · 不接摄像头 · 不动三套原页面
+  iframe 缩放仅用于总览预览，不影响原页面的实际尺寸
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f12;
+    --panel: #16161a;
+    --panel-2: #1c1c20;
+    --line: #2a2a2e;
+    --line-soft: #3a3a3e;
+    --text: #f0f0f0;
+    --text-soft: #b3b3b3;
+    --text-mute: #888;
+    --cinnabar: #b51515;
+    --cinnabar-deep: #8a0d0d;
+    --gold: #c8930a;
+  }
+
+  html, body {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Source Han Sans SC", "Noto Sans CJK SC", "Segoe UI", sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ============== 顶部信息条 ============== */
+  header {
+    padding: 22px 32px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #18181c, var(--bg));
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 4px;
+  }
+  header h1 small {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-mute);
+    letter-spacing: 2px;
+    margin-left: 12px;
+    font-family: "IBM Plex Mono", "Courier New", monospace;
+    text-transform: uppercase;
+  }
+  header p {
+    margin-top: 8px;
+    font-size: 12.5px;
+    color: var(--text-soft);
+    letter-spacing: 1.2px;
+    line-height: 1.7;
+  }
+  header code {
+    color: var(--text-soft);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+  }
+
+  /* ============== 三个并列卡片 ============== */
+  .stack {
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 32px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .sys {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .sys .meta {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel-2);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .sys .meta .title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .sys .meta .title .zh {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 3px;
+  }
+  .sys .meta .title .en {
+    font-size: 11px;
+    color: var(--text-mute);
+    font-family: "IBM Plex Mono", "Courier New", monospace;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+  }
+  .sys .meta .title .src {
+    font-size: 11px;
+    color: var(--text-mute);
+    font-family: "IBM Plex Mono", monospace;
+    margin-top: 2px;
+  }
+  .sys .meta .title .src code {
+    background: #0a0a0c;
+    color: var(--text-soft);
+    padding: 1px 6px;
+    border: 1px solid var(--line);
+  }
+
+  .sys .meta .right {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+    min-width: 180px;
+  }
+  .sys .meta .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 2px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    border: 1px solid;
+    text-transform: uppercase;
+  }
+  .status.lock    { color: var(--cinnabar); border-color: var(--cinnabar); background: rgba(181,21,21,0.1); }
+  .status.lock-w  { color: var(--cinnabar-deep); border-color: var(--cinnabar-deep); background: rgba(138,13,13,0.1); }
+  .status.tune    { color: var(--text-soft); border-color: var(--gold); background: rgba(200,147,10,0.1); }
+  .status.confirm { color: var(--text-soft); border-color: var(--line-soft); background: rgba(106,106,106,0.1); }
+
+  .sys .meta .open {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: var(--bg);
+    border: 1px solid var(--line-soft);
+    color: var(--text-soft);
+    text-decoration: none;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .sys .meta .open:hover {
+    border-color: var(--text);
+    color: var(--text);
+  }
+  .sys .meta .open::before {
+    content: "↗";
+    font-family: var(--font-mono, "IBM Plex Mono", monospace);
+  }
+
+  /* iframe 包裹 */
+  .sys .stage {
+    background: #0a0a0c;
+    border-top: 1px solid var(--line);
+    overflow: hidden;
+    position: relative;
+  }
+  .sys .stage .scale {
+    width: 100%;
+    height: 520px;
+    overflow: auto;
+    border: 0;
+    position: relative;
+  }
+  .sys .stage .scale iframe {
+    display: block;
+    width: 100%;
+    height: 920px;
+    border: 0;
+    background: #fff;
+    transform-origin: top left;
+  }
+
+  /* 三套分别按自身的最佳缩放呈现 */
+  .sys.ancient  .stage .scale iframe { transform: scale(1); }
+  .sys.modern   .stage .scale iframe { transform: scale(0.62); width: 162%; height: 1480px; }
+  .sys.western  .stage .scale iframe { transform: scale(0.68); width: 148%; height: 1340px; }
+
+  /* 标注（仅总览页才有 · 原页面没有） */
+  .sys .stamp-wrap {
+    position: relative;
+  }
+  .sys .stage .tag {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    background: rgba(0,0,0,0.78);
+    color: var(--text);
+    padding: 4px 9px;
+    border: 1px solid var(--line-soft);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .sys .meta .fileinfo {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    color: var(--text-mute);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* 底部说明 */
+  footer {
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 20px 32px 48px;
+    font-size: 12.5px;
+    color: var(--text-mute);
+    line-height: 1.7;
+    border-top: 1px solid var(--line);
+    background: #0a0a0c;
+    margin-top: 0;
+  }
+  footer strong { color: var(--gold); }
+  footer code {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--panel);
+    padding: 1px 6px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    color: var(--text-soft);
+  }
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>三套系统总览预览<small>SYSTEMS OVERVIEW · READ-ONLY PREVIEW</small></h1>
+  <p>
+    并列展示三套已存在的面学系统 · <strong style="color:#c8930a;">不修改 · 不重构 · 不覆盖 · 不合并</strong>任何原始页面。
+    预览缩放仅在 iframe 内进行 · 不影响原页面真实尺寸。
+  </p>
+  <p style="margin-top:6px;">
+    引用源（只读）：
+    <code>_preview/ancient-skin-v4.html</code>
+    ·
+    <code>_preview/modern-result-preview.html</code>
+    ·
+    <code>_preview/western-skin.html</code>
+  </p>
+</header>
+
+<main class="stack">
+
+  <!-- ① 古代面学 / Ancient Chinese Physiognomic Archive -->
+  <article class="sys ancient">
+    <div class="meta">
+      <div class="title">
+        <div class="zh">① 古代面学 · 相书卷宗判读</div>
+        <div class="en">Ancient Chinese Physiognomic Archive · 卷宗版</div>
+        <div class="src">FILE: <code>_preview/ancient-skin-v4.html</code></div>
+      </div>
+      <div class="right">
+        <span class="status tune">待微调 / TUNE</span>
+        <a class="open" href="ancient-skin-v4.html?v=4" target="_blank" rel="noopener">打开单独页面</a>
+        <div class="fileinfo">v4.2 · 2026-07-07 · 36954 B</div>
+      </div>
+    </div>
+    <div class="stamp-wrap">
+      <div class="stage">
+        <div class="tag">总览预览 · 总览页缩放</div>
+        <div class="scale">
+          <iframe src="ancient-skin-v4.html?v=4" title="Ancient Chinese Physiognomic Archive · v4.2" loading="lazy"></iframe>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- ② 现代面学 / Modern Physiognomic Archive -->
+  <article class="sys modern">
+    <div class="meta">
+      <div class="title">
+        <div class="zh">② 现代面学 · 身份清仓</div>
+        <div class="en">Modern Physiognomic Archive · Identity Liquidator</div>
+        <div class="src">FILE: <code>_preview/modern-result-preview.html</code></div>
+      </div>
+      <div class="right">
+        <span class="status confirm">待确认 / CONFIRM</span>
+        <a class="open" href="modern-result-preview.html" target="_blank" rel="noopener">打开单独页面</a>
+        <div class="fileinfo">结果弹窗 UI · 静态预览</div>
+      </div>
+    </div>
+    <div class="stamp-wrap">
+      <div class="stage">
+        <div class="tag">总览预览 · 结果弹窗（静态）</div>
+        <div class="scale">
+          <iframe src="modern-result-preview.html" title="Modern Physiognomic Archive · Identity Liquidator · Result Panel" loading="lazy"></iframe>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- ③ 西方面学 / Western Physiognomic Archive -->
+  <article class="sys western">
+    <div class="meta">
+      <div class="title">
+        <div class="zh">③ 西方面学 · 冷档案识别</div>
+        <div class="en">Western Physiognomic Archive · LOCKED v3.1</div>
+        <div class="src">FILE: <code>_preview/western-skin.html</code></div>
+      </div>
+      <div class="right">
+        <span class="status lock-w">已锁定 / LOCKED</span>
+        <a class="open" href="western-skin.html?v=6" target="_blank" rel="noopener">打开单独页面</a>
+        <div class="fileinfo">v3.1 · 2026-07-07 · 23757 B</div>
+      </div>
+    </div>
+    <div class="stamp-wrap">
+      <div class="stage">
+        <div class="tag">总览预览 · LOCKED · 不要修改</div>
+        <div class="scale">
+          <iframe src="western-skin.html?v=6" title="Western Physiognomic Archive · LOCKED v3.1" loading="lazy"></iframe>
+        </div>
+      </div>
+    </div>
+  </article>
+
+</main>
+
+<footer>
+  <strong>三套并列规范 · 三件套保留</strong><br>
+  · <code>ancient-skin-v4.html</code> 待微调：v4.2 已调整字号层级与判读层级 · 当前是最新版本 · 后续可小修
+  <br>
+  · <code>modern-result-preview.html</code> 待确认：现代面学结果弹窗（静态）· 摄像头入口与三分类选择页不是"现代面学结果 UI"
+  <br>
+  · <code>western-skin.locked.html</code> 已锁定：v3.1 · 不可改 · 修改前看 WESTERN_LOCK_NOTE.md
+  <br>
+  <br>
+  <strong>本总览页是只读预览</strong>：
+  · 三个 iframe 均不接 AI / 摄像头 / 主流程
+  · iframe 缩放只影响总览预览 · 不修改任何原页面的尺寸或样式
+  · 不要在本页改任何原始页面 · 改原页面请去对应文件
+</footer>
+
+</body>
+</html>
+

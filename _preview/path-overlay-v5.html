@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>BIAS SYSTEM · 摄像头分流 Overlay · V5 · 强制刷新</title>
+<!--
+  古代面学/现代面学/西方面学入口 UI（v5）
+  旧版 path-overlay.html 出现重复定义问题 · 此文件用全新缓存
+  · 删除了三路分流线 SVG（不符合用户品味"发牌"）
+  · 三张卡彻底重做为三台机器不同气质：
+    - 古代 = 卷宗索引卡
+    - 现代 = 身份清仓标签机
+    - 西方 = 冷档案索引卡
+-->
+<link rel="stylesheet" href="../exhibition.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=STKaiti&family=Source+Han+Serif+SC:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=Courier+Prime:wght@400;700&family=LiSu&display=swap" rel="stylesheet">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --font-li:     "STLiti", "SimLi", "LiSu", "隶书", serif;
+    --font-kai:    "STKaiti", "KaiTi", "楷体", serif;
+    --font-serif:  "Noto Serif SC", "Source Han Serif SC", serif;
+    --font-mono:   "IBM Plex Mono", "Courier Prime", "Courier New", monospace;
+  }
+
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+
+  /* 摄像头占位背景 */
+  .v3x-video-bg {
+    background:
+      radial-gradient(ellipse at 30% 30%, rgba(120,80,40,0.55), transparent 55%),
+      radial-gradient(ellipse at 70% 75%, rgba(70,45,35,0.55), transparent 55%),
+      radial-gradient(ellipse at 50% 50%, rgba(40,30,22,0.65), transparent 70%),
+      linear-gradient(180deg, #1a1410 0%, #0a0806 100%) !important;
+  }
+  .v3x-video-bg::after {
+    content: ""; position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 260'><defs><radialGradient id='s' cx='50%25' cy='50%25' r='60%25'><stop offset='0%25' stop-color='%23d4a878'/><stop offset='100%25' stop-color='%235a3d28'/></radialGradient></defs><ellipse cx='100' cy='130' rx='70' ry='95' fill='url(%23s)'/><ellipse cx='80' cy='120' rx='5' ry='3' fill='%231a1a1a'/><ellipse cx='120' cy='120' rx='5' ry='3' fill='%231a1a1a'/><path d='M90 110 Q100 105 110 110' stroke='%233a2818' stroke-width='1.5' fill='none'/><path d='M85 155 Q100 165 115 155' stroke='%233a2818' stroke-width='1.5' fill='none'/><path d='M100 138 L96 165 L104 165 L100 170' stroke='%233a2818' stroke-width='1.5' fill='none'/></svg>");
+    background-repeat: no-repeat; background-position: center 45%;
+    background-size: 380px 480px; opacity: 0.78;
+  }
+
+  /* 暗化遮罩（仅中央收紧光圈） */
+  .v3x-dim-overlay {
+    position: fixed; inset: 0;
+    background: radial-gradient(ellipse at 50% 38%, transparent 20%, rgba(0,0,0,0.55) 80%);
+    pointer-events: none; z-index: 4;
+  }
+
+  /* 检测框（默认被金 · fork 时更明显） */
+  .v3x-frame { border: none !important; }
+  .v3x-frame .v3x-corner {
+    width: 90px !important; height: 90px !important;
+    border-color: #f5d400 !important; border-width: 6px !important;
+    box-shadow: 0 0 30px rgba(245,212,0,0.4);
+  }
+  .v3x-frame-label {
+    position: absolute; top: -26px; left: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px; font-weight: 900; color: #f5d400;
+    text-transform: uppercase; letter-spacing: 3px;
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(0,0,0,0.7); padding: 4px 10px;
+    border: 1.5px solid #f5d400;
+  }
+  .v3x-frame-label .dot {
+    display: inline-block; width: 8px; height: 8px;
+    background: #f5d400; box-shadow: 0 0 6px #f5d400;
+    animation: v3xDotPulse 1.2s ease-in-out infinite;
+  }
+  @keyframes v3xDotPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  body.forked .v3x-frame .v3x-corner {
+    box-shadow: 0 0 40px rgba(245,212,0,0.7);
+    animation: v3xCornerBreath 1.4s ease-in-out infinite;
+  }
+  @keyframes v3xCornerBreath {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+  }
+  body.forked .v3x-frame .v3x-scanline {
+    background: linear-gradient(90deg, transparent, rgba(245,212,0,1), transparent) !important;
+    box-shadow: 0 0 18px rgba(245,212,0,0.9) !important;
+    animation: v3xScanMove 0.5s linear infinite !important;
+  }
+
+  /* 顶部条 + 中央提示 */
+  body.forked .v3x-topbar__led {
+    background: #f5d400; box-shadow: 0 0 0 2px #000, 0 0 18px #f5d400;
+  }
+
+  .v3x-fork-hint {
+    position: fixed; top: 18%; left: 50%;
+    transform: translateX(-50%); z-index: 11;
+    text-align: center; opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s, transform 0.4s;
+  }
+  body.forked .v3x-fork-hint { opacity: 1; }
+  .v3x-fork-hint .pre {
+    font-family: 'Courier New', monospace;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 5px; color: #f5d400;
+    text-transform: uppercase; margin-bottom: 6px;
+    border-top: 1px solid #f5d400;
+    border-bottom: 1px solid #f5d400;
+    padding: 4px 0; display: inline-block;
+  }
+  .v3x-fork-hint .pre::before { content: "▌ "; }
+  .v3x-fork-hint .pre::after { content: " ▐"; }
+  .v3x-fork-hint .title {
+    font-family: 'Courier New', monospace;
+    font-size: 24px; font-weight: 900;
+    letter-spacing: 10px; color: #fff;
+    text-transform: uppercase; margin-top: 2px;
+    text-shadow: 2px 2px 0 #f5d400, 4px 4px 0 rgba(214,0,0,0.55);
+  }
+  .v3x-fork-hint .sub {
+    font-family: var(--font-kai);
+    font-size: 13px; color: #d8d8d8;
+    letter-spacing: 2px; font-style: italic;
+    margin-top: 6px;
+  }
+  .v3x-fork-hint .sub::before { content: "· "; color: #f5d400; }
+  .v3x-fork-hint .sub::after { content: " ·"; color: #f5d400; }
+
+  /* ============ 右侧"样本已锁定"状态卡片 ============ */
+  .v3x-locked-state {
+    display: block;
+    margin-top: 10px; padding: 12px 14px 10px;
+    background: rgba(0,0,0,0.6); border: 2px solid #f5d400;
+    box-shadow: 3px 3px 0 #00ff66; text-align: left;
+  }
+  body.forked .v3x-action__btn { display: none; }
+  body:not(.forked) .v3x-locked-state { display: none; }
+  .v3x-locked-state__title {
+    font-family: 'Courier New', monospace;
+    font-weight: 900; font-size: 14px;
+    color: #f5d400; letter-spacing: 3px;
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+  .v3x-locked-state__sub {
+    font-family: 'Courier New', monospace;
+    font-size: 11px; color: #fff; letter-spacing: 1.5px;
+  }
+  .v3x-locked-state__bar {
+    margin-top: 7px; height: 4px; background: #222; overflow: hidden;
+  }
+  .v3x-locked-state__bar-fill {
+    height: 100%; width: 100%;
+    background: linear-gradient(90deg, #f5d400, #00ff66);
+    animation: lockedBar 1.4s linear infinite;
+  }
+  @keyframes lockedBar {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* ================ 底部三分支 ================ */
+  .v3x-fork {
+    position: fixed; left: 50%; bottom: 5%;
+    transform: translateX(-50%) translateY(20px);
+    z-index: 20; width: min(1200px, 96vw);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.4s, transform 0.4s;
+  }
+  body.forked .v3x-fork {
+    opacity: 1; transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+  }
+  .v3x-fork .row {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 26px;
+  }
+  .v3x-fork .foot {
+    text-align: center; margin-top: 14px;
+    font-family: var(--font-kai);
+    font-size: 12.5px; color: #d8d8d8;
+    letter-spacing: 1.5px; font-style: italic;
+  }
+  .v3x-fork .foot::before { content: "※ "; color: #f5d400; }
+  .v3x-fork .foot::after { content: " ※"; color: #f5d400; }
+
+  /* 通用 hover/selected · routing-to 标签 */
+  .v3x-fork .path-ancient,
+  .v3x-fork .path-modern,
+  .v3x-fork .path-western {
+    position: relative;
+    display: flex; flex-direction: column;
+    cursor: pointer; text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    overflow: hidden; min-height: 220px;
+  }
+  .v3x-fork .path-ancient .routing-to,
+  .v3x-fork .path-modern .routing-to,
+  .v3x-fork .path-western .routing-to {
+    position: absolute; bottom: 100%; left: 0; right: 0;
+    text-align: center; padding: 7px 0;
+    font-family: 'Courier New', monospace;
+    font-weight: 900; font-size: 12px;
+    letter-spacing: 3px; opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+  }
+  .v3x-fork .path-ancient:hover .routing-to,
+  .v3x-fork .path-modern:hover .routing-to,
+  .v3x-fork .path-western:hover .routing-to {
+    opacity: 1; transform: translateY(0);
+  }
+
+  /* ==================== ① 古代 · 相书签牌 / 卷宗索引卡 v7 · 真实公版素材 ==================== */
+  .v3x-fork .path-ancient {
+    color: #2a1f17;
+    background-color: #f1e3b6;
+    /* ★ 加入真实公版素材局部（1817 木刻相书 + 色诊图）作为底层纹理 */
+    background-image:
+      /* 上层左侧：色诊图局部（中医面部反射区划） */
+      url('img/ancient-chinese-complexion-diagnosis.jpg'),
+      /* 下层整张：木刻相书局部作为底纹 */
+      url('img/ancient-chinese-physiognomy-diagnosis-1817.jpg'),
+      /* 极淡横纹 */
+      repeating-linear-gradient(0deg, rgba(74,58,42,0.06) 0 1px, transparent 1px 7px);
+    background-repeat: no-repeat, no-repeat, repeat;
+    background-size: 40% auto, 280px auto, auto;
+    background-position: 0 100%, 100% 110%, 0 0;
+    border: 2.5px solid #5e4a36;
+    box-shadow: 4px 4px 0 #5e4a36;
+    padding: 0;
+    overflow: hidden;
+  }
+  .v3x-fork .path-ancient::before {
+    content: ""; position: absolute; inset: 6px;
+    border: 1px solid rgba(94,74,54,0.55); pointer-events: none;
+  }
+  .v3x-fork .path-ancient:hover {
+    transform: translateY(-4px); border-color: #8a0d0d;
+    box-shadow: 6px 6px 0 #8a0d0d, 0 0 30px rgba(138,13,13,0.35);
+  }
+  .v3x-fork .path-ancient .routing-to { background: #2a0d0d; color: #f1c4c4; }
+  .v3x-fork .path-ancient .header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 10px 14px 6px;
+    border-bottom: 1px dashed rgba(94,74,54,0.4);
+  }
+  .v3x-fork .path-ancient .num {
+    font-family: var(--font-mono);
+    font-size: 12px; letter-spacing: 1.5px;
+    color: #6a5944; padding-top: 2px;
+  }
+  .v3x-fork .path-ancient .num strong { color: #8a0d0d; font-size: 15px; }
+  .v3x-fork .path-ancient .seal {
+    width: 48px; height: 48px;
+    border: 2.5px solid #8a0d0d; color: #8a0d0d;
+    font-family: var(--font-li); font-weight: 700; font-size: 11px;
+    display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+    transform: rotate(-6deg);
+    background: rgba(255,248,225,0.45); line-height: 1;
+  }
+  .v3x-fork .path-ancient .seal span {
+    display: flex; align-items: center; justify-content: center;
+    border-right: 2px solid #8a0d0d; border-bottom: 2px solid #8a0d0d;
+  }
+  .v3x-fork .path-ancient .seal span:nth-child(2n) { border-right: none; }
+  .v3x-fork .path-ancient .seal span:nth-child(n+3) { border-bottom: none; }
+  .v3x-fork .path-ancient .nav-sign {
+    display: flex; padding: 0 14px;
+    background: rgba(94,74,54,0.1);
+    border-bottom: 1px solid rgba(94,74,54,0.5);
+  }
+  .v3x-fork .path-ancient .nav-sign span {
+    flex: 1; height: 7px; border-right: 1px solid rgba(94,74,54,0.4);
+  }
+  .v3x-fork .path-ancient .nav-sign span:last-child { border-right: none; }
+  .v3x-fork .path-ancient .body { padding: 14px 16px; flex: 1; }
+
+  /* ★ 古代真实素材 · 古籍相书局部裁切 · 显示在右下方 */
+  .v3x-fork .path-ancient .ancient-artifact {
+    position: absolute;
+    bottom: 38px;       /* 让按钮在它下方覆盖 */
+    right: 14px;
+    width: 110px;
+    height: 90px;
+    object-fit: cover;
+    object-position: 60% 30%;   /* 裁切局部（人脸 + 宫位标记） */
+    filter: sepia(0.55) saturate(0.5) brightness(0.95) contrast(1.05);
+    opacity: 0.42;
+    border: 1.5px solid #8a0d0d;
+    box-shadow: 2px 2px 0 rgba(94,74,54,0.6);
+    pointer-events: none;
+    z-index: 0;
+  }
+  /* 古代 body 内的文字相对提升 */
+  .v3x-fork .path-ancient .body > * { position: relative; z-index: 2; }
+  .v3x-fork .path-ancient .name {
+    font-family: var(--font-li); font-size: 30px; font-weight: 700;
+    letter-spacing: 8px; color: #2a1f17;
+    line-height: 1.1; margin-bottom: 4px;
+  }
+  .v3x-fork .path-ancient .sub {
+    font-family: var(--font-kai); font-size: 14px;
+    letter-spacing: 5px; color: #4a3a2a; margin-bottom: 10px;
+  }
+  .v3x-fork .path-ancient .divider {
+    height: 1px; background: rgba(138,13,13,0.6);
+    margin: 8px 0; position: relative;
+  }
+  .v3x-fork .path-ancient .divider::after {
+    content: "朱砂批"; position: absolute; top: -7px; right: 0;
+    background: rgba(241,227,182,1); padding: 0 6px;
+    font-family: var(--font-kai); font-size: 10px;
+    color: #8a0d0d; letter-spacing: 2px; font-weight: 700;
+  }
+  .v3x-fork .path-ancient .seal-line {
+    font-family: var(--font-kai); font-size: 11px;
+    color: #8a0d0d; letter-spacing: 2px;
+    margin-bottom: 10px; font-weight: 700;
+  }
+  .v3x-fork .path-ancient .keys {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 10px 14px;
+    background: rgba(255,248,225,0.6);
+    border-top: 1px dashed rgba(138,13,13,0.5);
+  }
+  .v3x-fork .path-ancient .keys span {
+    font-family: var(--font-kai); font-size: 13px;
+    padding: 3px 8px; background: rgba(255,248,225,1);
+    border: 1px solid #8a0d0d; color: #2a1f17;
+    letter-spacing: 2px; font-weight: 700;
+  }
+  .v3x-fork .path-ancient .action {
+    padding: 14px 16px; border-top: 1px solid #5e4a36;
+    text-align: right; background: rgba(94,74,54,0.18);
+  }
+  .v3x-fork .path-ancient .enter {
+    display: inline-block; font-family: var(--font-mono);
+    font-weight: 700; font-size: 14px;
+    letter-spacing: 5px; color: #8a0d0d;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border: 1.5px solid #8a0d0d;
+    background: rgba(255,248,225,0.8);
+  }
+  .v3x-fork .path-ancient .enter::after { content: " ⇢"; }
+
+  /* ==================== ② 现代 · 身份清仓标签机 v7 · 半真实：摄像头抓拍 + 系统识别条 ==================== */
+  .v3x-fork .path-modern {
+    color: #1a1a1a;
+    background-color: #f5ecd0;
+    background-image: repeating-linear-gradient(0deg, rgba(0,0,0,0.05) 0 1px, transparent 1px 5px);
+    border: 4px solid #1a1a1a;
+    box-shadow: 7px 7px 0 #d60000;
+    padding: 0;
+    overflow: hidden;
+  }
+  .v3x-fork .path-modern:hover {
+    transform: translateY(-4px); border-color: #d60000;
+    box-shadow: 10px 10px 0 #d60000, 0 0 30px rgba(214,0,0,0.4);
+  }
+  .v3x-fork .path-modern .routing-to { background: #1a1a1a; color: #f5d400; }
+  .v3x-fork .path-modern .header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 14px 7px; border-bottom: 2px solid #1a1a1a;
+    background: #1a1a1a; color: #f5d400;
+  }
+  .v3x-fork .path-modern .num {
+    font-family: 'Courier New', monospace; font-weight: 900;
+    font-size: 12px; letter-spacing: 1.5px; color: #f5d400;
+  }
+  .v3x-fork .path-modern .num strong { font-size: 15px; color: #f5d400; }
+  .v3x-fork .path-modern .sku-chip {
+    background: #d60000; color: #fff;
+    font-family: 'Courier New', monospace; font-weight: 900;
+    font-size: 12px; padding: 3px 9px;
+    border: 2px solid #1a1a1a; letter-spacing: 1.4px;
+  }
+  .v3x-fork .path-modern .barcode {
+    padding: 6px 14px; background: #fff;
+    border-bottom: 2px solid #1a1a1a;
+    font-family: 'Courier New', monospace; font-size: 13px;
+    color: #1a1a1a; letter-spacing: 2px;
+  }
+  /* ★ 现代真实素材 · 多层身份识别结果（v8 完全重做） */
+  .v3x-fork .path-modern .modern-capture {
+    background: #0a0a0e;
+    background-image:
+      repeating-linear-gradient(90deg, rgba(34,197,94,0.05) 0 1px, transparent 1px 18px);
+    border-bottom: 2px solid #1a1a1a;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 78px;
+  }
+  /* 左侧：摄像头缩略 + 标签 */
+  .v3x-fork .path-modern .mod-side-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .v3x-fork .path-modern .cam-frame {
+    background: #000;
+    border: 1.5px solid #22c55e;
+    width: 90px; height: 50px;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 8px rgba(34,197,94,0.4) inset, 0 0 4px rgba(34,197,94,0.6);
+  }
+  .v3x-fork .path-modern .cam-frame svg {
+    width: 100%; height: 100%; display: block;
+  }
+  .v3x-fork .path-modern .cam-label {
+    color: #22c55e;
+    font-family: 'Courier New', monospace;
+    font-weight: 900; font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  /* 右侧：AI-LIVE · 系统识别粘纸（多行） */
+  .v3x-fork .path-modern .mod-side-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  .v3x-fork .path-modern .ai-tag {
+    color: #22c55e;
+    font-family: 'Courier New', monospace;
+    font-weight: 900; font-size: 12px;
+    letter-spacing: 1.5px;
+    padding: 4px 8px;
+    border: 1.5px solid #22c55e;
+    background: rgba(34,197,94,0.12);
+    text-transform: uppercase;
+  }
+  .v3x-fork .path-modern .ai-spec {
+    color: #f5d400;
+    font-family: 'Courier New', monospace;
+    font-weight: 900; font-size: 10px;
+    letter-spacing: 1.5px;
+    background: rgba(214,0,0,0.85);
+    border: 1.2px solid #d60000;
+    padding: 2px 6px;
+    text-transform: uppercase;
+  }
+  .v3x-fork .path-modern .ai-meta {
+    color: #1a1a1a;
+    font-family: 'Courier New', monospace;
+    font-weight: 700; font-size: 9px;
+    letter-spacing: 0.8px;
+    background: #fff;
+    padding: 1.5px 5px;
+    border: 1px solid #1a1a1a;
+  }
+  /* ★ 像素化人脸预览条（8 个色块模拟"模糊像素头像"） */
+  .v3x-fork .path-modern .mod-pixel-face {
+    background: #f5ecd0;
+    border-bottom: 2px solid #1a1a1a;
+    padding: 6px 12px;
+  }
+  .v3x-fork .path-modern .mod-pixel-row {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    height: 14px;
+  }
+  .v3x-fork .path-modern .px {
+    background: #1a1a1a;
+    height: 100%;
+  }
+  /* 让中间 4 个像素块更亮（模拟"人脸轮廓"） */
+  .v3x-fork .path-modern .px:nth-child(3) { background: #d4a878; }
+  .v3x-fork .path-modern .px:nth-child(4) { background: #d4a878; }
+  .v3x-fork .path-modern .px:nth-child(5) { background: #d4a878; }
+  .v3x-fork .path-modern .px:nth-child(6) { background: #d4a878; }
+  .v3x-fork .path-modern .body { padding: 14px 16px; flex: 1; }
+  .v3x-fork .path-modern .name {
+    font-family: 'Impact', 'Arial Black', sans-serif; font-size: 36px;
+    font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
+    color: #1a1a1a;
+    text-shadow: 3px 3px 0 #f5d400, 6px 6px 0 #1a1a1a;
+    line-height: 1; margin: 0 0 6px;
+  }
+  .v3x-fork .path-modern .sub {
+    font-family: 'Impact', 'Arial Black', sans-serif; font-size: 15px;
+    font-weight: 900; letter-spacing: 3px; text-transform: uppercase;
+    color: #1a1a1a; margin-bottom: 12px;
+  }
+  .v3x-fork .path-modern .sku-strip {
+    display: flex; height: 12px; margin-bottom: 12px;
+    border: 2px solid #1a1a1a;
+  }
+  .v3x-fork .path-modern .sku-strip span { flex: 1; border-right: 1px solid #1a1a1a; }
+  .v3x-fork .path-modern .sku-strip span:last-child { border-right: none; }
+  .v3x-fork .path-modern .sku-strip .s1 { background: #fde047; }
+  .v3x-fork .path-modern .sku-strip .s2 { background: #22d3ee; }
+  .v3x-fork .path-modern .sku-strip .s3 { background: #22c55e; }
+  .v3x-fork .path-modern .sku-strip .s4 { background: #fde047; }
+  .v3x-fork .path-modern .sku-strip .s5 { background: #f9a8d4; }
+  .v3x-fork .path-modern .sku-strip .s6 { background: #fef3c7; }
+  .v3x-fork .path-modern .tags-row { display: flex; gap: 5px; }
+  .v3x-fork .path-modern .tags-row span {
+    flex: 1; text-align: center;
+    font-family: 'Courier New', monospace; font-weight: 900;
+    font-size: 12px; letter-spacing: 1.2px;
+    padding: 4px 6px; border: 2px solid #1a1a1a;
+    color: #1a1a1a; box-shadow: 2px 2px 0 #1a1a1a;
+  }
+  .v3x-fork .path-modern .tags-row .t1 { background: #fde047; }
+  .v3x-fork .path-modern .tags-row .t2 { background: #22d3ee; }
+  .v3x-fork .path-modern .tags-row .t3 { background: #22c55e; }
+  .v3x-fork .path-modern .tags-row .t4 { background: #f9a8d4; }
+  .v3x-fork .path-modern .action {
+    padding: 12px 16px; border-top: 2px solid #1a1a1a;
+    background: #1a1a1a; color: #fff;
+    display: flex; justify-content: space-between; align-items: center; gap: 14px;
+  }
+  .v3x-fork .path-modern .recom {
+    font-family: 'Impact', 'Arial Black', sans-serif; font-weight: 900;
+    font-size: 13px; letter-spacing: 2.5px;
+    color: #f5d400; text-transform: uppercase;
+  }
+  .v3x-fork .path-modern .enter {
+    display: inline-block; font-family: 'Courier New', monospace;
+    font-weight: 900; font-size: 14px; letter-spacing: 5px;
+    color: #1a1a1a; background: #f5d400;
+    padding: 8px 14px; border: 2px solid #1a1a1a;
+    box-shadow: 3px 3px 0 #d60000; text-transform: uppercase;
+  }
+  .v3x-fork .path-modern .enter::after { content: " ⇢"; }
+
+  /* ==================== ③ 西方 · 冷档案索引卡 v6 · 细卡版（去除黑色大条） ==================== */
+  .v3x-fork .path-western {
+    color: #141414;
+    background-color: #ece8db;
+    /* 冷灰网格底 */
+    background-image:
+      /* 主网格：8×8 极淡灰 */
+      repeating-linear-gradient(0deg, rgba(20,20,20,0.045) 0 1px, transparent 1px 6px),
+      repeating-linear-gradient(90deg, rgba(20,20,20,0.045) 0 1px, transparent 1px 6px),
+      /* 细横纹底 */
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.04) 0 1px, transparent 1px 6px);
+    border: 1.5px solid #141414;        /* ★ 边框变细 · 2.5 → 1.5 */
+    padding: 0;
+    box-shadow: 3px 3px 0 #141414;     /* ★ 阴影变薄 · 4 → 3 */
+  }
+  /* 内层细框（双层档案感） */
+  .v3x-fork .path-western::before {
+    content: ""; position: absolute; inset: 4px;
+    border: 1px dashed rgba(20,20,20,0.45);
+    pointer-events: none;
+  }
+  .v3x-fork .path-western:hover {
+    transform: translateY(-3px); border-color: #8a1a1a;
+    box-shadow: 4px 4px 0 #8a1a1a, 0 0 24px rgba(138,26,26,0.3);
+  }
+  /* routing-to */
+  .v3x-fork .path-western .routing-to {
+    background: #f5f5f5; color: #141414;
+    border-bottom: 1px solid #141414;
+  }
+
+  /* ① 顶部细档案标题行（不再用厚重黑条） */
+  .v3x-fork .path-western .header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 14px;
+    border-bottom: 1px dashed rgba(20,20,20,0.4);
+    background: rgba(255,255,255,0.55);    /* ★ 透白纸感 · 不再纯黑 */
+    color: #141414;
+  }
+  .v3x-fork .path-western .num {
+    font-family: var(--font-mono);
+    font-size: 11px; letter-spacing: 1.5px;
+    color: #4a4a4a;
+  }
+  .v3x-fork .path-western .num strong { font-size: 14px; color: #8a1a1a; }
+  /* WPA 编号（细黑字 · 不再白底硬章） */
+  .v3x-fork .path-western .wpa {
+    color: #141414;
+    font-family: var(--font-mono); font-weight: 700;
+    font-size: 10px; letter-spacing: 2px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .v3x-fork .path-western .wpa::before {
+    content: ""; display: inline-block;
+    width: 10px; height: 10px;
+    background: #8a1a1a;
+    border-radius: 0;
+  }
+  .v3x-fork .path-western .wpa::after {
+    content: " · REDACTED";
+    color: #8a1a1a;
+    font-weight: 900;
+  }
+
+  /* 细红线（不再有 2.5px 黑条分隔） */
+  .v3x-fork .path-western .meas-strip {
+    height: 4px;
+    background:
+      repeating-linear-gradient(90deg, #8a1a1a 0 1px, transparent 1px 4px) 0 0/8px 2px no-repeat,
+      repeating-linear-gradient(90deg, #1f3142 0 1px, transparent 1px 4px) 0 2px/8px 2px no-repeat,
+      #fff;
+    border-bottom: 1px dashed rgba(20,20,20,0.4);
+  }
+
+  /* ★ 西方真实素材 · Bertillon 全图低透明度贯穿整张卡（背景层） */
+  .v3x-fork .path-western .western-bg-bertillon {
+    position: absolute;
+    inset: 0;
+    background-image: url('img/wellcome-anthropometry-32016.jpg');
+    background-repeat: no-repeat;
+    background-position: center 20%;
+    background-size: 130% auto;
+    filter: grayscale(0.85) contrast(1.05) brightness(1.05);
+    opacity: 0.12;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .v3x-fork .path-western > * { position: relative; z-index: 1; }
+  .v3x-fork .path-western .western-bg-bertillon { z-index: 0; }
+
+  /* ★ 西方真实素材 · 档案胶片条（一整条横向胶卷 · 5 帧） */
+  .v3x-fork .path-western .western-film-strip {
+    background: #0a0a0e;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 3px;
+    padding: 5px 12px;
+    border-top: 1px dashed rgba(20,20,20,0.4);
+    border-bottom: 1px dashed rgba(20,20,20,0.4);
+    position: relative;
+    z-index: 2;
+  }
+  .v3x-fork .path-western .film-frame {
+    background-color: #f5f2e8;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    border: 1px solid #2a2a2a;
+    height: 58px;
+    position: relative;
+    overflow: hidden;
+  }
+  .v3x-fork .path-western .film-frame::before {
+    content: attr(title);
+    position: absolute;
+    top: 2px; left: 0; right: 0;
+    text-align: center;
+    background: rgba(255,255,255,0.92);
+    color: #141414;
+    font-family: 'Courier New', monospace;
+    font-size: 7.5px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    padding: 1px 0;
+    border-bottom: 1px solid rgba(20,20,20,0.5);
+    text-transform: uppercase;
+  }
+  .v3x-fork .path-western .film-frame::after {
+    content: counter(frame);
+    position: absolute;
+    bottom: 2px; right: 3px;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    background: rgba(0,0,0,0.5);
+    padding: 0 4px;
+  }
+  .v3x-fork .path-western .western-film-strip {
+    counter-reset: frame;
+  }
+  .v3x-fork .path-western .film-frame {
+    counter-increment: frame;
+  }
+  /* 5 帧：不同公版图 · 不同冷灰处理 */
+  .v3x-fork .path-western .film-frame-bertillon {
+    background-image: url('img/wellcome-anthropometry-32016.jpg');
+    background-position: 70% 30%;
+    filter: grayscale(0.4) contrast(1.15);
+  }
+  .v3x-fork .path-western .film-frame-criminal {
+    background-image: url('img/wellcome-criminal-6996.jpg');
+    background-position: center center;
+    filter: grayscale(0.5) contrast(1.15) brightness(0.9);
+  }
+  .v3x-fork .path-western .film-frame-anatomy {
+    background-image: url('img/wellcome-anatomy-31839.jpg');
+    background-position: center 30%;
+    filter: grayscale(0.45) contrast(1.15);
+  }
+  .v3x-fork .path-western .film-frame-phrenology {
+    background-image: url('img/wellcome-phrenology-12998.jpg');
+    background-position: 35% center;
+    filter: grayscale(0.5) contrast(1.15);
+  }
+  .v3x-fork .path-western .film-frame-phrenology2 {
+    background-image: url('img/wellcome-phrenology-32099.jpg');
+    background-position: 50% center;
+    filter: grayscale(0.5) contrast(1.15);
+  }
+
+  /* ★ 西方真实素材 · Lavater 侧影局部作为右侧叠层（v9 加强版） */
+  .v3x-fork .path-western .west-lavater-overlay {
+    position: absolute;
+    right: 12px;
+    top: 46%;
+    transform: translateY(-50%);
+    width: 96px; height: 130px;
+    background-image: url('img/lavater-silhouette-L-1789.jpg');
+    background-repeat: no-repeat;
+    background-position: 72% center;        /* ★ 偏向右侧放侧脸头像 */
+    background-size: 220% auto;            /* ★ 加大放大比，聚焦头部 */
+    filter: grayscale(0.55) contrast(1.25) brightness(0.92) sepia(0.15);
+    opacity: 0.72;                          /* ★ 提高可见度 · 是素材不是装饰 */
+    pointer-events: none;
+    z-index: 1;
+    border: 1px solid #141414;
+    box-shadow: 2px 2px 0 #141414;
+  }
+  /* 叠加测线/编号在 Lavater 上 */
+  .v3x-fork .path-western .west-lavater-overlay::before {
+    content: "T1";
+    position: absolute;
+    top: 4px; left: 4px;
+    background: rgba(138,26,26,0.85);
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-weight: 700; font-size: 8px;
+    padding: 1px 4px;
+    border: 0.5px solid #fff;
+  }
+  .v3x-fork .path-western .west-lavater-overlay::after {
+    content: "▌ LAVATER 1789";
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(255,255,255,0.92);
+    color: #141414;
+    font-family: 'Courier New', monospace;
+    font-weight: 700; font-size: 7.5px;
+    letter-spacing: 1px;
+    padding: 2px 0;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  /* 主区域：测量卡感 */
+  .v3x-fork .path-western .body {
+    padding: 14px 16px; flex: 1;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* 主标题行：左名 + 右小型 Lavater 侧影 */
+  .v3x-fork .path-western .name-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 4px;
+  }
+  .v3x-fork .path-western .name {
+    font-family: var(--font-serif); font-size: 30px;
+    font-weight: 700; letter-spacing: 6px;
+    color: #141414; line-height: 1.1;
+  }
+
+  /* ① Lavater 风格侧影线框（不是黑色人头贴纸） */
+  .v3x-fork .path-western .profile-mini {
+    /* ★ 已删除耳朵线稿占位 SVG · CSS 残废 */
+    display: none;
+  }
+  /* ② 小数据栏（HT / CR） */
+  .v3x-fork .path-western .sub {
+    font-family: var(--font-mono); font-size: 12px;
+    font-weight: 700; letter-spacing: 2.5px;
+    color: #4a4a4a; text-transform: uppercase; margin-bottom: 8px;
+  }
+  /* ③ 冷灰档案分割线（带 COLD ARCHIVE 标签） */
+  .v3x-fork .path-western .divider {
+    height: 1px; background: rgba(20,20,20,0.4);
+    margin: 6px 0; position: relative;
+  }
+  .v3x-fork .path-western .divider::after {
+    content: "COLD ARCHIVE · LOCKED";
+    position: absolute; top: -7px; right: 0;
+    background: #ece8db; padding: 0 6px;
+    font-family: var(--font-mono); font-size: 9px;
+    color: #141414; letter-spacing: 2px; font-weight: 700;
+  }
+  /* ④ 档案字段 HT / CR */
+  .v3x-fork .path-western .cinfo {
+    display: flex; gap: 14px; margin-bottom: 10px;
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 1px;
+    align-items: baseline;
+  }
+  .v3x-fork .path-western .cinfo .ck { color: #4a4a4a; font-weight: 700; }
+  .v3x-fork .path-western .cinfo .cv { color: #8a1a1a; font-weight: 700; }
+  .v3x-fork .path-western .cinfo .sep {
+    width: 1px; height: 10px;
+    background: rgba(20,20,20,0.3);
+    display: inline-block;
+    align-self: center;
+  }
+  .v3x-fork .path-western .archive-locked {
+    font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 2px;
+    color: #4a4a4a;
+    border: 1px solid #4a4a4a;
+    padding: 2px 6px;
+    text-transform: uppercase;
+  }
+
+  /* ⑤ 关键词 */
+  .v3x-fork .path-western .keys {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .v3x-fork .path-western .keys span {
+    font-family: var(--font-mono); font-size: 11px;
+    font-weight: 700; letter-spacing: 1.5px;
+    padding: 3px 7px; background: rgba(255,255,255,0.7);
+    border: 1px solid #141414; color: #141414;
+    text-transform: uppercase;
+  }
+
+  /* ⑥ 底部：左侧小型测量尺 + 右侧档案按钮 */
+  .v3x-fork .path-western .action {
+    padding: 12px 16px;
+    border-top: 1px dashed rgba(20,20,20,0.4);
+    background: rgba(255,255,255,0.4);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .v3x-fork .path-western .ruler-mini {
+    width: 76px; height: 14px;
+    background:
+      linear-gradient(to right, #141414 0 1px, transparent 1px 5px) 0 0/5px 4px no-repeat,
+      linear-gradient(to right, #141414 0 1px, transparent 1px 10px) 0 8px/10px 6px no-repeat,
+      #fff;
+    border: 1px solid #141414;
+  }
+  .v3x-fork .path-western .enter {
+    display: inline-block; font-family: var(--font-mono);
+    font-weight: 700; font-size: 13px; letter-spacing: 4px;
+    color: #141414; background: rgba(255,255,255,0.8);
+    padding: 7px 12px; border: 1px solid #141414;
+    text-transform: uppercase;
+  }
+  .v3x-fork .path-western .enter::after { content: " ⇢"; }
+
+  /* 隐藏 v3x-modal / v3x-result · 它们不该出现 */
+  .demo-hide { display: none !important; }
+</style>
+</head>
+
+<body class="forked">
+
+<video class="v3x-video-bg" id="v3xVideo" autoplay playsinline muted></video>
+<div class="v3x-vignette"></div>
+<div class="v3x-noise"></div>
+
+<header class="v3x-topbar">
+  <div class="v3x-topbar__left">
+    <span class="v3x-topbar__led"></span>
+    <span class="v3x-topbar__brand">BIAS SYSTEM</span>
+    <span class="v3x-topbar__sep">/</span>
+    <span class="v3x-topbar__sub">LIVE CLASSIFICATION · 现场归类</span>
+  </div>
+  <div class="v3x-topbar__right">
+    <span class="v3x-topbar__case">CASE #EXH-00031</span>
+    <span class="v3x-topbar__barcode">▍▌▎▍▎▌▍▎▍▌▎▍▎▍</span>
+    <span class="v3x-topbar__time">--:--:--</span>
+  </div>
+</header>
+
+<div class="v3x-stage">
+  <div class="v3x-frame" id="v3xFrame" style="position:relative;">
+    <span class="v3x-frame-label"><span class="dot"></span><span>LOCKED · 样本已锁定 · 等待分流</span></span>
+    <span class="v3x-corner v3x-corner--tl"></span>
+    <span class="v3x-corner v3x-corner--tr"></span>
+    <span class="v3x-corner v3x-corner--bl"></span>
+    <span class="v3x-corner v3x-corner--br"></span>
+    <div class="v3x-scanline"></div>
+    <div class="v3x-crosshair"></div>
+  </div>
+</div>
+
+<aside class="v3x-side v3x-side--left">
+  <div class="v3x-status">
+    <div class="v3x-status__led"></div>
+    <div class="v3x-status__txt">
+      <div class="v3x-status__title">已锁定 · 等待分流</div>
+      <div class="v3x-status__sub">请选择归类路径</div>
+    </div>
+  </div>
+  <div class="v3x-mini">
+    <div class="v3x-mini__label">实时数据</div>
+    <div class="v3x-mini__row"><span>SKIN</span><b>0.812</b></div>
+    <div class="v3x-mini__row"><span>VAR</span><b>3</b></div>
+    <div class="v3x-mini__row"><span>SIZE</span><b>320×360</b></div>
+    <div class="v3x-mini__row"><span>FPS</span><b>5</b></div>
+  </div>
+</aside>
+
+<aside class="v3x-side v3x-side--right">
+  <div class="v3x-action">
+    <div class="v3x-action__kicker">▌ 等待分流</div>
+    <div class="v3x-action__title">样本已锁定</div>
+    <div class="v3x-action__sub">三台分类机器等待输入</div>
+    <div class="v3x-locked-state">
+      <div class="v3x-locked-state__title">▌ 样本已锁定</div>
+      <div class="v3x-locked-state__sub">等待选择分类器</div>
+      <div class="v3x-locked-state__bar"><div class="v3x-locked-state__bar-fill"></div></div>
+    </div>
+  </div>
+</aside>
+
+<footer class="v3x-bottom">
+  <div class="v3x-sample">
+    <div class="v3x-sample__empty">
+      <span class="v3x-sample__empty-icon">⌽</span>
+      <span>已捕获 · 等待选择分类路径</span>
+    </div>
+  </div>
+  <div class="v3x-log" id="v3xLog"></div>
+</footer>
+
+<!-- 暗化遮罩 -->
+<div class="v3x-dim-overlay"></div>
+
+<!-- 中央检测完成提示 -->
+<div class="v3x-fork-hint">
+  <div class="pre">PHASE 03 · DETECTION COMPLETE</div>
+  <div class="title">检测完成<br>请选择归类路径</div>
+  <div class="sub">同一份输入 · 将被写入不同档案</div>
+</div>
+
+<!-- 底部三分支 ★ 新版 · 三台不同机器质感 -->
+<div class="v3x-fork">
+  <div class="row">
+
+    <!-- ① 古代 · 相书签牌 / 卷宗索引卡 -->
+    <div class="path-ancient" data-system="ancient" role="button" tabindex="0">
+      <div class="routing-to">⇢ ROUTING TO 古代 · ANCIENT</div>
+      <div class="header">
+        <div class="num"><strong>01</strong> / 03</div>
+        <div class="seal">
+          <span>卷</span><span>六</span>
+          <span>已</span><span>裁</span>
+        </div>
+      </div>
+      <div class="nav-sign"><span></span><span></span><span></span></div>
+      <!-- ★ 古代真实素材：古籍相书局部（右侧局部小图） -->
+      <img class="ancient-artifact" src="img/ancient-chinese-physiognomy-diagnosis-1817.jpg" alt="古代相书 / Ancient physiognomy chart 1817" />
+      <div class="body">
+        <div class="name">古代面学</div>
+        <div class="sub">相书卷宗 · 卷六</div>
+        <div class="divider"></div>
+        <div class="seal-line">朱批 · VOL. 06 · CASE 027-A</div>
+        <div class="keys">
+          <span>十二宫</span><span>五官</span><span>气色</span>
+        </div>
+      </div>
+      <div class="action">
+        <div class="enter">入 卷 宗</div>
+      </div>
+    </div>
+
+    <!-- ② 现代 · 身份清仓标签机 v8 · 摄像头缩略+ 6 格标签机质感 -->
+    <div class="path-modern" data-system="modern" role="button" tabindex="0">
+      <div class="routing-to">⇢ ROUTING TO 现代 · MODERN</div>
+      <div class="header">
+        <div class="num"><strong>02</strong> / 03</div>
+        <div class="sku-chip">SKU-02</div>
+      </div>
+      <div class="barcode">▍▌▎▍▎▌▍▎▍▌▎▍▍▎▌▍▎▍▍</div>
+      <!-- ★ 现代真实素材 · 完全无人脸 · 摄像头抓拍 SVG（纯检测框+噪点+SKU + 扫描线 · 无任何小脸头） -->
+        <div class="modern-capture">
+          <div class="mod-side mod-side-left">
+            <div class="cam-frame">
+              <!-- 真实摄像头画面：纯噪点 + 扫描线 + 数据 · 不用任何人脸 -->
+              <svg viewBox="0 0 60 50" xmlns="http://www.w3.org/2000/svg">
+                <!-- 噪点背景 -->
+                <rect width="60" height="50" fill="#0a0a0e"/>
+                <!-- 随机像素块（噪点） -->
+                <g fill="#22c55e" opacity="0.5">
+                  <rect x="4" y="6" width="1.5" height="1.5"/>
+                  <rect x="9" y="14" width="1" height="1"/>
+                  <rect x="15" y="9" width="1.2" height="1.2"/>
+                  <rect x="22" y="20" width="1" height="1"/>
+                  <rect x="29" y="7" width="1.5" height="1.5"/>
+                  <rect x="34" y="15" width="1" height="1"/>
+                  <rect x="42" y="11" width="1.5" height="1.5"/>
+                  <rect x="48" y="22" width="1" height="1"/>
+                  <rect x="55" y="9" width="1.2" height="1.2"/>
+                  <rect x="6" y="28" width="1" height="1"/>
+                  <rect x="14" y="33" width="1.2" height="1.2"/>
+                  <rect x="20" y="26" width="1" height="1"/>
+                  <rect x="27" y="34" width="1.5" height="1.5"/>
+                  <rect x="35" y="28" width="1" height="1"/>
+                  <rect x="43" y="32" width="1.5" height="1.5"/>
+                  <rect x="50" y="38" width="1" height="1"/>
+                </g>
+                <g fill="#1a1a1a" opacity="0.7">
+                  <rect x="2" y="2" width="2" height="1.5"/>
+                  <rect x="7" y="18" width="3" height="1"/>
+                  <rect x="13" y="5" width="2" height="2"/>
+                  <rect x="20" y="32" width="2.5" height="1"/>
+                  <rect x="28" y="12" width="3" height="1"/>
+                  <rect x="35" y="5" width="2" height="2"/>
+                  <rect x="42" y="18" width="3" height="1"/>
+                  <rect x="50" y="28" width="2.5" height="1"/>
+                </g>
+                <!-- 扫描线 -->
+                <line x1="0" y1="14" x2="60" y2="14" stroke="#22c55e" stroke-width="0.3" opacity="0.6"/>
+                <line x1="0" y1="32" x2="60" y2="32" stroke="#22c55e" stroke-width="0.3" opacity="0.6"/>
+                <!-- 摄像头检测框（无目标 · 空检测） -->
+                <rect x="9" y="9" width="42" height="34" fill="none" stroke="#22c55e" stroke-width="0.8" stroke-dasharray="2 1"/>
+                <!-- 角标（缺目标 · 提示扫描中） -->
+                <polyline points="9,13 9,9 14,9" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+                <polyline points="46,9 51,9 51,13" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+                <polyline points="51,39 51,43 46,43" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+                <polyline points="14,43 9,43 9,39" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+                <!-- 中央扫描文字 -->
+                <text x="30" y="29" text-anchor="middle" font-size="3.5" font-family="Courier New" fill="#22c55e" font-weight="700">SCANNING</text>
+                <!-- 底部进度条 -->
+                <line x1="11" y1="46" x2="49" y2="46" stroke="#0a0a0e" stroke-width="1"/>
+                <line x1="11" y1="46" x2="33" y2="46" stroke="#22c55e" stroke-width="1"/>
+                <text x="11" y="49" font-size="2.5" font-family="Courier New" fill="#22c55e">67%</text>
+              </svg>
+            </div>
+            <div class="cam-label">SAMPLE IMG · 320×360</div>
+          </div>
+          <div class="mod-side mod-side-right">
+            <!-- 系统识别粘纸组 · 没有任何头像图标 -->
+            <div class="ai-tag">◼ AI-LIVE</div>
+            <div class="ai-spec">SCAN 67%</div>
+            <div class="ai-meta">320×360 · 0.812</div>
+          </div>
+        </div>
+      <!-- ★ 现代真实素材 · 像素化人脸预览条（8 格像素块） -->
+      <div class="mod-pixel-face">
+        <div class="mod-pixel-row">
+          <span class="px"></span><span class="px"></span><span class="px"></span><span class="px"></span>
+          <span class="px"></span><span class="px"></span><span class="px"></span><span class="px"></span>
+        </div>
+      </div>
+      <div class="body">
+        <div class="name">现代面学</div>
+        <div class="sub">身份清仓 · RECOMMEND</div>
+        <div class="sku-strip">
+          <span class="s1"></span><span class="s2"></span><span class="s3"></span>
+          <span class="s4"></span><span class="s5"></span><span class="s6"></span>
+        </div>
+        <div class="tags-row">
+          <span class="t1">性别</span><span class="t2">收入</span>
+          <span class="t3">家庭</span><span class="t4">风险</span>
+        </div>
+      </div>
+      <div class="action">
+        <div class="recom">★ SYSTEM RECOMMEND ★</div>
+        <div class="enter">入 清 仓</div>
+      </div>
+    </div>
+
+    <!-- ③ 西方 · 冷档案索引卡 v8 · Bertillon 底纹 + 档案胶片条 + Lavater 侧肋 -->
+    <div class="path-western" data-system="western" role="button" tabindex="0">
+      <div class="routing-to">⇢ ROUTING TO 西方 · WESTERN</div>
+      <!-- ★ 西方真实素材 · Bertillon 全图低透明度作为底层纹理（贯穿整张卡） -->
+      <div class="western-bg-bertillon"></div>
+      <div class="header">
+        <div class="num"><strong>03</strong> / 03</div>
+        <div class="wpa">W.P.A · ID 027-A</div>
+      </div>
+      <div class="meas-strip"></div>
+      <!-- ★ 西方真实素材 · 档案胶片条（一整条横向胶卷） -->
+      <div class="western-film-strip">
+        <div class="film-frame film-frame-bertillon" title="Bertillon"></div>
+        <div class="film-frame film-frame-criminal" title="Criminal"></div>
+        <div class="film-frame film-frame-anatomy" title="Anatomy"></div>
+        <div class="film-frame film-frame-phrenology" title="Phrenology"></div>
+        <div class="film-frame film-frame-phrenology2" title="Phrenology2"></div>
+      </div>
+      <div class="body">
+        <div class="name-row">
+          <div class="name">西方面学</div>
+          <!-- ★ Lavater 真实素材局部（右侧 silhouette 公版图局部 · 不用任何线稿占位图） -->
+          <div class="west-lavater-overlay"></div>
+        </div>
+        <div class="sub">冷档案识别 · COLD ARCHIVE</div>
+        <div class="divider"></div>
+        <div class="cinfo">
+          <span class="ck">HT</span><span class="cv">178.0</span>
+          <span class="sep"></span>
+          <span class="ck">CR</span><span class="cv">82.4</span>
+          <span class="archive-locked">ARCHIVE LOCKED</span>
+        </div>
+        <div class="keys">
+          <span>侧影</span><span>测量</span><span>编号</span>
+        </div>
+      </div>
+      <div class="action">
+        <div class="ruler-mini"></div>
+        <div class="enter">入 档 案</div>
+      </div>
+    </div>
+
+  </div>
+  <div class="foot">※ 选择并不会改变输入 · 只会改变系统如何命名它 ※</div>
+</div>
+
+<!-- 隐藏节点 -->
+<div class="demo-hide">
+  <div class="v3x-modal" hidden></div>
+  <div class="v3x-result" hidden></div>
+</div>
+
+<button class="v3x-quit" type="button" title="退出">✕</button>
+
+<script>
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '1') {
+      e.preventDefault();
+      // ★ 单页：调用 SPA 切 view（不跳页）
+      if (window.SPA && window.SPA.gotoAncient) window.SPA.gotoAncient();
+      else if (window.parent && window.parent.SPA) window.parent.SPA.gotoAncient();
+    } else if (e.key === '2') {
+      e.preventDefault();
+      if (window.SPA && window.SPA.gotoModern) window.SPA.gotoModern();
+      else if (window.parent && window.parent.SPA) window.parent.SPA.gotoModern();
+    } else if (e.key === '3') {
+      e.preventDefault();
+      if (window.SPA && window.SPA.gotoWestern) window.SPA.gotoWestern();
+      else if (window.parent && window.parent.SPA) window.parent.SPA.gotoWestern();
+    } else if (e.key === 'Escape') {
+      if (window.SPA && window.SPA.gotoCamera) window.SPA.gotoCamera();
+    }
+  });
+</script>
+
+</body>
+</html>

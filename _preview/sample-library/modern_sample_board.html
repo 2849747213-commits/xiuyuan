@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BIAS SYSTEM · 现代归类样本库 · CONTEMPORARY ISSUE FACE LIBRARY</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #050505; color: #f5f5f5;
+  font-family: 'Courier New', 'SimHei', monospace;
+  padding: 40px 20px; min-height: 100vh;
+}
+header {
+  text-align: center; padding: 24px 12px 32px;
+  border-bottom: 2px dashed #f5d400; margin-bottom: 32px;
+}
+header .icon { font-size: 48px; margin-bottom: 8px; }
+header h1 {
+  font-size: 18px; letter-spacing: 4px; color: #f5d400;
+  text-transform: uppercase; margin-bottom: 12px;
+}
+header .sub { font-size: 12px; opacity: 0.7; letter-spacing: 2px; }
+header .meta { font-size: 10px; opacity: 0.4; margin-top: 8px; }
+.notice {
+  max-width: 1100px; margin: 0 auto 24px; padding: 12px 16px;
+  background: #1a1a1a; border: 1px dashed #f5d400;
+  font-size: 11px; letter-spacing: 1px; line-height: 1.6; opacity: 0.85;
+}
+.grid {
+  max-width: 1200px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+}
+.card {
+  background: #141414; border: 2px solid #f5d400;
+  padding: 14px; position: relative;
+}
+.card.missing { opacity: 0.5; border-style: dashed; }
+.card .sid {
+  position: absolute; top: 6px; right: 8px;
+  font-size: 11px; color: #f5d400; font-weight: 900; letter-spacing: 2px;
+}
+.card .face-type {
+  display: inline-block; font-size: 10px; color: #000;
+  background: #f5d400; padding: 2px 6px;
+  letter-spacing: 1.5px; margin-bottom: 6px; font-weight: 900;
+  text-transform: uppercase;
+}
+.card .img-wrap {
+  width: 100%; aspect-ratio: 4/3; background: #000;
+  border: 1px solid #f5d400; overflow: hidden; margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: center;
+}
+.card .img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card .img-wrap .missing {
+  font-size: 11px; color: #f5d400; padding: 20px; text-align: center; line-height: 1.6;
+}
+.card .name { font-size: 14px; color: #f5d400; font-weight: 900; margin-bottom: 4px; }
+.card .real-case { font-size: 11px; opacity: 0.85; margin-bottom: 8px; font-style: italic; line-height: 1.5; }
+.card .issue {
+  font-size: 11px; color: #d60000; margin-top: 6px;
+  padding: 6px 8px; border-left: 3px solid #d60000;
+  background: rgba(214, 0, 0, 0.05); line-height: 1.5;
+}
+.card .keywords { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.card .kw {
+  font-size: 9px; padding: 2px 5px; border: 1px solid #f5d400;
+  letter-spacing: 0.5px; opacity: 0.85;
+}
+.card .sys-lang {
+  font-size: 10px; color: #f5d400; margin-top: 8px;
+  padding-top: 6px; border-top: 1px dashed #f5d400; line-height: 1.4;
+  opacity: 0.95;
+}
+.card .src { font-size: 9px; opacity: 0.5; margin-top: 6px; word-break: break-all; }
+.card .src a { color: #f5d400; text-decoration: none; }
+.card .src a:hover { text-decoration: underline; }
+.card .fields {
+  font-size: 9px; opacity: 0.55; margin-top: 6px; font-family: monospace;
+}
+footer {
+  text-align: center; margin-top: 40px; padding: 20px;
+  font-size: 10px; opacity: 0.4; letter-spacing: 1px;
+}
+/* ★★★ 傅首尔脸 · 样本证据条（仅展示，不接入正式流程） ★★★ */
+.fs-strip {
+  max-width: 1200px; margin: 48px auto 0; padding: 18px 18px 16px;
+  border: 1px dashed #f5d400; background: #0c0c0c;
+}
+.fs-strip__head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  border-bottom: 1px dashed #f5d400; padding-bottom: 10px; margin-bottom: 14px; }
+.fs-strip__kicker { font-size: 10px; letter-spacing: 3px; color: #f5d400; opacity: 0.7; }
+.fs-strip__title { font-size: 16px; font-weight: 900; color: #f5d400; letter-spacing: 2px; }
+.fs-strip__sub { font-size: 11px; line-height: 1.6; color: #cfcfcf; opacity: 0.85; margin-bottom: 14px; }
+.fs-strip__row { display: flex; gap: 14px; flex-wrap: wrap; }
+.fs-strip__cell { width: 220px; background: #141414; border: 1px solid #f5d400;
+  display: flex; flex-direction: column; }
+.fs-strip__img { display: block; width: 100%; height: 150px; object-fit: cover; background: #000; }
+.fs-strip__cap { padding: 8px 10px 10px; font-size: 10.5px; line-height: 1.5; color: #f5d400;
+  border-top: 1px dashed #f5d400; }
+.fs-strip__cap b { display: block; font-size: 12px; letter-spacing: 2px; margin-bottom: 2px; color: #fff7c2; }
+.fs-strip__note { margin-top: 12px; font-size: 10px; color: #888; font-style: italic; letter-spacing: 0.5px; }
+@media (max-width: 560px) {
+  .fs-strip__cell { width: 100%; }
+  .fs-strip__img { height: 180px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="icon">📱</div>
+  <h1>BIAS SYSTEM · 现代归类样本库 · CONTEMPORARY ISSUE FACE LIBRARY</h1>
+  <div class="sub">12 样本 / 6 类型 × 每类 2 / 当代社会议题 · 公共舆论 · 平台审美 · 身份判断</div>
+  <div class="meta">BIAS SYSTEM · SAMPLE LIBRARY v03 · MODERN BRANCH</div>
+</header>
+<div class="notice">⚠ 本板为研究用样本库（6/12 已找到本地图像）· 主题：当代社会议题 · 公共舆论 · 平台审美 · 身份判断 · 不接入正式作品流程</div>
+<div class="grid">
+<div class="card">
+  <div class="sid">M01</div>
+  <div class="face-type">关系表达脸 / 女性公共表达脸</div>
+  <div class="img-wrap"><img src="../../assets/sample-library/modern/fushouer.webp" alt="傅首尔脸" loading="lazy" onerror="this.parentElement.innerHTML='<div class=missing>图 404</div>'"></div>
+  <div class="name">傅首尔脸</div>
+  <div class="real-case">CASE: 傅首尔脱口秀、《再见爱人》麦琳相关舆论、婚恋议题平台辩论</div>
+  <div class="keywords"><span class="kw">强表达</span><span class="kw">关系控制</span><span class="kw">综艺辩论</span><span class="kw">被舆论定性</span><span class="kw">道德审判</span></div>
+  <div class="issue">⚠ ISSUE: 女性公共表达被定性 / 婚恋舆论场对女性的道德审判</div>
+  <div class="sys-lang">→ SYSTEM: 关系控制倾向上升 / 道德审判脸 / 被舆论定性脸</div>
+  <div class="fields">fields: relationship_value=稳定同居, risk_value=中风险</div>
+  <div class="src">src: <a href="https://en.wikipedia.org/wiki/Talk_show" target="_blank" rel="noopener">https://en.wikipedia.org/wiki/Talk_show</a></div><div class="src">note: 用户提供 · 本地素材（fushouer / alt 副图）</div>
+</div>
+<div class="card">
+  <div class="sid">M02</div>
+  <div class="face-type">审美冲突脸 / 民族符号风险脸</div>
+  <div class="img-wrap"><img src="../../assets/sample-library/modern/zhangxuefen.jpg" alt="眯眯眼脸 / 辱华脸" loading="lazy" onerror="this.parentElement.innerHTML='<div class=missing>图 404</div>'"></div>
+  <div class="name">眯眯眼脸 / 辱华脸</div>
+  <div class="real-case">CASE: 三只松鼠 2021 酸辣粉广告模特眯眯眼争议、清华美院 2021 毕设眯眯眼走秀争议</div>
+  <div class="keywords"><span class="kw">眯眯眼</span><span class="kw">民族化眼型</span><span class="kw">广告争议</span><span class="kw">东方主义凝视</span><span class="kw">被观看</span></div>
+  <div class="issue">⚠ ISSUE: 东方主义审美冲突 / 民族符号被征用 / 西方凝视的政治化</div>
+  <div class="sys-lang">→ SYSTEM: 被观看的东方脸 / 审美冲突脸 / 民族符号风险</div>
+  <div class="fields">fields: sexuality_value=不可判定但已归类, gender_value=性别凝视</div>
+  <div class="src">note: 用户提供 · 本地素材（zhangxuefen）</div>
+</div>
+<div class="card">
+  <div class="sid">M03</div>
+  <div class="face-type">高级脸 / 冷感时尚认证脸</div>
+  <div class="img-wrap"><img src="../../assets/sample-library/modern/mimiyan.webp" alt="高级脸" loading="lazy" onerror="this.parentElement.innerHTML='<div class=missing>图 404</div>'"></div>
+  <div class="name">高级脸</div>
+  <div class="real-case">CASE: 雎晓雯 2019 巴黎时装周 / 杜鹃长期作为东方&#x27;高级脸&#x27;符号 / 西方时尚系统对东方面孔的距离化凝视</div>
+  <div class="keywords"><span class="kw">冷感</span><span class="kw">骨相</span><span class="kw">高级</span><span class="kw">长脸</span><span class="kw">距离</span><span class="kw">东方凝视</span></div>
+  <div class="issue">⚠ ISSUE: 西方时尚审美系统对东方面孔的&#x27;高级&#x27;化与距离化</div>
+  <div class="sys-lang">→ SYSTEM: 冷感高级脸 / 被展览化面孔 / 时尚系统认证脸</div>
+  <div class="fields">fields: gender_value=系统主流判定, income_value=中高收入</div>
+  <div class="src">src: <a href="https://en.wikipedia.org/wiki/Ju_Xiaowen" target="_blank" rel="noopener">https://en.wikipedia.org/wiki/Ju_Xiaowen</a></div><div class="src">note: 用户提供 · 本地素材（mimiyan + 副图）</div>
+</div>
+<div class="card">
+  <div class="sid">M04</div>
+  <div class="face-type">网红脸 / 可复制脸</div>
+  <div class="img-wrap"><img src="../../assets/sample-library/modern/terlangpu.webp" alt="网红脸" loading="lazy" onerror="this.parentElement.innerHTML='<div class=missing>图 404</div>'"></div>
+  <div class="name">网红脸</div>
+  <div class="real-case">CASE: 直播平台兴起的 2016-2020 / 医美机构推行的&#x27;网红脸套餐&#x27; / 短视频时代的可复制脸模板</div>
+  <div class="keywords"><span class="kw">医美</span><span class="kw">大眼</span><span class="kw">锥脸</span><span class="kw">平台化</span><span class="kw">可复制</span><span class="kw">高鼻梁</span></div>
+  <div class="issue">⚠ ISSUE: 平台化美颜模板 / 医美工业对自然脸的批量改写</div>
+  <div class="sys-lang">→ SYSTEM: 可复制脸 / 平台友好脸 / 流量模板脸</div>
+  <div class="fields">fields: relationship_value=不可判定但已配对, income_value=消费潜力样本</div>
+  <div class="src">src: <a href="https://en.wikipedia.org/wiki/Internet_celebrity" target="_blank" rel="noopener">https://en.wikipedia.org/wiki/Internet_celebrity</a></div><div class="src">note: 用户提供 · 本地素材（terlangpu / telangpu alt）</div>
+</div>
+<div class="card">
+  <div class="sid">M05</div>
+  <div class="face-type">幼态脸 / 可消费纯真脸</div>
+  <div class="img-wrap"><img src="../../assets/sample-library/modern/caixukun.webp" alt="幼态脸" loading="lazy" onerror="this.parentElement.innerHTML='<div class=missing>图 404</div>'"></div>
+  <div class="name">幼态脸</div>
+  <div class="real-case">CASE: &#x27;幼态脸&#x27;医美方案营销 / 甜妹明星 / 平台&#x27;保护欲&#x27;消费的视觉样本</div>
+  <div class="keywords"><span class="kw">圆润</span><span class="kw">圆眼</span><span class="kw">低攻击性</span><span class="kw">可爱</span><span class="kw">甜妹</span><span class="kw">幼态</span></div>
+  <div class="issue">⚠ ISSUE: 女性幼态化与保护欲消费 / &#x27;可爱&#x27;的可商品化</div>
+  <div class="sys-lang">→ SYSTEM: 可消费纯真脸 / 低攻击性脸 / 被保护姿态脸</div>
+  <div class="fields">fields: relationship_value=稳定同居, risk_value=低风险</div>
+  <div class="src">src: <a href="https://commons.wikimedia.org/wiki/File:Lolita_fashion_ball-jointed_doll.jpg" target="_blank" rel="noopener">https://commons.wikimedia.org/wiki/File:Lolita_fashion_ball-jointed_doll.jpg</a></div><div class="src">note: 用户提供 · 本地素材（caixukun）</div>
+</div>
+<div class="card missing">
+  <div class="sid">M06</div>
+  <div class="face-type">科技脸 / 加工痕迹脸</div>
+  <div class="img-wrap"><div class="missing">未找到符合<br>样本语义的<br>公开人脸图</div></div>
+  <div class="name">科技脸</div>
+  <div class="real-case">CASE: 医美过度案例 / 苹果肌膨胀 / 整形手术前后对比所引出的&#x27;加工痕迹&#x27;讨论</div>
+  <div class="keywords"><span class="kw">医美</span><span class="kw">填充</span><span class="kw">苹果肌</span><span class="kw">僵硬</span><span class="kw">加工痕迹</span><span class="kw">过度</span></div>
+  <div class="issue">⚠ ISSUE: 医美工业对身体自然感的批量改写 / 美型可见性的商品化</div>
+  <div class="sys-lang">→ SYSTEM: 加工痕迹脸 / 美型可见脸 / 表情冻结脸</div>
+  <div class="fields">fields: risk_value=观察对象</div>
+  <div class="src">src: <a href="https://en.wikipedia.org/wiki/Plastic_surgery" target="_blank" rel="noopener">https://en.wikipedia.org/wiki/Plastic_surgery</a></div><div class="src">note: 无主图 / contextImage 复用 M09_karoshi_main</div>
+</div>
+<div class="card">
+  <div class="sid">M07</div>
+  <div class="face-type">妈生感脸 / 自然伪装脸</div>
+  <div class="img-wrap"><img src="../../assets/sample-library/modern/M11_sample_main.jpg" alt="妈生感脸" loading="lazy" onerror="this.parentElement.innerHTML='<div class=missing>图 404</div>'"></div>
+  <div class="name">妈生感脸</div>
+  <div class="real-case">CASE: &#x27;妈生鼻&#x27;、&#x27;妈生感美女&#x27;美妆营销 / 医美术后追求&#x27;天生感&#x27; / 自然伪装的低痕迹加工</div>
+  <div class="keywords"><span class="kw">自然</span><span class="kw">低痕迹</span><span class="kw">妈生</span><span class="kw">天然感</span><span class="kw">伪装</span></div>
+  <div class="issue">⚠ ISSUE: &#x27;自然感&#x27;本身成为可商品化标签 / 医美的&#x27;去医美化&#x27;自反性</div>
+  <div class="sys-lang">→ SYSTEM: 自然伪装脸 / 低痕迹加工脸 / 无修饰表演脸</div>
+  <div class="fields">fields: relationship_value=不可判定但已配对</div>
+  <div class="src">src: <a href="https://en.wikipedia.org/wiki/Korean_beauty_standards" target="_blank" rel="noopener">https://en.wikipedia.org/wiki/Korean_beauty_standards</a></div><div class="src">note: 复用 M11 旧文件名（M07 本身无主图）</div>
+</div>
+<div class="card missing">
+  <div class="sid">M08</div>
+  <div class="face-type">苦相脸 / 阶层疲惫脸</div>
+  <div class="img-wrap"><div class="missing">未找到符合<br>样本语义的<br>公开人脸图</div></div>
+  <div class="name">苦相脸</div>
+  <div class="real-case">CASE: &#x27;苦相&#x27;作为网络攻击性外貌标签 / &#x27;看你一脸苦相&#x27;公共言论 / 对中年女性的外貌惩罚</div>
+  <div class="keywords"><span class="kw">疲惫</span><span class="kw">法令纹</span><span class="kw">下垂</span><span class="kw">阶层</span><span class="kw">攻击性标签</span></div>
+  <div class="issue">⚠ ISSUE: 对女性年龄与生活状态的外貌惩罚 / &#x27;苦相&#x27;作为阶级与命运归因</div>
+  <div class="sys-lang">→ SYSTEM: 阶层疲惫脸 / 命运感过载脸 / 被生活解释脸</div>
+  <div class="fields">fields: income_value=不可判定但已估算, risk_value=观察对象</div>
+  <div class="src">src: <a href="https://commons.wikimedia.org/wiki/File:Hyacinthe_Rigaud-_Louis_XIV;_Roi_de_France.jpg" target="_blank" rel="noopener">https://commons.wikimedia.org/wiki/File:Hyacinthe_Rigaud-_Louis_XIV;_Roi_de_Fran</a></div><div class="src">note: 无主图（用户移除 M08_sample_main 作 modern 主图）</div>
+</div>
+<div class="card missing">
+  <div class="sid">M09</div>
+  <div class="face-type">班味脸 / 劳动打磨脸</div>
+  <div class="img-wrap"><div class="missing">未找到符合<br>样本语义的<br>公开人脸图</div></div>
+  <div class="name">班味脸</div>
+  <div class="real-case">CASE: 日本过劳死（karoshi）抗议 / 中国社交平台&#x27;打工人&#x27;、&#x27;班味&#x27;讨论 / 通勤照的劳动视觉</div>
+  <div class="keywords"><span class="kw">打工人</span><span class="kw">通勤</span><span class="kw">过劳</span><span class="kw">体力透支</span><span class="kw">班味</span><span class="kw">劳动痕迹</span></div>
+  <div class="issue">⚠ ISSUE: 劳动对身体的损耗 / 职场过劳与身体商品化 / &#x27;班味&#x27;作为劳动压迫的视觉化</div>
+  <div class="sys-lang">→ SYSTEM: 劳动打磨脸 / 通勤损耗脸 / 被工作吞没脸</div>
+  <div class="fields">fields: income_value=不可判定但已估算</div>
+  <div class="src">src: <a href="https://commons.wikimedia.org/wiki/File:Nomorekaroshi-shimbashiprotest-june-13-2018.jpg" target="_blank" rel="noopener">https://commons.wikimedia.org/wiki/File:Nomorekaroshi-shimbashiprotest-june-13-2</a></div><div class="src">note: karoshi 旧主图作为 M09 contextImage（不当主图）</div>
+</div>
+<div class="card missing">
+  <div class="sid">M10</div>
+  <div class="face-type">好嫁风脸 / 适婚规训脸</div>
+  <div class="img-wrap"><div class="missing">未找到符合<br>样本语义的<br>公开人脸图</div></div>
+  <div class="name">好嫁风脸</div>
+  <div class="real-case">CASE: &#x27;好嫁风&#x27;妆容穿搭博主 / 婚恋平台&#x27;适婚&#x27;标签 / 适婚化的女性身体与面容规训</div>
+  <div class="keywords"><span class="kw">适婚</span><span class="kw">温柔</span><span class="kw">低攻击</span><span class="kw">亲和</span><span class="kw">婚恋市场</span><span class="kw">规训</span></div>
+  <div class="issue">⚠ ISSUE: 婚恋市场对女性面容与身体的&#x27;适婚&#x27;规训</div>
+  <div class="sys-lang">→ SYSTEM: 适婚规训脸 / 低威胁亲密脸 / 家庭友好脸</div>
+  <div class="fields">fields: family_value=核心家庭, relationship_value=稳定同居</div>
+  <div class="src">src: <a href="https://commons.wikimedia.org/wiki/File:Dianthus_superbus_5.jpg" target="_blank" rel="noopener">https://commons.wikimedia.org/wiki/File:Dianthus_superbus_5.jpg</a></div><div class="src">note: 无主图（用户移除 M10_sample_main）</div>
+</div>
+<div class="card missing">
+  <div class="sid">M11</div>
+  <div class="face-type">厌世脸 / 情绪商品脸</div>
+  <div class="img-wrap"><div class="missing">未找到符合<br>样本语义的<br>公开人脸图</div></div>
+  <div class="name">厌世脸</div>
+  <div class="real-case">CASE: 小松菜奈被广泛用作&#x27;厌世脸&#x27;范本 / 冷淡表情作为情绪商品 / 疏离感的视觉美学化</div>
+  <div class="keywords"><span class="kw">厌世</span><span class="kw">冷淡</span><span class="kw">疏离</span><span class="kw">低情绪</span><span class="kw">冷感</span><span class="kw">不想营业</span></div>
+  <div class="issue">⚠ ISSUE: 冷淡表情被商品化 / 疏离感作为可出售情绪</div>
+  <div class="sys-lang">→ SYSTEM: 情绪商品脸 / 冷感可出售脸 / 疏离审美脸</div>
+  <div class="fields">fields: sexuality_value=不可判定但已归类</div>
+  <div class="src">src: <a href="https://commons.wikimedia.org/wiki/File:Nana_Komatsu_of_Exit_8_at_2025_Cannes_Red_Carpet.jpg" target="_blank" rel="noopener">https://commons.wikimedia.org/wiki/File:Nana_Komatsu_of_Exit_8_at_2025_Cannes_Re</a></div><div class="src">note: 主图被 M07 复用为示例</div>
+</div>
+<div class="card missing">
+  <div class="sid">M12</div>
+  <div class="face-type">政治表演脸 / 强势领导脸</div>
+  <div class="img-wrap"><div class="missing">未找到符合<br>样本语义的<br>公开人脸图</div></div>
+  <div class="name">政治表演脸 / 强势领导脸</div>
+  <div class="real-case">CASE: 特朗普竞选集会 / 总统官方照 / 民粹表演的政治表情模板</div>
+  <div class="keywords"><span class="kw">政治表演</span><span class="kw">强势</span><span class="kw">民粹</span><span class="kw">情绪放大</span><span class="kw">夸张口型</span><span class="kw">权力表情</span></div>
+  <div class="issue">⚠ ISSUE: 民粹传播中的政治表情 / 公众情绪被表演化放大</div>
+  <div class="sys-lang">→ SYSTEM: 权力表演脸 / 民粹动员脸 / 公众情绪放大脸</div>
+  <div class="fields">fields: risk_value=观察对象</div>
+  <div class="src">src: <a href="https://commons.wikimedia.org/wiki/File:Official_Presidential_Portrait_of_President_Donald_J._Trump_(2025)_(cropped)(2).jpg" target="_blank" rel="noopener">https://commons.wikimedia.org/wiki/File:Official_Presidential_Portrait_of_Presid</a></div><div class="src">note: 主图作为 M04 backupImage</div>
+</div>
+</div>
+<footer>BIAS SYSTEM · SAMPLE LIBRARY v03 · 仅供研究预览 · 不接 AI · 不接摄像头 · 不接 pathSelect · 不替代娱乐圈审美分类</footer>
+
+<!-- ★ 傅首尔脸 · 样本证据条（仅展示，不接入正式流程） -->
+<section class="fs-strip">
+  <div class="fs-strip__head">
+    <span class="fs-strip__kicker">▌ ARCHIVE EVIDENCE STRIP</span>
+    <span class="fs-strip__title">傅首尔脸 · 关系表达样本</span>
+  </div>
+  <div class="fs-strip__sub">公共人物图像被系统转化为「关系表达 / 婚恋议题 / 女性公共表达」的参照样本。</div>
+  <div class="fs-strip__row">
+    <div class="fs-strip__cell">
+      <img class="fs-strip__img" src="../../assets/sample-library/modern/fushouer.webp" alt="FS-01 傅首尔脸 / 表达型公共样本" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 220 150%22><rect width=%22220%22 height=%22150%22 fill=%22%23111%22/><text x=%2250%25%22 y=%2250%25%22 fill=%22%23f5d400%22 font-size=%2210%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22>FS-01 MISSING</text></svg>'" />
+      <div class="fs-strip__cap"><b>FS-01</b>傅首尔脸 / 表达型公共样本</div>
+    </div>
+    <div class="fs-strip__cell">
+      <img class="fs-strip__img" src="../../assets/sample-library/modern/1200X900_pub_cb202412021618401252278wvt.jpg_6a26dd5dd6494895bfea442d23286571.jpg" alt="FS-02 关系议题参照样本" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 220 150%22><rect width=%22220%22 height=%22150%22 fill=%22%23111%22/><text x=%2250%25%22 y=%2250%25%22 fill=%22%23f5d400%22 font-size=%2210%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22>FS-02 MISSING</text></svg>'" />
+      <div class="fs-strip__cap"><b>FS-02</b>关系议题参照样本</div>
+    </div>
+  </div>
+  <div class="fs-strip__note">该区域仅展示系统如何把公共人物样本转化为分类参照，不代表真实人格判断。</div>
+</section>
+</body>
+</html>

@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>BIAS SYSTEM · 摄像头分流 Overlay · FINAL · 强制刷新</title>
+<!--
+  BIAS SYSTEM · 摄像头分流 Overlay 演示 v3
+  ============================================
+  目标：
+  · 严格复用主项目 exhibition.css 中 .v3x-* 的摄像头 UI（topbar / stage / frame / corners / scanline / crosshair / status / mini / action / bottom）
+  · 不重新造一个"高级感黑色弹窗" · 不藏摄像头画面
+  · 点击"开始分析"后，摄像头界面仍可见 · 暗化 + 扫描线加速
+  · 底部 / 中下方浮出三张视觉语言完全不同的分支卡
+  · 卡片之间一眼能看出是三种不同的分类机器
+  · 跳转目标不变（不修改三套结果页）
+
+  本页直接 link 主项目的 exhibition.css，保证 UI 元素样式与主流程一致。
+-->
+<link rel="stylesheet" href="../exhibition.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700&family=STKaiti&family=STLiti&family=Source+Han+Serif+SC:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  /* ============ 字体变量 ============ */
+  :root {
+    --font-li:     "STLiti", "SimLi", "LiSu", "隶书", serif;
+    --font-kai:    "STKaiti", "KaiTi", "楷体", serif;
+    --font-serif:  "Noto Serif SC", "Source Han Serif SC", serif;
+    --font-mono:   "IBM Plex Mono", "Courier Prime", "Courier New", monospace;
+  }
+
+  /* ============ 摄像头占位背景（更明确的"开摄像头"质感） ============ */
+  .v3x-video-bg {
+    background:
+      radial-gradient(ellipse at 30% 30%, rgba(120,80,40,0.55), transparent 55%),
+      radial-gradient(ellipse at 70% 75%, rgba(70,45,35,0.55), transparent 55%),
+      radial-gradient(ellipse at 50% 50%, rgba(40,30,22,0.65), transparent 70%),
+      linear-gradient(180deg, #1a1410 0%, #0a0806 100%) !important;
+  }
+  .v3x-video-bg::after {
+    /* 内联 SVG 人脸占位（不被锁 → 仍可见 · 是"停帧画面"语义） */
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 260'><defs><radialGradient id='s' cx='50%25' cy='50%25' r='60%25'><stop offset='0%25' stop-color='%23d4a878'/><stop offset='100%25' stop-color='%235a3d28'/></radialGradient></defs><ellipse cx='100' cy='130' rx='70' ry='95' fill='url(%23s)'/><ellipse cx='80' cy='120' rx='5' ry='3' fill='%231a1a1a'/><ellipse cx='120' cy='120' rx='5' ry='3' fill='%231a1a1a'/><path d='M90 110 Q100 105 110 110' stroke='%233a2818' stroke-width='1.5' fill='none'/><path d='M85 155 Q100 165 115 155' stroke='%233a2818' stroke-width='1.5' fill='none'/><path d='M100 138 L96 165 L104 165 L100 170' stroke='%233a2818' stroke-width='1.5' fill='none'/></svg>");
+    background-repeat: no-repeat;
+    background-position: center 45%;
+    background-size: 380px 480px;
+    opacity: 0.78;             /* 比之前更明显 */
+    transition: opacity 0.4s, filter 0.4s, transform 0.4s;
+  }
+  body.forked .v3x-video-bg::after {
+    /* 分流态仅轻微变暗 · 不藏掉 */
+    opacity: 0.42;
+    filter: blur(1.5px) brightness(0.75);
+    transform: scale(0.96);
+  }
+
+  /* 暗化遮罩：仅给"检测区"周围加一点点"光圈收紧"效果，不再全屏黑 */
+  .v3x-dim-overlay {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 38%, transparent 20%, rgba(0,0,0,0.55) 80%);
+    pointer-events: none;
+    z-index: 4;
+  }
+
+  /* ============ 中央检测框 · 默认已 loading，forked 时金黄锁定 ============ */
+  .v3x-frame {
+    border: none !important;
+  }
+  .v3x-frame .v3x-corner {
+    width: 90px !important;
+    height: 90px !important;
+    border-color: #f5d400 !important;
+    border-width: 6px !important;
+    box-shadow: 0 0 30px rgba(245,212,0,0.4);
+  }
+  /* 检测框标签（"DETECTED" / "LOCKED"） */
+  .v3x-frame-label {
+    position: absolute;
+    top: -26px; left: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;                                  /* ★ 加粗增大 */
+    font-weight: 900;
+    color: #f5d400;
+    text-transform: uppercase;
+    letter-spacing: 3px;                              /* ★ 加宽字距 */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.7);
+    padding: 4px 10px;
+    border: 1.5px solid #f5d400;
+  }
+  .v3x-frame-label .dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: #f5d400;
+    box-shadow: 0 0 6px #f5d400;
+    animation: v3xDotPulse 1.2s ease-in-out infinite;
+  }
+  body.forked .v3x-frame-label { color: #f5d400; }
+  body.forked .v3x-frame-label .dot {
+    animation-duration: 0.7s;
+    box-shadow: 0 0 10px #f5d400;
+  }
+  @keyframes v3xDotPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  body.forked .v3x-frame .v3x-corner {
+    box-shadow: 0 0 40px rgba(245,212,0,0.7);
+    animation: v3xCornerBreath 1.4s ease-in-out infinite;
+  }
+  @keyframes v3xCornerBreath {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+  }
+  body.forked .v3x-frame .v3x-scanline {
+    background: linear-gradient(90deg, transparent, rgba(245,212,0,1), transparent) !important;
+    box-shadow: 0 0 18px rgba(245,212,0,0.9) !important;
+    animation: v3xScanMove 0.5s linear infinite !important;
+  }
+
+  /* 顶部条状态切换 */
+  body.forked .v3x-topbar__led {
+    background: #f5d400;
+    box-shadow: 0 0 0 2px #000, 0 0 18px #f5d400;
+  }
+  body.forked .v3x-topbar__case { color: #f5d400; }
+
+  /* ============ 中央"分流命令"提示（更深 · 更系统） ============ */
+  .v3x-fork-hint {
+    position: fixed;
+    top: 18%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 11;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s, transform 0.4s;
+  }
+  body.forked .v3x-fork-hint { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .v3x-fork-hint .pre {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 5px;
+    color: #f5d400;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    border-top: 1px solid #f5d400;
+    border-bottom: 1px solid #f5d400;
+    padding: 4px 0;
+    display: inline-block;
+  }
+  .v3x-fork-hint .pre::before { content: "▌ "; }
+  .v3x-fork-hint .pre::after { content: " ▐"; }
+  .v3x-fork-hint .title {
+    font-family: 'Courier New', monospace;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 10px;
+    color: #fff;
+    text-transform: uppercase;
+    margin: 4px 0 0;
+    text-shadow: 2px 2px 0 #f5d400, 4px 4px 0 rgba(214,0,0,0.55);
+  }
+  .v3x-fork-hint .sub {
+    font-family: var(--font-kai);
+    font-size: 13px;
+    color: #d8d8d8;
+    letter-spacing: 2px;
+    font-style: italic;
+    margin-top: 6px;
+  }
+  .v3x-fork-hint .sub::before { content: "· "; color: #f5d400; }
+  .v3x-fork-hint .sub::after { content: " ·"; color: #f5d400; }
+
+  /* ============ 三路分流细线 SVG（检测框 → 三个选项） ============ */
+  .v3x-routing-lines {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 30;                                     /* ★ 6 → 30 在所有 UI 之上 */
+    opacity: 0;
+    transition: opacity 0.6s;
+  }
+  body.forked .v3x-routing-lines { opacity: 1; }
+  .v3x-routing-lines svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .v3x-routing-lines .line-ancient  { stroke: #8a0d0d; }
+  .v3x-routing-lines .line-modern   { stroke: #f5d400; }
+  .v3x-routing-lines .line-western  { stroke: #22d3ee; }
+  .v3x-routing-lines path {
+    fill: none;
+    stroke-width: 2.5;                               /* ★ 1.5 → 2.5 加粗 */
+    stroke-dasharray: 6 6;                           /* ★ 4 4 → 6 6 更疏 */
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    animation: dashFlow 1.4s linear infinite;
+    opacity: 1;                                      /* ★ 0.85 → 1 更明显 */
+    filter: drop-shadow(0 0 3px currentColor);        /* ★ 自身发光 */
+  }
+  .v3x-routing-lines path.line-modern { animation-duration: 0.9s; }
+  .v3x-routing-lines path.line-ancient { animation-duration: 1.6s; opacity: 0.9; }
+  .v3x-routing-lines path.line-western { animation-duration: 2.0s; opacity: 0.9; }
+  @keyframes dashFlow {
+    to { stroke-dashoffset: -24; }
+  }
+  /* 分流线端点小节点 */
+  .v3x-routing-lines circle {
+    fill: currentColor;
+  }
+
+  /* ============ 底部三分支 overlay（更大 · 更显眼） ============ */
+  .v3x-fork {
+    position: fixed;
+    left: 50%;
+    bottom: 5%;
+    transform: translateX(-50%) translateY(20px);
+    z-index: 20;
+    width: min(1200px, 96vw);                  /* ★ 1100 → 1200 · 加宽 9% */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s, transform 0.4s;
+  }
+  body.forked .v3x-fork {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+  }
+  .v3x-fork .row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 26px;                                    /* ★ 22 → 26 · 间距更大 */
+  }
+  .v3x-fork .foot {
+    text-align: center;
+    margin-top: 14px;
+    font-family: var(--font-kai);
+    font-size: 12.5px;
+    color: #d8d8d8;
+    letter-spacing: 1.5px;
+    font-style: italic;
+  }
+  .v3x-fork .foot::before { content: "※ "; color: #f5d400; }
+  .v3x-fork .foot::after { content: " ※"; color: #f5d400; }
+
+  /* ==================== ① 古代 · 相书签牌 / 卷宗索引卡（★ 新版） ==================== */
+  .v3x-fork .path-ancient {
+    color: #2a1f17;
+    background-color: #f1e3b6;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(74,58,42,0.06) 0 1px, transparent 1px 7px);
+    border: 2.5px solid #5e4a36;
+    box-shadow: 4px 4px 0 #5e4a36;
+    padding: 0;
+  }
+  .v3x-fork .path-ancient::before {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border: 1px solid rgba(94,74,54,0.55);
+    pointer-events: none;
+  }
+  .v3x-fork .path-ancient:hover {
+    transform: translateY(-4px);
+    border-color: #8a0d0d;
+    box-shadow: 6px 6px 0 #8a0d0d, 0 0 30px rgba(138,13,13,0.35);
+  }
+  .v3x-fork .path-ancient .routing-to {
+    background: #2a0d0d; color: #f1c4c4;
+  }
+  .v3x-fork .path-ancient .header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 8px 12px 4px;
+    border-bottom: 1px dashed rgba(94,74,54,0.4);
+  }
+  .v3x-fork .path-ancient .num {
+    font-family: var(--font-mono);
+    font-size: 11px; letter-spacing: 1.5px; color: #6a5944; padding-top: 2px;
+  }
+  .v3x-fork .path-ancient .num strong { color: #8a0d0d; font-size: 14px; }
+  .v3x-fork .path-ancient .seal {
+    width: 46px; height: 46px;
+    border: 2.5px solid #8a0d0d; color: #8a0d0d;
+    font-family: var(--font-li); font-weight: 700; font-size: 10px;
+    display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+    transform: rotate(-6deg); background: rgba(255,248,225,0.45); line-height: 1;
+  }
+  .v3x-fork .path-ancient .seal span {
+    display: flex; align-items: center; justify-content: center;
+    border-right: 2px solid #8a0d0d; border-bottom: 2px solid #8a0d0d;
+  }
+  .v3x-fork .path-ancient .seal span:nth-child(2n) { border-right: none; }
+  .v3x-fork .path-ancient .seal span:nth-child(n+3) { border-bottom: none; }
+  .v3x-fork .path-ancient .nav-sign {
+    display: flex; padding: 0 12px; background: rgba(94,74,54,0.1);
+    border-bottom: 1px solid rgba(94,74,54,0.5);
+  }
+  .v3x-fork .path-ancient .nav-sign span {
+    flex: 1; height: 6px; border-right: 1px solid rgba(94,74,54,0.4);
+  }
+  .v3x-fork .path-ancient .nav-sign span:last-child { border-right: none; }
+  .v3x-fork .path-ancient .body { padding: 12px 14px; flex: 1; }
+  .v3x-fork .path-ancient .name {
+    font-family: var(--font-li); font-size: 28px; font-weight: 700;
+    letter-spacing: 8px; color: #2a1f17; line-height: 1.1; margin-bottom: 2px;
+  }
+  .v3x-fork .path-ancient .sub {
+    font-family: var(--font-kai); font-size: 13px;
+    letter-spacing: 5px; color: #4a3a2a; margin-bottom: 8px;
+  }
+  .v3x-fork .path-ancient .divider {
+    height: 1px; background: rgba(138,13,13,0.6); margin: 6px 0; position: relative;
+  }
+  .v3x-fork .path-ancient .divider::after {
+    content: "朱砂批"; position: absolute; top: -7px; right: 0;
+    background: rgba(241,227,182,1); padding: 0 6px;
+    font-family: var(--font-kai); font-size: 9.5px; color: #8a0d0d;
+    letter-spacing: 2px; font-weight: 700;
+  }
+  .v3x-fork .path-ancient .seal-line {
+    font-family: var(--font-kai); font-size: 10.5px; color: #8a0d0d;
+    letter-spacing: 2px; margin-bottom: 8px; font-weight: 700;
+  }
+  .v3x-fork .path-ancient .keys {
+    display: flex; flex-wrap: wrap; gap: 5px;
+    padding: 8px 12px; background: rgba(255,248,225,0.6);
+    border-top: 1px dashed rgba(138,13,13,0.5);
+  }
+  .v3x-fork .path-ancient .keys span {
+    font-family: var(--font-kai); font-size: 12px;
+    padding: 3px 8px; background: rgba(255,248,225,1);
+    border: 1px solid #8a0d0d; color: #2a1f17;
+    letter-spacing: 2px; font-weight: 700;
+  }
+  .v3x-fork .path-ancient .action {
+    padding: 12px 14px; border-top: 1px solid #5e4a36;
+    text-align: right; background: rgba(94,74,54,0.18);
+  }
+  .v3x-fork .path-ancient .enter {
+    display: inline-block;
+    font-family: var(--font-mono); font-weight: 700;
+    font-size: 13px; letter-spacing: 4px; color: #8a0d0d;
+    text-transform: uppercase; padding: 6px 12px;
+    border: 1.5px solid #8a0d0d; background: rgba(255,248,225,0.8);
+  }
+  .v3x-fork .path-ancient .enter::after { content: " ⇢"; }
+
+  /* ==================== ② 现代 · 身份清仓标签机（★ 新版） ==================== */
+  .v3x-fork .path-modern {
+    color: #1a1a1a;
+    background-color: #f5ecd0;
+    background-image: repeating-linear-gradient(0deg, rgba(0,0,0,0.05) 0 1px, transparent 1px 5px);
+    border: 4px solid #1a1a1a;
+    box-shadow: 7px 7px 0 #d60000;
+    padding: 0;
+  }
+  .v3x-fork .path-modern:hover {
+    transform: translateY(-4px);
+    border-color: #d60000;
+    box-shadow: 10px 10px 0 #d60000, 0 0 30px rgba(214,0,0,0.4);
+  }
+  .v3x-fork .path-modern .routing-to {
+    background: #1a1a1a; color: #f5d400;
+  }
+  .v3x-fork .path-modern .header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 12px 6px; border-bottom: 2px solid #1a1a1a;
+    background: #1a1a1a; color: #f5d400;
+  }
+  .v3x-fork .path-modern .num {
+    font-family: 'Courier New', monospace; font-weight: 900;
+    font-size: 11px; letter-spacing: 1.4px; color: #f5d400;
+  }
+  .v3x-fork .path-modern .num strong { font-size: 14px; color: #f5d400; }
+  .v3x-fork .path-modern .sku-chip {
+    background: #d60000; color: #fff;
+    font-family: 'Courier New', monospace; font-weight: 900;
+    font-size: 12px; padding: 3px 9px;
+    border: 2px solid #1a1a1a; letter-spacing: 1.2px;
+  }
+  .v3x-fork .path-modern .barcode {
+    padding: 4px 12px; background: #fff;
+    border-bottom: 2px solid #1a1a1a;
+    font-family: 'Courier New', monospace; font-size: 13px;
+    color: #1a1a1a; letter-spacing: 2px;
+  }
+  .v3x-fork .path-modern .body { padding: 12px 14px; flex: 1; }
+  .v3x-fork .path-modern .name {
+    font-family: 'Impact', 'Arial Black', sans-serif; font-size: 32px;
+    font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
+    color: #1a1a1a; text-shadow: 3px 3px 0 #f5d400, 6px 6px 0 #1a1a1a;
+    line-height: 1; margin: 0 0 6px;
+  }
+  .v3x-fork .path-modern .sub {
+    font-family: 'Impact', 'Arial Black', sans-serif; font-size: 14px;
+    font-weight: 900; letter-spacing: 3px; text-transform: uppercase;
+    color: #1a1a1a; margin-bottom: 10px;
+  }
+  .v3x-fork .path-modern .sku-strip {
+    display: flex; height: 10px; margin-bottom: 10px; border: 2px solid #1a1a1a;
+  }
+  .v3x-fork .path-modern .sku-strip span { flex: 1; border-right: 1px solid #1a1a1a; }
+  .v3x-fork .path-modern .sku-strip span:last-child { border-right: none; }
+  .v3x-fork .path-modern .sku-strip .s1 { background: #fde047; }
+  .v3x-fork .path-modern .sku-strip .s2 { background: #22d3ee; }
+  .v3x-fork .path-modern .sku-strip .s3 { background: #22c55e; }
+  .v3x-fork .path-modern .sku-strip .s4 { background: #fde047; }
+  .v3x-fork .path-modern .sku-strip .s5 { background: #f9a8d4; }
+  .v3x-fork .path-modern .sku-strip .s6 { background: #fef3c7; }
+  .v3x-fork .path-modern .tags-row {
+    display: flex; gap: 4px;
+  }
+  .v3x-fork .path-modern .tags-row span {
+    flex: 1; text-align: center;
+    font-family: 'Courier New', monospace; font-weight: 900;
+    font-size: 11px; letter-spacing: 1px;
+    padding: 3px 4px; border: 2px solid #1a1a1a;
+    color: #1a1a1a; box-shadow: 2px 2px 0 #1a1a1a;
+  }
+  .v3x-fork .path-modern .tags-row .t1 { background: #fde047; }
+  .v3x-fork .path-modern .tags-row .t2 { background: #22d3ee; }
+  .v3x-fork .path-modern .tags-row .t3 { background: #22c55e; }
+  .v3x-fork .path-modern .tags-row .t4 { background: #f9a8d4; }
+  .v3x-fork .path-modern .action {
+    padding: 10px 14px; border-top: 2px solid #1a1a1a;
+    text-align: center; background: #1a1a1a; color: #fff;
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  }
+  .v3x-fork .path-modern .recom {
+    font-family: 'Impact', 'Arial Black', sans-serif; font-weight: 900;
+    font-size: 12px; letter-spacing: 2px; color: #f5d400; text-transform: uppercase;
+  }
+  .v3x-fork .path-modern .enter {
+    display: inline-block; font-family: 'Courier New', monospace;
+    font-weight: 900; font-size: 13px; letter-spacing: 4px;
+    color: #1a1a1a; background: #f5d400; padding: 6px 12px;
+    border: 2px solid #1a1a1a; box-shadow: 3px 3px 0 #d60000; text-transform: uppercase;
+  }
+  .v3x-fork .path-modern .enter::after { content: " ⇢"; }
+  .v3x-fork .path-modern {
+    display: block;
+    text-decoration: none;
+    color: #1a1a1a;
+    background-color: #f5ecd0;
+    background-image: repeating-linear-gradient(0deg, rgba(0,0,0,0.05) 0 1px, transparent 1px 5px);
+    border: 4px solid #1a1a1a;
+    box-shadow: 6px 6px 0 #d60000;             /* ★ 厚阴影 */
+    padding: 16px 18px 14px;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+  }
+  .v3x-fork .path-modern:hover {
+    transform: translateY(-3px);
+    box-shadow: 9px 9px 0 #d60000;
+  }
+  .v3x-fork .path-modern .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .v3x-fork .path-modern .num {
+    font-family: 'Courier New', monospace;
+    font-weight: 900;
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    color: #1a1a1a;
+  }
+  .v3x-fork .path-modern .num strong { color: #d60000; font-size: 13px; }
+  .v3x-fork .path-modern .kicker {
+    font-family: 'Courier New', monospace;
+    font-weight: 900;
+    font-size: 10.5px;
+    letter-spacing: 1.4px;
+    color: #1a1a1a;
+    text-transform: uppercase;
+  }
+  .v3x-fork .path-modern .kicker::before { content: "▌ SYSTEM RECOMMEND"; }
+  /* 名称 */
+  .v3x-fork .path-modern .name {
+    font-family: 'Impact', 'Arial Black', sans-serif;
+    font-size: 30px;                            /* ★ 22 → 30 */
+    font-weight: 900;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #1a1a1a;
+    text-shadow: 3px 3px 0 #f5d400, 6px 6px 0 #1a1a1a;   /* ★ 双层字阴影 */
+    line-height: 1;
+    margin: 3px 0 4px;
+  }
+  .v3x-fork .path-modern .sub {
+    font-family: 'Impact', 'Arial Black', sans-serif;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+  }
+  /* 4 个 SKU 小色块 */
+  .v3x-fork .path-modern .keys {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .v3x-fork .path-modern .keys span {
+    font-family: 'Courier New', monospace;
+    font-weight: 900;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    padding: 2.5px 6px;
+    border: 2px solid #1a1a1a;
+    color: #1a1a1a;
+    text-transform: uppercase;
+    box-shadow: 2px 2px 0 #1a1a1a;
+  }
+  .v3x-fork .path-modern .keys span.k1 { background: #fde047; }
+  .v3x-fork .path-modern .keys span.k2 { background: #22d3ee; }
+  .v3x-fork .path-modern .keys span.k3 { background: #22c55e; }
+  .v3x-fork .path-modern .keys span.k4 { background: #f9a8d4; }
+  /* 6 色条（SKU 全色谱） */
+  .v3x-fork .path-modern .sku-strip {
+    display: flex;
+    height: 7px;
+    margin-bottom: 8px;
+    border: 1.5px solid #1a1a1a;
+  }
+  .v3x-fork .path-modern .sku-strip span { flex: 1; border-right: 1px solid #1a1a1a; }
+  .v3x-fork .path-modern .sku-strip span:last-child { border-right: none; }
+  .v3x-fork .path-modern .sku-strip .s1 { background: #fde047; }
+  .v3x-fork .path-modern .sku-strip .s2 { background: #22d3ee; }
+  .v3x-fork .path-modern .sku-strip .s3 { background: #22c55e; }
+  .v3x-fork .path-modern .sku-strip .s4 { background: #fde047; }
+  .v3x-fork .path-modern .sku-strip .s5 { background: #f9a8d4; }
+  .v3x-fork .path-modern .sku-strip .s6 { background: #fef3c7; }
+  /* 进入按钮 */
+  .v3x-fork .path-modern .enter {
+    font-family: 'Courier New', monospace;
+    font-weight: 900;
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: #1a1a1a;
+    text-transform: uppercase;
+    border-top: 2px solid #1a1a1a;
+    padding-top: 6px;
+    margin-top: auto;
+  }
+  .v3x-fork .path-modern .enter::after { content: " → 进入"; }
+  /* 红硬章 */
+  .v3x-fork .path-modern .stamp {
+    position: absolute;
+    bottom: 14px; right: 14px;
+    background: #d60000;
+    color: #fff;
+    font-family: 'Impact', sans-serif;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    padding: 3px 6px;
+    border: 2px solid #1a1a1a;
+    transform: rotate(-4deg);
+    box-shadow: 2px 2px 0 #1a1a1a;
+    z-index: 2;
+  }
+
+  /* ==================== ③ 西方分支 · 冷灰测量（更大 + 侧影 + 尺） ==================== */
+  .v3x-fork .path-western {
+    display: block;
+    text-decoration: none;
+    color: #141414;
+    background-color: #ece8db;
+    background-image: repeating-linear-gradient(0deg, rgba(0,0,0,0.04) 0 1px, transparent 1px 6px);
+    border: 2px solid #141414;
+    padding: 16px 18px 14px;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+  }
+  .v3x-fork .path-western::before {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border: 1px solid rgba(20,20,20,0.5);
+    pointer-events: none;
+  }
+  .v3x-fork .path-western:hover {
+    transform: translateY(-3px);
+    box-shadow: 5px 5px 0 #8a1a1a;
+  }
+  /* 顶部编号 + W.P.A kicker */
+  .v3x-fork .path-western .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .v3x-fork .path-western .num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    color: #4a4a4a;
+  }
+  .v3x-fork .path-western .num strong { color: #8a1a1a; font-size: 13px; }
+  .v3x-fork .path-western .kicker {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 10.5px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    background: #141414;
+    color: #ece8db;
+    padding: 3px 6px;
+  }
+  .v3x-fork .path-western .kicker::before { content: "▌ W.P.A · ID 027-A"; }
+  /* 名称 */
+  .v3x-fork .path-western .name {
+    font-family: var(--font-serif);
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 6px;
+    color: #141414;
+    line-height: 1.1;
+    margin-bottom: 2px;
+  }
+  .v3x-fork .path-western .sub {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #4a4a4a;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  /* 关键词 */
+  .v3x-fork .path-western .keys {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .v3x-fork .path-western .keys span {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2.5px 6px;
+    background: rgba(255,255,255,0.65);
+    border: 1.5px solid #141414;
+    color: #141414;
+    text-transform: uppercase;
+  }
+  /* 进入按钮 */
+  .v3x-fork .path-western .enter {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: #141414;
+    text-transform: uppercase;
+    border-top: 1px dashed rgba(20,20,20,0.6);
+    padding-top: 6px;
+    margin-top: auto;
+  }
+  .v3x-fork .path-western .enter::after { content: " → 进入"; }
+  /* 侧影小符号（纯 SVG） */
+  .v3x-fork .path-western .profile-mini {
+    position: absolute;
+    top: 16px; right: 16px;
+    width: 36px;
+    height: 44px;
+    background: rgba(255,255,255,0.5);
+    border: 1.5px solid #141414;
+    z-index: 2;
+  }
+  /* 测量尺 */
+  .v3x-fork .path-western .ruler {
+    position: absolute;
+    bottom: 12px; right: 12px;
+    width: 64px;
+    height: 16px;
+    background:
+      linear-gradient(to right, #141414 0 1px, transparent 1px 6px) 0 0/6px 5px no-repeat,
+      linear-gradient(to right, #141414 0 1px, transparent 1px 12px) 0 10px/12px 6px no-repeat,
+      #fff;
+    border: 1.5px solid #141414;
+  }
+  /* 红色测量标记 */
+  .v3x-fork .path-western .mark {
+    position: absolute;
+    bottom: 32px; right: 14px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: #8a1a1a;
+    letter-spacing: 1px;
+  }
+  .v3x-fork .path-western .mark::before { content: "▍ T1·T2·T3"; }
+
+  /* ============ 隐藏主项目 v3x-modal / v3x-result · 它们不该出现在这个演示 ============ */
+  .demo-hide { display: none !important; }
+
+  /* ============ 隐藏主项目 v3x-modal / v3x-result · 它们不该出现在这个演示 ============ */
+  /* 这些节点在主项目 HTML 里，演示页用 .demo-hide 隐藏 */
+  .demo-hide { display: none !important; }
+
+  /* ============ 右侧"样本已锁定"状态卡片（★ 默认显示） ============ */
+  .v3x-locked-state {
+    display: block;                                /* ★ 永远显示 */
+    margin-top: 10px;
+    padding: 10px 12px 9px;
+    background: rgba(0,0,0,0.6);
+    border: 2px solid #f5d400;
+    box-shadow: 3px 3px 0 #00ff66;
+    text-align: left;
+  }
+  /* 当 forked（默认）的时候，隐藏"开始分析"按钮 */
+  body.forked .v3x-action__btn { display: none; }
+  /* 如果 JS 没出来 · 按钮显示 + locked-state 隐藏 */
+  body:not(.forked) .v3x-locked-state { display: none; }
+  .v3x-locked-state__title {
+    font-family: 'Courier New', monospace;
+    font-weight: 900;
+    font-size: 13px;
+    color: #f5d400;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+  .v3x-locked-state__sub {
+    font-family: 'Courier New', monospace;
+    font-size: 10.5px;
+    color: #fff;
+    letter-spacing: 1.5px;
+  }
+  .v3x-locked-state__bar {
+    margin-top: 6px;
+    height: 4px;
+    background: #222;
+    overflow: hidden;
+  }
+  .v3x-locked-state__bar-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #f5d400, #00ff66);
+    animation: lockedBar 1.4s linear infinite;
+  }
+  @keyframes lockedBar {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+</style>
+</head>
+
+<body class="forked">
+
+<!-- ===== 严格复用主项目结构 ===== -->
+<video class="v3x-video-bg" id="v3xVideo" autoplay playsinline muted></video>
+<div class="v3x-vignette"></div>
+<div class="v3x-noise"></div>
+
+<header class="v3x-topbar">
+  <div class="v3x-topbar__left">
+    <span class="v3x-topbar__led"></span>
+    <span class="v3x-topbar__brand">BIAS SYSTEM</span>
+    <span class="v3x-topbar__sep">/</span>
+    <span class="v3x-topbar__sub" id="v3xTopbarSub">LIVE CLASSIFICATION · 现场归类</span>
+  </div>
+  <div class="v3x-topbar__right">
+    <span class="v3x-topbar__case" id="v3xCase">CASE #EXH-00031</span>
+    <span class="v3x-topbar__barcode">▍▌▎▍▎▌▍▎▍▌▎▍▎▍</span>
+    <span class="v3x-topbar__time" id="v3xTime">--:--:--</span>
+  </div>
+</header>
+
+<div class="v3x-stage">
+  <div class="v3x-frame is-detected" id="v3xFrame" style="position:relative;">
+    <span class="v3x-frame-label"><span class="dot"></span><span id="frameLabel">DETECTED · 人脸已锁定</span></span>
+    <span class="v3x-corner v3x-corner--tl"></span>
+    <span class="v3x-corner v3x-corner--tr"></span>
+    <span class="v3x-corner v3x-corner--bl"></span>
+    <span class="v3x-corner v3x-corner--br"></span>
+    <div class="v3x-scanline"></div>
+    <div class="v3x-crosshair"></div>
+  </div>
+</div>
+
+<aside class="v3x-side v3x-side--left">
+  <div class="v3x-status is-detected" id="v3xStatus">
+    <div class="v3x-status__led"></div>
+    <div class="v3x-status__txt">
+      <div class="v3x-status__title" id="v3xStatusTitle">已检测到人脸</div>
+      <div class="v3x-status__sub" id="v3xStatusSub">目标已锁定 · 等待分流</div>
+    </div>
+  </div>
+  <div class="v3x-mini">
+    <div class="v3x-mini__label">实时数据</div>
+    <div class="v3x-mini__row"><span>SKIN</span><b>0.812</b></div>
+    <div class="v3x-mini__row"><span>VAR</span><b>3</b></div>
+    <div class="v3x-mini__row"><span>SIZE</span><b>320×360</b></div>
+    <div class="v3x-mini__row"><span>FPS</span><b>5</b></div>
+  </div>
+</aside>
+
+<aside class="v3x-side v3x-side--right">
+  <div class="v3x-action is-ready" id="v3xAction">
+    <div class="v3x-action__kicker" id="v3xActionKicker">▌ 系统就绪</div>
+    <div class="v3x-action__title" id="v3xActionTitle">当前帧可用于归类</div>
+    <div class="v3x-action__sub" id="v3xActionSub">目标已锁定 · 可直接生成</div>
+    <button class="v3x-action__btn" id="v3xGoBtn" type="button">
+      <span class="v3x-action__btn-arrow">▶</span>
+      <span id="v3xGoBtnText">开始分析</span>
+    </button>
+    <!-- forked 后显示的样本锁定状态 · ★ 默认显示（页面本身就是分流态） -->
+    <div class="v3x-locked-state" id="v3xLockedState">
+      <div class="v3x-locked-state__title">样本已锁定</div>
+      <div class="v3x-locked-state__sub">等待选择分类器</div>
+      <div class="v3x-locked-state__bar"><div class="v3x-locked-state__bar-fill"></div></div>
+    </div>
+  </div>
+</aside>
+
+<footer class="v3x-bottom">
+  <div class="v3x-sample" id="v3xSample">
+    <div class="v3x-sample__empty">
+      <span class="v3x-sample__empty-icon">⌽</span>
+      <span>已捕获 · 等待选择分类路径</span>
+    </div>
+  </div>
+  <div class="v3x-log" id="v3xLog"></div>
+</footer>
+
+<!-- 暗化遮罩（仅在分流时启用） -->
+<div class="v3x-dim-overlay"></div>
+
+<!-- 中央"分流命令"提示（更深 · 更系统） -->
+<div class="v3x-fork-hint">
+  <div class="pre">PHASE 03 · DETECTION COMPLETE</div>
+  <div class="title">检测完成<br>请选择归类路径</div>
+  <div class="sub">同一份输入 · 将被写入不同档案</div>
+</div>
+
+<!-- 三路分流细线 SVG（检测框 → 三个分支）★ 已删除 -->
+<div class="v3x-routing-lines" hidden></div>
+
+<!-- 底部三分支 · ★ 新版：古代卷宗卡 / 现代清仓机 / 西方冷档案卡 -->
+<div class="v3x-fork" id="v3xFork">
+  <div class="row">
+
+    <!-- ① 古代面学 · 相书签牌 / 卷宗索引卡 -->
+    <a class="path-ancient" href="ancient-skin-v4.html?v=4" data-mode="ancient">
+      <div class="routing-to">⇢ ROUTING TO 古代 · ANCIENT</div>
+      <div class="header">
+        <div class="num"><strong>01</strong> / 03</div>
+        <div class="seal">
+          <span>卷</span><span>六</span>
+          <span>已</span><span>裁</span>
+        </div>
+      </div>
+      <div class="nav-sign"><span></span><span></span><span></span></div>
+      <div class="body">
+        <div class="name">古代面学</div>
+        <div class="sub">相书卷宗 · 卷六</div>
+        <div class="divider"></div>
+        <div class="seal-line">朱批 · VOL. 06 · CASE 027-A</div>
+        <div class="keys">
+          <span>十二宫</span><span>五官</span><span>气色</span>
+        </div>
+      </div>
+      <div class="action">
+        <div class="enter">入 卷 宗 →</div>
+      </div>
+    </a>
+
+    <!-- ② 现代面学 · 身份清仓标签机 -->
+    <a class="path-modern" href="modern-result-preview.html" data-mode="modern">
+      <div class="routing-to">⇢ ROUTING TO 现代 · MODERN</div>
+      <div class="header">
+        <div class="num"><strong>02</strong> / 03</div>
+        <div class="sku-chip">SKU-02</div>
+      </div>
+      <div class="barcode">▍▌▎▍▎▌▍▎▍▌▎▍▎▍</div>
+      <div class="body">
+        <div class="name">现代面学</div>
+        <div class="sub">身份清仓 · RECOMMEND</div>
+        <div class="sku-strip">
+          <span class="s1"></span><span class="s2"></span><span class="s3"></span>
+          <span class="s4"></span><span class="s5"></span><span class="s6"></span>
+        </div>
+        <div class="tags-row">
+          <span class="t1">性别</span><span class="t2">收入</span>
+          <span class="t3">家庭</span><span class="t4">风险</span>
+        </div>
+      </div>
+      <div class="action">
+        <div class="recom">★ SYSTEM RECOMMEND ★</div>
+        <div class="enter">入 清 仓 →</div>
+      </div>
+    </a>
+
+    <!-- ③ 西方面学 · 冷档案索引卡 -->
+    <a class="path-western" href="western-skin.html?v=6" data-mode="western">
+      <div class="routing-to">⇢ ROUTING TO 西方 · WESTERN</div>
+      <div class="header">
+        <div class="num"><strong>03</strong> / 03</div>
+        <div class="wpa">▌ W.P.A · ID 027-A</div>
+      </div>
+      <div class="meas-strip"></div>
+      <div class="body">
+        <div class="name-row">
+          <div class="name">西方面学</div>
+          <svg class="profile-mini" viewBox="0 0 40 50" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 13 8 C 7 16, 6 28, 9 36 C 10 40, 12 41, 14 41 L 14 47 L 26 47 L 26 44 C 28 43, 32 38, 31 33 C 30 22, 25 11, 19 7 C 17 5, 15 5, 13 8 Z" fill="#141414" stroke="#141414" stroke-width="1"/>
+            <line x1="12" y1="22" x2="17" y2="22" stroke="#ece8db" stroke-width="0.6"/>
+            <line x1="23" y1="22" x2="28" y2="22" stroke="#ece8db" stroke-width="0.6"/>
+            <line x1="4" y1="26" x2="36" y2="26" stroke="#8a1a1a" stroke-width="0.6" stroke-dasharray="3,2"/>
+            <line x1="4" y1="34" x2="36" y2="34" stroke="#1f3142" stroke-width="0.6" stroke-dasharray="3,2"/>
+            <text x="37" y="28" font-size="4" font-family="Courier New" fill="#8a1a1a" font-weight="700">T1</text>
+            <text x="37" y="36" font-size="4" font-family="Courier New" fill="#1f3142" font-weight="700">T2</text>
+          </svg>
+        </div>
+        <div class="sub">冷档案识别 · COLD ARCHIVE</div>
+        <div class="divider"></div>
+        <div class="cinfo">
+          <span class="ck">HT</span><span class="cv">178.0</span>
+          <span class="ck">CR</span><span class="cv">82.4</span>
+        </div>
+        <div class="keys">
+          <span>侧影</span><span>测量</span><span>编号</span>
+        </div>
+      </div>
+      <div class="action">
+        <div class="ruler-mini"></div>
+        <div class="enter">入 档 案 →</div>
+      </div>
+    </a>
+
+  </div>
+  <div class="foot">※ 选择并不会改变输入 · 只会改变系统如何命名它 ※</div>
+</div>
+
+<!-- 隐藏主项目 result 节点 · 演示里不用 -->
+<div class="demo-hide">
+  <div class="v3x-modal" id="v3xModal" hidden></div>
+  <div class="v3x-result" id="v3xResult" hidden></div>
+</div>
+
+<button class="v3x-quit" id="v3xQuit" type="button" title="退出展览">✕</button>
+
+<script>
+  // ===== 极简 UI 演示 · 不接 AI · 不接摄像头流 =====
+  // 复用主项目 .v3x-frame.is-detected / .is-ready 状态切换
+
+  const $ = (id) => document.getElementById(id);
+
+  // 时间戳
+  function tick() {
+    const d = new Date();
+    $('v3xTime').textContent = d.toTimeString().slice(0, 8);
+  }
+  setInterval(tick, 1000);
+  tick();
+
+  // 点击"开始分析" → 进入分流状态
+  $('v3xGoBtn').addEventListener('click', () => {
+    document.body.classList.add('forked');
+    $('v3xStatusTitle').textContent = '已捕获 · 等待分流';
+    $('v3xStatusSub').textContent = '请选择归类路径';
+    $('v3xActionKicker').textContent = '▌ 等待分流';
+    $('v3xActionTitle').textContent = '样本已锁定';
+    $('v3xActionSub').textContent = '三台分类机器等待输入';
+    // 帧标签同步
+    const label = document.getElementById('frameLabel');
+    if (label) label.textContent = 'LOCKED · 样本已锁定 · 等待分流';
+  });
+
+  // 键盘快捷键
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !document.body.classList.contains('forked')) {
+      $('v3xGoBtn').click();
+    } else if (e.key === '1' && document.body.classList.contains('forked')) {
+      window.location.href = 'ancient-skin-v4.html?v=4';
+    } else if (e.key === '2' && document.body.classList.contains('forked')) {
+      window.location.href = 'modern-result-preview.html';
+    } else if (e.key === '3' && document.body.classList.contains('forked')) {
+      window.location.href = 'western-skin.html?v=6';
+    } else if (e.key === 'Escape' && document.body.classList.contains('forked')) {
+      document.body.classList.remove('forked');
+      $('v3xStatusTitle').textContent = '已检测到人脸';
+      $('v3xStatusSub').textContent = '目标已锁定 · 等待分流';
+      $('v3xActionKicker').textContent = '▌ 系统就绪';
+      $('v3xActionTitle').textContent = '当前帧可用于归类';
+      $('v3xActionSub').textContent = '目标已锁定 · 可直接生成';
+      const label = document.getElementById('frameLabel');
+      if (label) label.textContent = 'DETECTED · 人脸已锁定';
+    }
+  });
+</script>
+
+</body>
+</html>

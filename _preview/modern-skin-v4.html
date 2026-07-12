@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>现代面学 · 身份清仓 · 结果弹窗</title>
+<!--
+  现代面学 · 身份清仓 · 结果弹窗 · 现代动态注入版
+  =====================================================
+  - 视觉完全恢复自 _preview/modern-skin.locked.html
+  - 数据完全从 MODERN_LOCAL_SAMPLES 动态读取（M01-M20）
+  - 不写死任何样本名 / 字段值
+  - 由父页面调用 fillModernSkin(viewModel) 注入
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    background: #050505;
+    font-family: 'Courier New', 'SimHei', monospace;
+    overflow: hidden;
+  }
+
+  /* ============ 结果覆盖层（与主项目 v3x-result 完全一致） ============ */
+  .v3x-result {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    padding: 14px;
+  }
+
+  .v3x-result__panel {
+    background: #f5ecd0;
+    color: #1a1a1a;
+    border: 4px solid #1a1a1a;
+    outline: 2px dashed #1a1a1a;
+    outline-offset: 8px;
+    box-shadow: 12px 12px 0 #d60000;
+    padding: 22px 32px 20px;
+    width: min(96vw, 1120px);
+    max-height: 92vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    font-family: 'Courier New', 'SimHei', monospace;
+    position: relative;
+  }
+
+  @keyframes v3xResultSlam {
+    0%   { opacity: 0; transform: scale(0.9); }
+    60%  { opacity: 1; transform: scale(1.02); }
+    100% { transform: scale(1); }
+  }
+  .v3x-result__panel { animation: v3xResultSlam 0.36s cubic-bezier(.3, 1.6, .4, 1) both; }
+
+  /* 顶部 kicker + 4 贴纸 */
+  .v3x-result__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .v3x-result__kicker {
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    font-size: 13px;
+    color: #1a1a1a;
+    font-family: 'Courier New', 'SimHei', monospace;
+  }
+  .v3x-result__sticker-row { display: flex; gap: 5px; flex-wrap: wrap; }
+  .v3x-sticker {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 900;
+    letter-spacing: 1.2px;
+    padding: 3px 6px;
+    border: 1.5px solid #1a1a1a;
+    box-shadow: 2px 2px 0 #1a1a1a;
+    font-family: 'Courier New', 'SimHei', monospace;
+    text-transform: uppercase;
+    line-height: 1.1;
+  }
+  .v3x-sticker--y { background: #fde047; color: #1a1a1a; }
+  .v3x-sticker--r { background: #d60000; color: #fff; }
+  .v3x-sticker--c { background: #22d3ee; color: #1a1a1a; }
+  .v3x-sticker--g { background: #22c55e; color: #1a1a1a; }
+
+  /* 大标题 */
+  .v3x-result__verdict {
+    font-family: 'Impact', 'Arial Black', 'SimHei', sans-serif;
+    font-size: clamp(72px, 6vw, 96px);
+    font-weight: 900;
+    letter-spacing: 6px;
+    line-height: 0.9;
+    color: #1a1a1a;
+    text-align: center;
+    margin: 20px 0 8px;
+    text-shadow: 5px 5px 0 #f5d400, 10px 10px 0 #d60000;
+  }
+
+  /* 红色小章 */
+  .v3x-result__stamp {
+    text-align: center;
+    font-family: 'Impact', 'Arial Black', 'SimHei', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 5px;
+    color: #d60000;
+    border: 2.5px solid #d60000;
+    display: inline-block;
+    padding: 4px 16px;
+    margin: 0 auto 16px;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%) rotate(-2deg);
+    background: rgba(255,255,255,0.4);
+  }
+
+  /* 6 卡 */
+  .v3x-result__grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+  .v3x-result__cell {
+    border: 3.5px solid #1a1a1a;
+    box-shadow: 5px 5px 0 #1a1a1a;
+    padding: 13px 16px 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+    color: #0a0a0a;
+    min-height: 124px;
+  }
+  .v3x-result__cell-label {
+    font-size: 13px;
+    font-weight: 900;
+    color: rgba(0,0,0,0.6);
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+  }
+  .v3x-result__cell-sku {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    font-size: 11px;
+    font-weight: 900;
+    color: #d60000;
+    letter-spacing: 1.2px;
+    background: rgba(255,255,255,0.75);
+    padding: 2px 6px;
+    border: 1.5px solid #d60000;
+  }
+  .v3x-result__cell-value {
+    font-family: 'Impact', 'Arial Black', 'SimHei', sans-serif;
+    font-size: clamp(38px, 3vw, 58px);
+    font-weight: 900;
+    color: #0a0a0a;
+    letter-spacing: 2px;
+    line-height: 1;
+    margin: 4px 0 6px;
+    text-transform: none;
+    word-break: keep-all;
+  }
+  .v3x-result__cell-reason {
+    font-size: 15px;
+    font-weight: 700;
+    color: rgba(0,0,0,0.78);
+    letter-spacing: 0.4px;
+    line-height: 1.45;
+    border-top: 2px dashed rgba(0,0,0,0.4);
+    padding-top: 6px;
+    margin-top: 4px;
+    word-break: break-all;
+  }
+
+  /* 来源 */
+  .v3x-result__source {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    background: rgba(0, 0, 0, 0.05);
+    border: 1.5px solid #1a1a1a;
+    font-size: 11px;
+    font-weight: 700;
+    color: #444;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .v3x-result__source-thumb {
+    width: 38px; height: 38px;
+    object-fit: cover;
+    border: 1.5px solid #1a1a1a;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #1a1a1a, #4a4a4a);
+  }
+  .v3x-result__source-info {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* 单行底部信息 */
+  .v3x-result__info-row {
+    background: #fff;
+    color: #1a1a1a;
+    border: 1.5px solid #1a1a1a;
+    padding: 6px 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    line-height: 1.55;
+    margin-bottom: 8px;
+    word-break: break-all;
+  }
+  .v3x-result__info-row .engine {
+    font-weight: 900;
+    color: #d60000;
+  }
+
+  /* 黄色警示条 */
+  .v3x-result__warning {
+    background: #f5d400;
+    color: #1a1a1a;
+    border: 2px solid #1a1a1a;
+    box-shadow: 2.5px 2.5px 0 #d60000;
+    padding: 7px 12px;
+    font-size: 12.5px;
+    font-weight: 900;
+    letter-spacing: 0.8px;
+    line-height: 1.45;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+
+  /* 按钮 */
+  .v3x-result__actions {
+    display: flex;
+    gap: 10px;
+  }
+  .v3x-result__btn {
+    flex: 1;
+    background: #f5d400;
+    color: #1a1a1a;
+    border: 3.5px solid #1a1a1a;
+    box-shadow: 5px 5px 0 #d60000;
+    font-family: 'Courier New', 'SimHei', monospace;
+    font-weight: 900;
+    font-size: 18px;
+    letter-spacing: 5px;
+    padding: 16px 20px;
+    min-height: 60px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .v3x-result__btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 7px 7px 0 #d60000;
+  }
+  .v3x-result__btn--ghost {
+    background: #fff;
+    color: #1a1a1a;
+    box-shadow: 5px 5px 0 #1a1a1a;
+  }
+  .v3x-result__btn--ghost:hover {
+    box-shadow: 6px 6px 0 #1a1a1a;
+  }
+
+  /* 证据条 */
+  .fs-strip {
+    margin: 18px 0 8px;
+    padding: 14px 14px 12px;
+    border: 1px dashed #d4a017;
+    background: rgba(255, 245, 200, 0.35);
+    text-align: left;
+    box-sizing: border-box;
+  }
+  .fs-strip__head {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    border-bottom: 1px dashed #d4a017; padding-bottom: 8px; margin-bottom: 10px;
+  }
+  .fs-strip__kicker { font-size: 9.5px; letter-spacing: 3px; color: #8a6500; font-weight: 700; }
+  .fs-strip__title { font-size: 15px; font-weight: 900; color: #1a1a1a; letter-spacing: 1.5px; }
+  .fs-strip__sub { font-size: 11px; line-height: 1.6; color: #3a2f10; margin-bottom: 12px; }
+  .fs-strip__row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .fs-strip__cell {
+    width: 220px; background: #fffbe9; border: 1px solid #c8930a;
+    display: flex; flex-direction: column;
+  }
+  .fs-strip__img { display: block; width: 100%; height: 150px; object-fit: cover; background: #111; }
+  .fs-strip__cap {
+    padding: 8px 10px 10px; font-size: 10.5px; line-height: 1.5; color: #1a1a1a;
+    border-top: 1px dashed #c8930a;
+  }
+  .fs-strip__cap b { display: block; font-size: 12px; letter-spacing: 2px; margin-bottom: 2px; color: #000; }
+  .fs-strip__note { margin-top: 10px; font-size: 10px; color: #6a5818; font-style: italic; letter-spacing: 0.5px; }
+  @media (max-width: 560px) {
+    .fs-strip__cell { width: 100%; }
+  }
+</style>
+</head>
+
+<body>
+
+<div class="v3x-result">
+  <div class="v3x-result__panel">
+
+    <!-- 顶部 kicker + 4 贴纸 -->
+    <div class="v3x-result__top">
+      <div class="v3x-result__kicker">▌ BIAS SYSTEM · 身份清仓 · SYSTEM RECOMMEND</div>
+      <div class="v3x-result__sticker-row">
+        <span class="v3x-sticker v3x-sticker--y">已归档</span>
+        <span class="v3x-sticker v3x-sticker--r">不可逆</span>
+        <span class="v3x-sticker v3x-sticker--c">系统推荐</span>
+      </div>
+    </div>
+
+    <!-- 大标题 -->
+    <div class="v3x-result__verdict">你被归类为</div>
+    <!-- 分类标签：动态 -->
+    <div class="v3x-result__stamp" id="sampleStamp">—</div>
+
+    <!-- 6 张彩色分类卡（SKU-01..SKU-06 · 动态注入） -->
+    <div class="v3x-result__grid">
+      <div class="v3x-result__cell" id="cellSexuality" style="background: #fde047;">
+        <div class="v3x-result__cell-label">性取向</div>
+        <div class="v3x-result__cell-sku">SKU-01</div>
+        <div class="v3x-result__cell-value" id="sexualityValue">—</div>
+        <div class="v3x-result__cell-reason" id="sexualityReason">—</div>
+      </div>
+      <div class="v3x-result__cell" id="cellGender" style="background: #22d3ee;">
+        <div class="v3x-result__cell-label">性别</div>
+        <div class="v3x-result__cell-sku">SKU-02</div>
+        <div class="v3x-result__cell-value" id="genderValue">—</div>
+        <div class="v3x-result__cell-reason" id="genderReason">—</div>
+      </div>
+      <div class="v3x-result__cell" id="cellIncome" style="background: #22c55e;">
+        <div class="v3x-result__cell-label">收入等级</div>
+        <div class="v3x-result__cell-sku">SKU-03</div>
+        <div class="v3x-result__cell-value" id="incomeValue">—</div>
+        <div class="v3x-result__cell-reason" id="incomeReason">—</div>
+      </div>
+      <div class="v3x-result__cell" id="cellFamily" style="background: #fde047;">
+        <div class="v3x-result__cell-label">家庭结构</div>
+        <div class="v3x-result__cell-sku">SKU-04</div>
+        <div class="v3x-result__cell-value" id="familyValue">—</div>
+        <div class="v3x-result__cell-reason" id="familyReason">—</div>
+      </div>
+      <div class="v3x-result__cell" id="cellRelationship" style="background: #f9a8d4;">
+        <div class="v3x-result__cell-label">婚恋状态</div>
+        <div class="v3x-result__cell-sku">SKU-05</div>
+        <div class="v3x-result__cell-value" id="relationshipValue">—</div>
+        <div class="v3x-result__cell-reason" id="relationshipReason">—</div>
+      </div>
+      <div class="v3x-result__cell" id="cellRisk" style="background: #fef3c7;">
+        <div class="v3x-result__cell-label">风险等级</div>
+        <div class="v3x-result__cell-sku">SKU-06</div>
+        <div class="v3x-result__cell-value" id="riskValue">—</div>
+        <div class="v3x-result__cell-reason" id="riskReason">—</div>
+      </div>
+    </div>
+
+    <!-- 样本来源 -->
+    <div class="v3x-result__source">
+      <img class="v3x-result__source-thumb" id="sourceThumb" src="" alt="" onerror="this.style.display='none'">
+      <div class="v3x-result__source-info" id="sourceInfo">样本来源 · 现代样本库 / MODERN ARCHIVE · Mxx / observed 1</div>
+    </div>
+
+    <!-- 证据链 + ENGINE 信息行 -->
+    <div class="v3x-result__info-row" id="infoRow">
+      证据链：<span id="infoChain">证据链已生成</span> ｜ 用户确认：不需要 ｜ 申请通道：关闭 ｜ 结果已写入临时档案 ｜ 图像已传 AI ｜ <span class="engine" id="engineLabel">ENGINE: AI ARCHIVE</span>
+    </div>
+
+    <!-- 黄色警示条 -->
+    <div class="v3x-result__warning">★ <span id="warningText">本次报告未识别输入对象的真实属性 · 仅展示分类系统的运作方式</span> ★</div>
+
+    <!-- 证据条 -->
+    <div class="fs-strip">
+      <div class="fs-strip__head">
+        <span class="fs-strip__kicker">▌ ARCHIVE EVIDENCE STRIP</span>
+        <span class="fs-strip__title" id="evidenceTitle">— · —</span>
+      </div>
+      <div class="fs-strip__sub" id="evidenceIntro">—</div>
+      <div class="fs-strip__row">
+        <div class="fs-strip__cell">
+          <img class="fs-strip__img" id="evMain" src="" alt="" onerror="this.style.display='none'">
+          <div class="fs-strip__cap"><b>01 ORIGINAL FACE</b>标准形象</div>
+        </div>
+        <div class="fs-strip__cell">
+          <img class="fs-strip__img" id="evAlt" src="" alt="" onerror="this.style.display='none'">
+          <div class="fs-strip__cap"><b>02 INTERNET FACE</b>网络面孔</div>
+        </div>
+        <div class="fs-strip__cell">
+          <img class="fs-strip__img" id="evContext" src="" alt="" onerror="this.style.display='none'">
+          <div class="fs-strip__cap"><b>03 CONTEXT</b>传播语境</div>
+        </div>
+        <div class="fs-strip__cell">
+          <img class="fs-strip__img" id="evArchive" src="" alt="" onerror="this.style.display='none'">
+          <div class="fs-strip__cap"><b>04 SYSTEM CROP</b>系统截取</div>
+        </div>
+      </div>
+      <div class="fs-strip__note" id="evidenceNote">—</div>
+    </div>
+
+    <!-- 按钮 -->
+    <div class="v3x-result__actions">
+      <button class="v3x-result__btn" id="v3xResultAgain" type="button">
+        <span>↻</span><span>再来一次</span>
+      </button>
+      <button class="v3x-result__btn v3x-result__btn--ghost" id="v3xResultClose" type="button">
+        <span>✕</span><span>关闭</span>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function setText(id, val) { var el = document.getElementById(id); if (el) el.textContent = (val == null || val === '') ? '—' : val; }
+function setImage(id, val) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  if (!val) { el.removeAttribute('src'); el.style.display = 'none'; return; }
+  el.onerror = function () { el.style.display = 'none'; };
+  el.src = val;
+  el.style.display = '';
+}
+
+window.fillModernSkin = function (viewModel) {
+  if (!viewModel) { console.error('[MODERN_SKIN] viewModel is null'); return; }
+  console.log('[MODERN_SKIN] fill start', viewModel.sampleId);
+
+  // 顶部主章
+  setText('sampleStamp', viewModel.sampleName || '—');
+  document.title = '现代面学 · ' + (viewModel.sampleName || viewModel.sampleId);
+
+  // 6 张卡（SKU-01..SKU-06）· 严格按字段映射
+  setText('sexualityValue', viewModel.sexualityValue);
+  setText('sexualityReason', viewModel.sexualityReason);
+  setText('genderValue', viewModel.genderValue);
+  setText('genderReason', viewModel.genderReason);
+  setText('incomeValue', viewModel.incomeValue);
+  setText('incomeReason', viewModel.incomeReason);
+  setText('familyValue', viewModel.familyValue);
+  setText('familyReason', viewModel.familyReason);
+  setText('relationshipValue', viewModel.relationshipValue);
+  setText('relationshipReason', viewModel.relationshipReason);
+  setText('riskValue', viewModel.riskValue);
+  setText('riskReason', viewModel.riskReason);
+
+  // 来源
+  setImage('sourceThumb', viewModel.evidenceImages && viewModel.evidenceImages.main);
+  setText('sourceInfo', '样本来源 · 现代样本库 / MODERN ARCHIVE · ' + (viewModel.sampleId || 'Mxx') + ' · observed 1 · 分类副线：' + (viewModel.verdictCategoryLine || ''));
+
+  // 证据链 / ENGINE 行
+  setText('engineLabel', viewModel.engineLabel || 'ENGINE: AI ARCHIVE');
+
+  // 黄色警示
+  setText('warningText', '本次报告未识别输入对象的真实属性 · 仅展示分类系统的运作方式');
+
+  // 证据条
+  setText('evidenceTitle', (viewModel.sampleName || '—') + ' · ' + (viewModel.evidenceSubtitle || '—'));
+  setText('evidenceIntro', viewModel.evidenceIntro || '—');
+  setText('evidenceNote', viewModel.evidenceNote || '—');
+  setImage('evMain', viewModel.evidenceImages && viewModel.evidenceImages.main);
+  setImage('evAlt', viewModel.evidenceImages && viewModel.evidenceImages.alt);
+  setImage('evContext', viewModel.evidenceImages && viewModel.evidenceImages.context);
+  setImage('evArchive', viewModel.evidenceImages && viewModel.evidenceImages.archive);
+
+  // 按钮（如果父页面提供了 handler）
+  var again = document.getElementById('v3xResultAgain');
+  if (again) again.onclick = function () { if (window.resetToCamera) try { window.resetToCamera(); } catch (e) {} };
+  var close = document.getElementById('v3xResultClose');
+  if (close) close.onclick = function () { if (window.resetToCamera) try { window.resetToCamera(); } catch (e) {} };
+
+  console.log('[MODERN_SKIN] fill complete', viewModel.sampleId, viewModel.sampleName);
+};
+
+// 兼容老 entrypoint
+window.fillModernSkinV4 = window.fillModernSkin;
+</script>
+</body>
+</html>

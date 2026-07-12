@@ -1,0 +1,88 @@
+{
+  "version": "v1",
+  "title": "BIAS SYSTEM · 三套判读系统统一注册表",
+  "purpose": "避免后续改 UI / 接入 / 改 prompt 时遗忘、覆盖或合并某一套系统。所有改动前必须先看本表，确认目标 system 的 status 与 references。",
+  "design_rules_path": "../DESIGN_RULES.md",
+  "data_model": {
+    "field":         "结果卡格子标题（取自各系统的 fields 或 dimensions 数组）",
+    "small_class":   "该格子居中显示的大字（必填，整套系统共享此渲染规则）",
+    "reason":        "卡片底部因为：… 后面显示的虚构解释",
+    "forbidden":     "英文分类词 / Markdown / 真实身份判断 / 多字段拼接"
+  },
+  "systems": [
+    {
+      "id": "ancient",
+      "name_zh": "古代面学",
+      "name_en": "Ancient Chinese Physiognomic Archive",
+      "subtitle": "相书卷宗判读系统",
+      "status": "content_v3 + visual_v4_static · static_preview_only",
+      "vocab": "_preview/ancient-vocab-v3.json",
+      "static_visual": "_preview/ancient-skin-v4.html (卷宗系统 / phase-2 新版)",
+      "fields_or_dimensions": ["十二宫分区", "五官取象", "三停比例", "五岳四渎", "气色标记", "骨相纹路"],
+      "small_class_per_field": 6,
+      "ui_status": "v4 卷宗系统（相书判读）· 不与 western 冷档案混淆",
+      "rules_note": "继承现代面学骨架 · 不沿用 western 冷档案气质 · 仅换色彩 / 贴纸 / 字段名 / 纸张纹理 / 字体层级",
+      "raw_pending_note": "v2 词库（相格 / 骨相 / 气色 / 命势 / 亲缘 / 断语）保留为归档 · 已被 v3 字段结构（六大卷宗）替代"
+    },
+    {
+      "id": "modern",
+      "name_zh": "现代面学",
+      "name_en": null,
+      "subtitle": "身份清仓",
+      "status": "content_final · visual_final · wired_into_main_flow",
+      "vocab": "硬编码在 exhibition.js · 未单独抽出",
+      "static_visual": "exhibition.css + index.html #v3xResultGrid",
+      "fields_or_dimensions": ["性取向", "性别", "收入等级", "家庭结构", "婚恋状态", "风险等级"],
+      "small_class_per_field": 5,
+      "ui_status": "live · currently rendered",
+      "rules_note": "reference baseline · 其他皮肤都要继承它的骨架",
+      "raw_pending_note": "词库暂未抽文件，但字段已定稿"
+    },
+    {
+      "id": "western",
+      "name_zh": "西方面学",
+      "name_en": "Western Physiognomic Archive",
+      "subtitle": "脸作为分类证据",
+      "status": "content_final · visual_v3_1_locked · static_preview_only",
+      "locked_baseline": "v3.1 (2026-07-07) · 见 western-skin.locked.html + WESTERN_LOCK_NOTE.md",
+      "vocab": "_preview/western-vocab-v1.json",
+      "static_visual": "_preview/western-skin.html (work) · _preview/western-skin.locked.html (lock)",
+      "fields_or_dimensions": ["古典相貌", "侧影道德", "颅骨地图", "犯罪预兆", "平均脸规训", "算法再分类", "警务档案", "殖民等级", "症状表情"],
+      "small_class_per_field": "4 - 6 · 见词库 options 数组",
+      "ui_status": "v3.1 LOCKED · 仅做小修 · 不允许大幅重做",
+      "rules_note": "锁定基线 v3.1 · 仅做小修（间距 / 滚动 / 可读性 / 透明度 / 错字 / 按钮状态 / 移动端）· 不允许大幅重排 / 改风格 / 删历史图",
+      "raw_pending_note": "9 维度 · 主卡片精选 6（古典兽相 / 侧影道德化 / 颅骨地图化 / 犯罪预兆化 / 平均脸规训 / 算法再分类）· 警务档案 + 殖民等级 + 症状表情 放装饰带"
+    }],
+  "shared_constraints": {
+    "do_not_replace": [
+      "严禁用一套内容替换另一套",
+      "严禁在修改 modern/ancient 时把另一套当成替代品",
+      "严禁把三套合并成一套"
+    ],
+    "do_add_when": [
+      "用户明确说「新增一套」",
+      "用户在 brainstorming 中引导到分支模式"
+    ],
+    "must_do_before_any_ui_change": [
+      "读取 ../DESIGN_RULES.md",
+      "在回复里确认：我已读取 DESIGN_RULES.md，本次只按规范修改 UI",
+      "先在 _preview/<mode>-skin.html 做静态预览",
+      "用假数据，不接 AI，不接摄像头，不改主流程"
+    ]
+  },
+  "next_plans": {
+    "ancient": [
+      "等用户提新反馈后微调 ancient-skin.html",
+      "考虑把 json 接到 prompt（之前讨论方向）",
+      "考虑写 TypeScript 类型文件"
+    ],
+    "modern": [
+      "作为基准参考，不主动改",
+      "未来如需微调，仅缩放 / 字号层级"
+    ],
+    "western": [
+      "等用户定视觉稿方向后创建 _preview/western-skin.html",
+      "目前只有 9 维度词库 + mockups.html 里早期一版"
+    ]
+  }
+}
