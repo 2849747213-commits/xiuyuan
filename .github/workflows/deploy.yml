@@ -20,17 +20,10 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      # ★ 一次性部署 · 不需要先在 Vercel 上手动建项目
-      # 第一次会创建项目并链接, 后续直接部署
+      # ★ 一次性部署 · 不需要先在 Vercel 手动建项目
+      # 第一次会自动创建项目 + 链接到当前目录, 后续直接部署
+      # AI_API_KEY / AI_BASE_URL / AI_MODEL 三个变量需要在 Vercel Dashboard 设置
       - name: Deploy to Production
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          # 三个 AI 变量 · 优先用 GitHub Secret 注入; 没有就用 Vercel Dashboard 已配的
-          AI_API_KEY: ${{ secrets.AI_API_KEY }}
-          AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
-          AI_MODEL: ${{ secrets.AI_MODEL }}
-        run: |
-          vercel deploy --prod --yes --token="$VERCEL_TOKEN" \
-            --build-env AI_API_KEY="$AI_API_KEY" \
-            --build-env AI_BASE_URL="$AI_BASE_URL" \
-            --build-env AI_MODEL="$AI_MODEL"
+        run: vercel deploy --prod --yes --token "$VERCEL_TOKEN"
