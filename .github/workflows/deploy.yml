@@ -11,24 +11,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-      # 用 Vercel 官方 action · 第一次会自动建项目
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      # 第一次部署 · 用 --yes --no-clipboard 跳过交互
-      # 同时把 stderr 全打出来方便排查
-      - name: Deploy to Production
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          echo "=== PWD: $(pwd)"
-          echo "=== LS:"
-          ls -la
-          echo "=== vercel --version:"
-          vercel --version
-          echo "=== vercel whoami:"
-          vercel whoami --token "$VERCEL_TOKEN" 2>&1 || true
-          echo "=== vercel deploy start:"
-          vercel deploy --prod --yes --no-clipboard --token "$VERCEL_TOKEN" 2>&1
-          echo "=== exit code: $?"
+      # 关键: 用 Vercel 官方 GitHub Action · 自动处理 project 链接和 token
+      - name: Deploy to Vercel
+        uses: vercel/actions/cli@main
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./
+          vercel-args: '--prod --yes'
