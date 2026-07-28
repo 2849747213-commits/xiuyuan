@@ -33,9 +33,9 @@ function loadEnv() {
   return env;
 }
 const ENV = loadEnv();
-const AI_BASE_URL = ENV.AI_BASE_URL || 'https://api.minimaxi.com/v1';
-const AI_API_KEY = ENV.AI_API_KEY || '';
-const AI_MODEL = ENV.AI_MODEL || 'MiniMax-M3';
+const AI_BASE_URL = ENV.AI_BASE_URL || process.env.AI_BASE_URL || 'https://api.minimaxi.com/v1';
+const AI_API_KEY  = ENV.AI_API_KEY  || process.env.AI_API_KEY  || '';
+const AI_MODEL    = ENV.AI_MODEL    || process.env.AI_MODEL    || 'MiniMax-M3';
 
 console.log('[server] AI_BASE_URL =', AI_BASE_URL);
 console.log('[server] AI_API_KEY =', AI_API_KEY ? '***' + AI_API_KEY.slice(-4) : '(empty)');
@@ -1277,6 +1277,203 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ============================================
+  // ★ /api/fusion/ancient · 古代归类融合像 · Provider Adapter
+  // - 校验 sampleId ∈ A01-A16 · 校验 userImage 是合法 data URL
+  // - 限制 body 8MB · 后端读取 sample_main.jpg
+  // - 通过 providers/ancient-fusion-provider.js 选 Key + Model
+  // - 优先 IMAGE_API_KEY · 退路 AI_API_KEY (与文本分类共用)
+  // - 没任何 Key → 503 image-provider-not-configured
+  // - 不在前端返回任何 API key
+  // - 不在日志输出完整 base64
+  // ============================================
+  const fusionProvider = require('./providers/ancient-fusion-provider');
+  const minimaxImage = require('./providers/minimax-image-provider');
+  const isFusionAncientApi = (req.url.split('?')[0] === '/api/fusion/ancient' ||
+                              req.url.split('?')[0] === '/exhibition-camera/api/fusion/ancient');
+  if (req.method === 'POST' && isFusionAncientApi) {
+    let body = '';
+    let bodyLen = 0;
+    const MAX_FUSION_BODY = 8 * 1024 * 1024; // 8MB
+    req.on('data', c => {
+      bodyLen += c.length;
+      if (bodyLen > MAX_FUSION_BODY) {
+        try { req.destroy(); } catch (e) {}
+        if (!res.headersSent) {
+          res.statusCode = 413;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({ ok: false, source: 'error', error: 'payload-too-large', message: '请求体超过 8MB 限制' }));
+        }
+        return;
+      }
+      body += c;
+    });
+    req.on('end', async () => {
+      console.log('[FUSION_ANCIENT] POST /api/fusion/ancient · body bytes =', body.length);
+      let input;
+      try { input = JSON.parse(body); } catch (e) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-json', message: 'JSON 解析失败' }));
+      }
+
+      // ★ 1. 校验 sampleId
+      const sampleId = (input && typeof input.sampleId === 'string') ? input.sampleId.trim() : '';
+      if (!/^A(0[1-9]|1[0-6])$/.test(sampleId)) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-sample-id', message: 'sampleId 必须是 A01-A16' }));
+      }
+
+      // ★ 2. 校验 userImage 是合法 data URL
+      const userImage = (input && typeof input.userImage === 'string') ? input.userImage : '';
+      const m = userImage.match(/^data:(image\/(?:png|jpe?g|webp));base64,([A-Za-z0-9+/=]+)$/i);
+      if (!m) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-user-image', message: 'userImage 必须是 png/jpeg/webp 的 data URL' }));
+      }
+      const userMime = m[1].toLowerCase();
+      const userBase64 = m[2];
+      // base64 长度粗略检查（解码后 ≥ 1KB）
+      if (userBase64.length < 1024) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-user-image', message: '用户图过小或为空' }));
+      }
+
+      // ★ 3. 校验 requestId
+      const requestId = (input && typeof input.requestId === 'string' && /^fusion_[A-Za-z0-9_-]{1,80}$/.test(input.requestId))
+        ? input.requestId
+        : ('fusion_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8));
+
+      // ★ 4. 通过 Provider Adapter 选 Key · 复用 AI_API_KEY
+      const keyPick = fusionProvider.pickImageApiKey();
+      if (!keyPick.key) {
+        console.log('[FUSION_ANCIENT] no usable API key (need one of IMAGE_API_KEY / MINIMAX_API_KEY / AI_API_KEY / IMAGE_KEY / AI_IMAGE_KEY) · return 503');
+        res.statusCode = 503;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({
+          ok: false,
+          source: 'error',
+          error: 'image-provider-not-configured',
+          message: '融合生成服务尚未连接',
+          hint: '请在 Vercel / .env 配置 IMAGE_API_KEY · 或保留现有 AI_API_KEY (与文本分类共用同一 Key)'
+        }));
+      }
+      const IMAGE_BASE_URL = fusionProvider.pickImageBaseUrl();
+      const IMAGE_MODEL = fusionProvider.pickImageModel();
+      console.log('[FUSION_ANCIENT] using key source =', keyPick.source, '· baseUrl =', IMAGE_BASE_URL, '· model =', IMAGE_MODEL);
+
+      // ★ 5. 读取 sample main 图（白名单路径，server 端固定目录）
+      const sampleMainPath = path.join(DIRECTORY, 'assets', 'sample-library', 'ancient', sampleId + '_sample_main.jpg');
+      let sampleBase64 = '';
+      try {
+        if (!fs.existsSync(sampleMainPath)) {
+          res.statusCode = 404;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          return res.end(JSON.stringify({ ok: false, source: 'error', error: 'sample-image-not-found', message: '样本主图缺失 · ' + sampleId }));
+        }
+        const sampleBuf = fs.readFileSync(sampleMainPath);
+        sampleBase64 = sampleBuf.toString('base64');
+      } catch (e) {
+        console.error('[FUSION_ANCIENT] read sample err', e.message);
+        res.statusCode = 500;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'sample-image-not-found', message: '样本主图读取失败' }));
+      }
+
+      // ★ 6. 构造 prompt · 通过 Provider Adapter
+      const sampleName = minimaxImage.SAMPLE_NAMES[sampleId] || sampleId;
+      const fusionPrompt = minimaxImage.buildPrompt(sampleId, sampleName);
+      console.log('[FUSION_ANCIENT] call provider=' + minimaxImage.providerId + ' model=' + IMAGE_MODEL + ' sampleId=' + sampleId + ' requestId=' + requestId + ' userImage bytes=' + userBase64.length);
+
+      // ★ 7. 调 MiniMax image-01 · subject_reference = userImage（用户图作主体）
+      const startTs = Date.now();
+      let upstream;
+      try {
+        upstream = await minimaxImage.callUpstream({
+          baseUrl: IMAGE_BASE_URL,
+          apiKey: keyPick.key,
+          model: IMAGE_MODEL,
+          prompt: fusionPrompt,
+          userImageDataUrl: userImage,
+          timeoutMs: 90 * 1000
+        });
+      } catch (e) {
+        console.error('[FUSION_ANCIENT] upstream err', e.message);
+        res.statusCode = 504;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({
+          ok: false, source: 'error', error: 'image-provider-timeout',
+          message: '融合服务调用超时 · 请稍后重试',
+          requestId: requestId, sampleId: sampleId
+        }));
+      }
+
+      const elapsed = Date.now() - startTs;
+      console.log('[FUSION_ANCIENT] upstream status', upstream.status, 'elapsed', elapsed + 'ms');
+
+      if (upstream.status < 200 || upstream.status >= 300) {
+        // ★ 透传错误但脱敏
+        let errBody = upstream.body || '';
+        let errShort = errBody.length > 300 ? errBody.slice(0, 300) + '...' : errBody;
+        let code = 'image-provider-rejected';
+        if (upstream.status === 429) code = 'image-provider-rate-limit';
+        if (upstream.status === 401 || upstream.status === 403) code = 'image-provider-unauthorized';
+        res.statusCode = upstream.status;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({
+          ok: false, source: 'error', error: code,
+          message: '融合服务未返回有效图片（HTTP ' + upstream.status + '）',
+          upstreamStatus: upstream.status,
+          upstreamShort: errShort,
+          requestId: requestId, sampleId: sampleId
+        }));
+      }
+
+      // ★ 8. 解析 Provider 响应
+      const parsedResult = minimaxImage.parseUpstream(upstream.body);
+      if (!parsedResult.ok) {
+        console.error('[FUSION_ANCIENT] parse failed ·', parsedResult.error, '·', parsedResult.message);
+        let httpCode = 502;
+        if (parsedResult.error === 'image-generation-failed') httpCode = 502;
+        if (parsedResult.error === 'invalid-image-response') httpCode = 502;
+        res.statusCode = httpCode;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify(Object.assign({
+          requestId: requestId,
+          sampleId: sampleId,
+          source: 'error'
+        }, parsedResult)));
+      }
+
+      const imageUrl = parsedResult.imageUrl || null;
+      const imageBase64 = parsedResult.imageDataUrl || null;
+      const successCount = parsedResult.successCount || 0;
+      const failedCount = parsedResult.failedCount || 0;
+
+      console.log('[FUSION_ANCIENT] SUCCESS · sampleId=' + sampleId + ' · success=' + successCount + ' failed=' + failedCount + ' · hasUrl=' + !!imageUrl + ' hasB64=' + !!imageBase64);
+
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      const out = {
+        ok: true,
+        source: 'ai-image',
+        requestId: requestId,
+        sampleId: sampleId,
+        sampleName: sampleName,
+        elapsedMs: elapsed,
+        successCount: successCount,
+        failedCount: failedCount
+      };
+      if (imageUrl) out.imageUrl = imageUrl;
+      if (imageBase64) out.imageDataUrl = imageBase64;
+      return res.end(JSON.stringify(out));
+    });
+    return;
+  }
+
+  // ============================================
   // ★ /api/classify/western · 独立 western 专用路由 · 14 个历史样本
   // - 真实 AI 只接收一张当前摄像头截图 + 14 组样本元数据
   // - 不传 visualProfile（历史人物是固定档案，直接传 sampleId + 类别）
@@ -1812,8 +2009,8 @@ const server = http.createServer(async (req, res) => {
   // 静态文件 · 支持 / 和 /exhibition-camera/ 两种入口
   let url = req.url.split('?')[0];
   if (url === '/') {
-    // 根路径默认显示调试版
-    const filePath = path.join(DIRECTORY, '..', 'index-v3.html');
+    // 根路径默认显示新版 exhibition-camera/index.html
+    const filePath = path.join(DIRECTORY, 'index.html');
     return fs.readFile(filePath, (err, data) => {
       if (err) { res.statusCode = 404; return res.end('not found'); }
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -1824,21 +2021,12 @@ const server = http.createServer(async (req, res) => {
   if (url.startsWith('/exhibition-camera/')) {
     url = url.replace('/exhibition-camera/', '/');
   }
-  // 如果请求根目录的静态文件（如 /style-v3.css）→ 上一级
-  let filePath;
-  if (url === '/index.html') {
-    // /exhibition-camera/index.html 已经走子目录
-    filePath = path.join(DIRECTORY, url);
-  } else if (/^\/[a-z0-9_-]+\.(html|css|js|json|png|svg)$/i.test(url) &&
-             !fs.existsSync(path.join(DIRECTORY, url))) {
-    // 根目录的 index-v3.html / style-v3.css / ui-v3.js
-    filePath = path.join(DIRECTORY, '..', url);
-  } else {
-    filePath = path.join(DIRECTORY, url);
-  }
-  if (!filePath.startsWith(DIRECTORY) && !filePath.startsWith(path.join(DIRECTORY, '..'))) {
+  // 其它路径直接在子目录找
+  let filePath = path.join(DIRECTORY, url);
+  // 防止路径穿越
+  if (!filePath.startsWith(DIRECTORY)) {
     res.statusCode = 403;
-    return res.end('forbidden: ' + filePath);
+    return res.end('forbidden: ' + url);
   }
   fs.readFile(filePath, (err, data) => {
     if (err) {
@@ -1846,8 +2034,25 @@ const server = http.createServer(async (req, res) => {
       return res.end('not found: ' + url);
     }
     const ext = path.extname(filePath).toLowerCase();
-    const mime = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' }[ext] || 'application/octet-stream';
-    res.setHeader('Content-Type', mime + '; charset=utf-8');
+    const mime = {
+      '.html': 'text/html',
+      '.js':   'application/javascript',
+      '.mjs':  'application/javascript',
+      '.css':  'text/css',
+      '.json': 'application/json',
+      '.png':  'image/png',
+      '.jpg':  'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif':  'image/gif',
+      '.webp': 'image/webp',
+      '.svg':  'image/svg+xml',
+      '.ico':  'image/x-icon',
+      '.wasm': 'application/wasm',
+      '.map':  'application/json'
+    }[ext] || 'application/octet-stream';
+    // 文本类资源带 charset，wasm/binary 不带
+    const isBinary = /\.(wasm|png|jpe?g|gif|webp|ico)$/i.test(ext);
+    res.setHeader('Content-Type', isBinary ? mime : (mime + '; charset=utf-8'));
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.end(data);
   });

@@ -1671,10 +1671,60 @@
         }
         frame.contentWindow.fillAncientSkinV4(result);
         console.log("[ANCIENT_IFRAME] fill complete", result.sampleId, result.sampleName);
+        // ★ 归类融合像初始化 · 在 fill 完成后立即初始化模块,但不自动生成
+        try {
+          initAncientFusionInIframe(frame, result);
+        } catch (e) { console.warn("[ANCIENT_FUSION] init err", e && e.message); }
         resolve(result);
       }
       apply();
     });
+  }
+
+  // ★ 把 userImage + sampleId 推送给结果页的 #ancientFusionPanel
+  // - 优先用 window.__lockedSnapshot.dataUrl(本轮被锁定的摄像头帧)
+  // - 退路 sessionStorage.getItem('v3x_captured_frame')
+  // - 同一轮 result-layer 不可见时跳过
+  function initAncientFusionInIframe(frame, result) {
+    if (!frame || !frame.contentWindow) return;
+    var sampleId = (result && result.sampleId) || "";
+    var sampleName = (result && result.sampleName) || "";
+    if (!/^A(0[1-9]|1[0-6])$/.test(sampleId)) {
+      console.warn("[ANCIENT_FUSION] skip init · invalid sampleId=" + sampleId);
+      return;
+    }
+    var userImage = "";
+    try {
+      var snap = window.__lockedSnapshot || null;
+      if (snap && typeof snap.dataUrl === "string" && snap.dataUrl.length > 1024) {
+        userImage = snap.dataUrl;
+      }
+    } catch (e) {}
+    if (!userImage) {
+      try {
+        var raw = sessionStorage.getItem("v3x_captured_frame");
+        if (raw) {
+          var parsed = JSON.parse(raw);
+          if (parsed && typeof parsed.dataUrl === "string" && parsed.dataUrl.length > 1024) {
+            userImage = parsed.dataUrl;
+          }
+        }
+      } catch (e2) {}
+    }
+    if (!userImage) {
+      console.warn("[ANCIENT_FUSION] skip init · no locked snapshot dataUrl");
+      // ★ 即便没有用户图,也调用 initAncientFusion,让 UI 显示 "当前帧缺失" 的错误
+      try {
+        frame.contentWindow.initAncientFusion({ sampleId: sampleId, sampleName: sampleName, userImage: "" });
+      } catch (e3) {}
+      return;
+    }
+    console.log("[ANCIENT_FUSION] forwarding init · sampleId=" + sampleId + " · sampleName=" + sampleName + " · userImage bytes=" + userImage.length);
+    try {
+      frame.contentWindow.initAncientFusion({ sampleId: sampleId, sampleName: sampleName, userImage: userImage });
+    } catch (e4) {
+      console.error("[ANCIENT_FUSION] initAncientFusion call failed", e4);
+    }
   }
 
   // ★ loading overlay · 点 ancient 后立刻显示 loading，避免停在摄像头页干等
@@ -1845,4 +1895,17 @@
   window.buildAncientResultFromSampleId = buildAncientResultFromSampleId;
   window.previewAncientSample = previewAncientSample;
   window.runAncientSampleRegressionTest = runAncientSampleRegressionTest;
+  window.initAncientFusionInIframe = initAncientFusionInIframe;
+
+  // ★ 父页面可在 resetToCamera / 新一轮拍摄 / 重新开始时调用 · 清理 ancient iframe 内的融合状态
+  window.resetAncientFusionInIframe = function () {
+    try {
+      var frame = document.querySelector("#result-layer iframe.result-frame");
+      if (!frame || !frame.contentWindow) return;
+      if (typeof frame.contentWindow.resetAncientFusion === "function") {
+        frame.contentWindow.resetAncientFusion();
+        console.log("[ANCIENT_FUSION] iframe reset called");
+      }
+    } catch (e) { console.warn("[ANCIENT_FUSION] iframe reset err", e && e.message); }
+  };
 })();

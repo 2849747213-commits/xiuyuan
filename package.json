@@ -1,16 +1,9 @@
 {
   "name": "exhibition-camera",
   "version": "1.0.0",
-  "description": "BIAS SYSTEM · Live classification camera. Vercel-deployable.",
   "private": true,
+  "description": "BIAS SYSTEM · 三套古代/现代/西方面相分析",
   "engines": {
-    "node": ">=18.0.0"
-  },
-  "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
-  },
-  "dependencies": {
-    "jsdom": "^24.0.0"
+    "node": ">=18"
   }
 }

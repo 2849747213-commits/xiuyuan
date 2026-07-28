@@ -15,16 +15,22 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      - name: Pull Vercel Project Info
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Build Project Artifacts
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-
+      # ★ 一次性部署 · 不需要先在 Vercel 上手动建项目
+      # 第一次会创建项目并链接, 后续直接部署
       - name: Deploy to Production
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          # 三个 AI 变量 · 优先用 GitHub Secret 注入; 没有就用 Vercel Dashboard 已配的
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+        run: |
+          vercel deploy --prod --yes --token="$VERCEL_TOKEN" \
+            --build-env AI_API_KEY="$AI_API_KEY" \
+            --build-env AI_BASE_URL="$AI_BASE_URL" \
+            --build-env AI_MODEL="$AI_MODEL"

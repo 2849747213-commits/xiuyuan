@@ -843,6 +843,261 @@
   @media (max-width: 560px) {
     .fs-strip__cell { width: 100%; }
   }
+
+  /* ==================== 13. 归类融合像模块（ancient fusion） ==================== */
+  .fusion-module {
+    margin-top: 10px;
+    padding: 10px 10px 12px;
+    border: 1.5px solid var(--ink-cinnabar-deep);
+    background: rgba(255, 248, 225, 0.65);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+  }
+  .fusion-module::before {
+    content: "▌ ARCHIVE FUSION";
+    position: absolute;
+    top: -1.5px;
+    left: -1.5px;
+    background: var(--ink-cinnabar-deep);
+    color: var(--paper);
+    font-family: var(--font-mono);
+    font-size: 8.5px;
+    letter-spacing: 1.5px;
+    padding: 2px 6px;
+    font-weight: 700;
+  }
+  .fusion-module__head {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .fusion-module__title {
+    font-family: var(--font-li);
+    font-size: 16px;
+    letter-spacing: 4px;
+    color: var(--ink-cinnabar-deep);
+    font-weight: 700;
+  }
+  .fusion-module__sub {
+    font-family: var(--font-kai);
+    font-size: 11px;
+    color: var(--ink-gray);
+    letter-spacing: 1px;
+    flex: 1;
+    text-align: right;
+  }
+  .fusion-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    border: 1.5px solid var(--ink-ruler);
+    background: var(--paper-inside);
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  .fusion-frame img {
+    display: none;            /* ★ 默认隐藏：避免空 src 显示破图 */
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #1a1a1a;
+  }
+  .fusion-frame img[src] {    /* ★ 只在 src 存在时显示 */
+    display: block;
+  }
+  .fusion-frame .fusion-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: var(--ink-gray);
+    text-align: center;
+    padding: 12px;
+  }
+  .fusion-frame .fusion-placeholder .ph-icon {
+    font-family: var(--font-li);
+    font-size: 28px;
+    color: var(--ink-cinnabar-deep);
+    letter-spacing: 6px;
+    font-weight: 700;
+  }
+  .fusion-frame .fusion-placeholder .ph-text {
+    font-family: var(--font-kai);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--ink-deep);
+  }
+  .fusion-frame .fusion-placeholder .ph-hint {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 1px;
+    color: var(--ink-gray);
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+  .fusion-frame .fusion-loading {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(241, 227, 182, 0.88);
+    backdrop-filter: blur(1px);
+  }
+  .fusion-frame.is-loading .fusion-loading { display: flex; }
+  .fusion-frame.is-loading img,
+  .fusion-frame.is-loading .fusion-placeholder { display: none; }
+  .fusion-frame .fusion-loading .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--ink-cinnabar-deep);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: fusion-spin 0.9s linear infinite;
+  }
+  @keyframes fusion-spin { to { transform: rotate(360deg); } }
+  .fusion-frame .fusion-loading .ll-text {
+    font-family: var(--font-kai);
+    font-size: 12px;
+    color: var(--ink-black);
+    letter-spacing: 2px;
+  }
+  .fusion-frame .fusion-error {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: rgba(255, 248, 225, 0.92);
+    padding: 14px;
+    text-align: center;
+  }
+  .fusion-frame.is-error .fusion-error { display: flex; }
+  .fusion-frame.is-error img,
+  .fusion-frame.is-error .fusion-placeholder,
+  .fusion-frame.is-error .fusion-loading { display: none; }
+  .fusion-frame .fusion-error .err-title {
+    font-family: var(--font-li);
+    font-size: 16px;
+    color: var(--ink-cinnabar-deep);
+    letter-spacing: 3px;
+    font-weight: 700;
+  }
+  .fusion-frame .fusion-error .err-msg {
+    font-family: var(--font-kai);
+    font-size: 11.5px;
+    color: var(--ink-deep);
+    line-height: 1.55;
+  }
+  .fusion-status {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--ink-gray);
+    letter-spacing: 0.5px;
+    line-height: 1.5;
+    min-height: 14px;
+  }
+  .fusion-status.is-active { color: var(--ink-cinnabar-deep); }
+  .fusion-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .fusion-btn {
+    flex: 1;
+    padding: 8px 8px;
+    background: var(--ink-cinnabar-deep);
+    color: var(--paper);
+    border: 2px solid var(--ink-cinnabar-deep);
+    font-family: var(--font-kai);
+    font-weight: 700;
+    font-size: 12.5px;
+    letter-spacing: 4px;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  .fusion-btn:hover { background: var(--ink-black); border-color: var(--ink-black); }
+  .fusion-btn:disabled {
+    background: var(--ink-gray);
+    border-color: var(--ink-gray);
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  .fusion-btn.secondary {
+    background: transparent;
+    color: var(--ink-cinnabar-deep);
+  }
+  .fusion-btn.secondary:hover {
+    background: var(--ink-cinnabar-deep);
+    color: var(--paper);
+  }
+  .fusion-actions.is-retry .fusion-btn.primary { display: none; }
+  .fusion-actions:not(.is-retry) .fusion-btn.retry { display: none; }
+  .fusion-meta {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--ink-gray);
+    letter-spacing: 0.5px;
+    display: none;
+  }
+  .fusion-module.has-image .fusion-meta { display: block; }
+
+  /* ===== ★ 融合生成成功状态 · 彻底隐藏所有"合"字/placeholder/loading/overlay ===== */
+  /* 占位符（蓝/红底"合"字） */
+  .fusion-frame.has-image .fusion-placeholder,
+  .fusion-frame.has-image .fusion-loading,
+  .fusion-frame.has-image .fusion-error,
+  .fusion-frame.has-image .fusion-overlay,
+  .fusion-frame.has-image .fusion-icon,
+  .fusion-frame.has-image .fusion-mark,
+  .fusion-frame.has-image .ph-icon {
+    display: none !important;
+  }
+  /* 图片自身必须可见 · 覆盖之前的 img:not([src]) 规则 */
+  .fusion-frame.has-image img,
+  .fusion-frame.has-image img[src] {
+    display: block !important;
+  }
+  /* 模块级别的伪元素不要盖在图上 */
+  .fusion-module.has-image::before,
+  .fusion-module.has-image::after {
+    /* "▌ ARCHIVE FUSION" 是顶部 chip · 不动 · 但防止有意外 overlay */
+    pointer-events: none;
+  }
+  /* 防御：hover 也不能让 placeholder 复活 */
+  .fusion-frame.has-image:hover .fusion-placeholder,
+  .fusion-frame.has-image:hover .ph-icon,
+  .fusion-frame.has-image:focus-within .fusion-placeholder,
+  .fusion-frame.has-image:focus-within .ph-icon {
+    display: none !important;
+  }
+  /* ★ 数据属性版 · 用于 :is-generated 状态类（兼容 JS 用 panel.add('is-generated') 的场景） */
+  #ancientFusionPanel.is-generated .fusion-placeholder,
+  #ancientFusionPanel.is-generated .fusion-loading,
+  #ancientFusionPanel.is-generated .fusion-error,
+  #ancientFusionPanel.is-generated .fusion-overlay,
+  #ancientFusionPanel.is-generated .fusion-icon,
+  #ancientFusionPanel.is-generated .fusion-mark,
+  #ancientFusionPanel.is-generated .ph-icon {
+    display: none !important;
+  }
+  #ancientFusionPanel.is-generated::before,
+  #ancientFusionPanel.is-generated::after {
+    content: none !important;
+  }
+  #ancientFusionPanel.is-generated #ancientFusionImage {
+    display: block !important;
+  }
 </style>
 </head>
 
@@ -942,6 +1197,36 @@
               <div class="note-line">
                 <span class="seal-mark">定</span>
                 <span class="key">朱批三：</span><span data-com-note="text">中停独旺</span>，系统标记为<span class="st-no" data-com-note="status">阶段偏置</span>。
+              </div>
+
+              <!-- ★ 归类融合像模块（ancient fusion） ★ -->
+              <div class="fusion-module" id="ancientFusionPanel" data-fusion-state="idle">
+                <div class="fusion-module__head">
+                  <span class="fusion-module__title">归类融合像</span>
+                  <span class="fusion-module__sub">当前帧 × 历史样本</span>
+                </div>
+                <div class="fusion-frame" id="ancientFusionFrame">
+                  <img id="ancientFusionImage" alt="归类融合像" />
+                  <div class="fusion-placeholder" id="ancientFusionPlaceholder">
+                    <div class="ph-icon">合</div>
+                    <div class="ph-text">将当前面孔写入系统选中的历史档案</div>
+                    <div class="ph-hint">CATEGORY FUSION · CLICK TO GENERATE</div>
+                  </div>
+                  <div class="fusion-loading">
+                    <div class="spinner"></div>
+                    <div class="ll-text" id="ancientFusionLoadingText">正在读取当前帧</div>
+                  </div>
+                  <div class="fusion-error">
+                    <div class="err-title" id="ancientFusionErrorTitle">生成失败</div>
+                    <div class="err-msg" id="ancientFusionErrorMsg">融合服务暂时没有返回有效图片。</div>
+                  </div>
+                </div>
+                <div class="fusion-status" id="ancientFusionStatus">未启动 · 等待用户点击生成</div>
+                <div class="fusion-actions" id="ancientFusionActions">
+                  <button class="fusion-btn primary" id="ancientFusionButton" type="button">生成归类合成像</button>
+                  <button class="fusion-btn retry" id="ancientFusionRetry" type="button">重新生成</button>
+                </div>
+                <div class="fusion-meta" id="ancientFusionMeta"></div>
               </div>
             </div>
 
@@ -1210,6 +1495,414 @@
 
     // 旧名字兼容 · 老代码 / 老调用不会断
     window.updateAncientResult = window.fillAncientSkinV4;
+  })();
+
+  // ============================================================
+  // ★ 古代归类融合像 · 独立模块
+  // - 不依赖 fillAncientSkinV4
+  // - 父页面通过 initAncientFusion({ sampleId, sampleName, userImage }) 初始化
+  // - 同一轮点过一次成功后,自动显示,不再请求
+  // - 失败时显示错误 + 重新生成按钮
+  // - 90 秒超时
+  // ============================================================
+  (function () {
+    var FUSION_LOADING_TEXTS = [
+      '正在读取当前帧',
+      '正在调取历史样本',
+      '正在重写面部档案',
+      '正在生成归类肖像'
+    ];
+    var FUSION_TIMEOUT_MS = 90 * 1000;
+    var FUSION_TEXT_ROTATE_MS = 1800;
+
+    var fusionState = {
+      sampleId: '',
+      sampleName: '',
+      userImage: '',
+      requestId: '',
+      generatedUrl: '',
+      generatedAt: 0,
+      loading: false,
+      timer: null,
+      textTimer: null,
+      xhr: null
+    };
+
+    function el(id) { return document.getElementById(id); }
+
+    function setFusionStatus(text, isActive) {
+      var n = el('ancientFusionStatus');
+      if (!n) return;
+      n.textContent = text || '';
+      if (isActive) n.classList.add('is-active');
+      else n.classList.remove('is-active');
+    }
+
+    function setFusionStateAttr(state) {
+      var p = el('ancientFusionPanel');
+      if (p) p.setAttribute('data-fusion-state', state);
+    }
+
+    function clearFusionTimers() {
+      if (fusionState.timer) { clearTimeout(fusionState.timer); fusionState.timer = null; }
+      if (fusionState.textTimer) { clearInterval(fusionState.textTimer); fusionState.textTimer = null; }
+    }
+
+    function showFusionError(title, msg) {
+      var frame = el('ancientFusionFrame');
+      var t = el('ancientFusionErrorTitle');
+      var m = el('ancientFusionErrorMsg');
+      if (t && title) t.textContent = title;
+      if (m && msg) m.textContent = msg;
+      if (frame) {
+        frame.classList.remove('is-loading');
+        frame.classList.add('is-error');
+      }
+      var actions = el('ancientFusionActions');
+      if (actions) actions.classList.add('is-retry');
+      var btn = el('ancientFusionButton');
+      if (btn) { btn.disabled = false; btn.textContent = '生成归类合成像'; }
+      var retry = el('ancientFusionRetry');
+      if (retry) retry.disabled = false;
+      setFusionStateAttr('error');
+    }
+
+    function showFusionIdle() {
+      var frame = el('ancientFusionFrame');
+      if (frame) { frame.classList.remove('is-loading'); frame.classList.remove('is-error'); }
+      var actions = el('ancientFusionActions');
+      if (actions) actions.classList.remove('is-retry');
+      var btn = el('ancientFusionButton');
+      if (btn) { btn.disabled = false; }
+      var retry = el('ancientFusionRetry');
+      if (retry) retry.disabled = false;
+      setFusionStateAttr('idle');
+    }
+
+    function startFusionLoadingTextRotation() {
+      var n = el('ancientFusionLoadingText');
+      if (!n) return;
+      var idx = 0;
+      n.textContent = FUSION_LOADING_TEXTS[0];
+      fusionState.textTimer = setInterval(function () {
+        idx = (idx + 1) % FUSION_LOADING_TEXTS.length;
+        n.textContent = FUSION_LOADING_TEXTS[idx];
+      }, FUSION_TEXT_ROTATE_MS);
+    }
+
+    function makeRequestId(sampleId) {
+      return 'fusion_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '_' + (sampleId || 'A00');
+    }
+
+    function buildFusionEndpoint() {
+      // ★ 优先相对路径 · 兼容 Vercel 重写与子目录部署
+      var origin = (window.location && window.location.origin) || '';
+      if (origin) return origin + '/api/fusion/ancient';
+      return '/api/fusion/ancient';
+    }
+
+    function isValidDataUrl(s) {
+      if (typeof s !== 'string') return false;
+      return /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]{200,}$/i.test(s);
+    }
+
+    function renderFusionImage(url) {
+      var img = el('ancientFusionImage');
+      var frame = el('ancientFusionFrame');
+      var meta = el('ancientFusionMeta');
+      var module = el('ancientFusionPanel');
+      var placeholder = el('ancientFusionPlaceholder');
+      if (!img || !frame) return;
+      if (!url || !/^data:image\//.test(url) && !/^https?:\/\//.test(url)) {
+        console.warn('[ANCIENT_FUSION] renderFusionImage · invalid url, skip');
+        return;
+      }
+      if (fusionState.generatedUrl === url && img.src && img.src.indexOf(url) >= 0) return;
+      // ★ 立刻设状态：hide placeholder + show image（在 onload 之前）
+      // 这样图片 decode 期间 placeholder 就已经消失，不会闪"合"字
+      if (placeholder) {
+        placeholder.hidden = true;
+        placeholder.style.display = 'none';
+        placeholder.style.visibility = 'hidden';
+        placeholder.style.pointerEvents = 'none';
+        placeholder.setAttribute('aria-hidden', 'true');
+      }
+      img.hidden = false;
+      img.style.display = 'block';
+      img.style.visibility = 'visible';
+      // ★ 关键状态类：模块级 + frame 级都加
+      if (module) {
+        module.classList.add('has-image');
+        module.classList.add('is-generated');
+      }
+      frame.classList.add('has-image');
+      frame.classList.remove('is-loading');
+      frame.classList.remove('is-error');
+      setFusionStateAttr('done');
+      console.log('[ANCIENT_FUSION] hide placeholder · show image · panel classes=' + (module ? module.className : '-') + ' · frame classes=' + frame.className);
+
+      img.onload = function () {
+        frame.classList.remove('is-loading');
+        frame.classList.remove('is-error');
+        setFusionStateAttr('done');
+        if (module) {
+          module.classList.add('has-image');
+          module.classList.add('is-generated');
+        }
+        // 二次保险：onload 之后再次确保 placeholder 不可见
+        if (placeholder) {
+          placeholder.hidden = true;
+          placeholder.style.display = 'none';
+        }
+        console.log('[ANCIENT_FUSION] image loaded · placeholder hidden (onload)');
+      };
+      img.onerror = function () {
+        console.error('[ANCIENT_FUSION] img.onerror · url-head=' + (url || '').slice(0, 40));
+        // 加载失败 → 取消 has-image · 让用户看到错误
+        frame.classList.remove('has-image');
+        if (module) {
+          module.classList.remove('has-image');
+          module.classList.remove('is-generated');
+        }
+        showFusionError('图像加载失败', '图片资源无法在浏览器中加载。');
+      };
+      img.src = url;
+      if (meta) {
+        meta.textContent = 'requestId=' + (fusionState.requestId || '-') +
+          ' · sampleId=' + (fusionState.sampleId || '-') +
+          ' · ' + (fusionState.sampleName || '');
+      }
+    }
+
+    function callFusionAPI() {
+      var endpoint = buildFusionEndpoint();
+      var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+      var body = {
+        sampleId: fusionState.sampleId,
+        userImage: fusionState.userImage,
+        requestId: fusionState.requestId
+      };
+      console.log('[ANCIENT_FUSION] request start · sampleId=' + fusionState.sampleId + ' · bytes=' + (fusionState.userImage || '').length + ' · endpoint=' + endpoint);
+      var p = fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: ctrl ? ctrl.signal : undefined
+      });
+      var timer = setTimeout(function () {
+        if (ctrl) { try { ctrl.abort(); } catch (e) {} }
+        console.warn('[ANCIENT_FUSION] request timeout · ' + (FUSION_TIMEOUT_MS / 1000) + 's');
+        showFusionError('生成超时', '融合服务未在 ' + (FUSION_TIMEOUT_MS / 1000) + ' 秒内返回,请重试。');
+        fusionState.loading = false;
+      }, FUSION_TIMEOUT_MS);
+      return p.then(function (resp) {
+        clearTimeout(timer);
+        console.log('[ANCIENT_FUSION] response status ' + resp.status + ' · content-type=' + (resp.headers.get('content-type') || ''));
+        return resp.text().then(function (text) {
+          var data = null;
+          try { data = JSON.parse(text); } catch (e) {
+            console.error('[ANCIENT_FUSION] response not JSON:', (text || '').slice(0, 200));
+            showFusionError('服务响应异常', '融合服务返回了非 JSON 数据。');
+            fusionState.loading = false;
+            return null;
+          }
+          if (!data) return null;
+          if (data.ok && (data.imageUrl || data.imageDataUrl)) {
+            var url = data.imageDataUrl || data.imageUrl;
+            console.log('[ANCIENT_FUSION] image received · source=' + data.source + ' · bytes=' + (data.imageDataUrl ? data.imageDataUrl.length : (data.imageUrl ? data.imageUrl.length : 0)));
+            fusionState.generatedUrl = url;
+            fusionState.generatedAt = Date.now();
+            try {
+              if (window.sessionStorage) {
+                var cacheKey = 'ancientFusion:' + fusionState.requestId;
+                try { sessionStorage.setItem(cacheKey, JSON.stringify({ url: url, ts: Date.now(), sampleId: fusionState.sampleId })); } catch (e2) { /* ignore quota */ }
+              }
+            } catch (e3) { /* ignore */ }
+            renderFusionImage(url);
+            setFusionStatus('生成成功 · ' + (data.sampleName || fusionState.sampleName || ''), false);
+            var btn = el('ancientFusionButton');
+            if (btn) btn.disabled = true;
+            var actions = el('ancientFusionActions');
+            if (actions) actions.classList.remove('is-retry');
+            return data;
+          }
+          var code = data.error || 'unknown';
+          var msg = data.message || '融合服务暂时没有返回有效图片。';
+          console.error('[ANCIENT_FUSION] error code=' + code + ' · message=' + msg);
+          if (code === 'image-provider-not-configured') {
+            showFusionError('融合生成服务尚未配置', '当前分类结果仍可正常查看。');
+          } else if (code === 'image-provider-timeout') {
+            showFusionError('融合服务超时', '请求供应商超时,请稍后重试。');
+          } else if (code === 'image-provider-rejected' || code === 'image-provider-unauthorized' || code === 'image-provider-rate-limit') {
+            showFusionError('融合服务被拒绝', '供应商未接受此请求(可能为敏感内容或限流)。');
+          } else if (code === 'image-generation-failed' || code === 'invalid-image-response') {
+            showFusionError('生成失败', '融合服务暂时没有返回有效图片。');
+          } else if (code === 'invalid-sample-id') {
+            showFusionError('样本编号错误', '系统选中的历史档案编号不在 A01-A16 范围。');
+          } else if (code === 'invalid-user-image' || code === 'missing-user-image') {
+            showFusionError('当前帧不可用', '请返回摄像头重新采集。');
+          } else if (code === 'payload-too-large') {
+            showFusionError('请求过大', '请压缩当前帧后重试。');
+          } else {
+            showFusionError('生成失败', '[' + code + '] ' + msg);
+          }
+          return null;
+        });
+      }).catch(function (err) {
+        clearTimeout(timer);
+        var name = (err && err.name) || '';
+        if (name === 'AbortError') {
+          // already handled by timeout
+          return null;
+        }
+        console.error('[ANCIENT_FUSION] network error:', err && (err.message || err));
+        showFusionError('网络错误', '无法连接到融合服务,请检查网络后重试。');
+        return null;
+      }).then(function (v) {
+        fusionState.loading = false;
+        return v;
+      });
+    }
+
+    function doGenerate() {
+      console.log('[ANCIENT_FUSION] button click · sampleId=' + (fusionState.sampleId || '(empty)') + ' · userImage bytes=' + ((fusionState.userImage || '').length || 0));
+      if (fusionState.loading) {
+        console.log('[ANCIENT_FUSION] already loading · ignore re-click');
+        return;
+      }
+      if (!fusionState.sampleId || !/^A(0[1-9]|1[0-6])$/.test(fusionState.sampleId)) {
+        console.warn('[ANCIENT_FUSION] request start blocked · invalid sampleId=' + fusionState.sampleId);
+        showFusionError('样本编号缺失', '系统未提供有效的 A01-A16 样本编号。');
+        return;
+      }
+      if (!isValidDataUrl(fusionState.userImage)) {
+        console.warn('[ANCIENT_FUSION] request start blocked · invalid userImage dataUrl');
+        showFusionError('当前帧缺失', '未拿到本轮摄像头截图,请返回摄像头重新采集。');
+        return;
+      }
+      // ★ 已经成功过 → 不重复请求
+      if (fusionState.generatedUrl && (Date.now() - fusionState.generatedAt) < 30 * 60 * 1000) {
+        console.log('[ANCIENT_FUSION] already generated in this session · skip · url-bytes=' + (fusionState.generatedUrl || '').length);
+        renderFusionImage(fusionState.generatedUrl);
+        return;
+      }
+
+      console.log('[ANCIENT_FUSION] request start · sampleId=' + fusionState.sampleId + ' · userImage bytes=' + (fusionState.userImage || '').length);
+      fusionState.requestId = makeRequestId(fusionState.sampleId);
+      fusionState.loading = true;
+      // ★ 锁按钮
+      var btn = el('ancientFusionButton');
+      if (btn) btn.disabled = true;
+      var retry = el('ancientFusionRetry');
+      if (retry) retry.disabled = true;
+      var frame = el('ancientFusionFrame');
+      if (frame) { frame.classList.remove('is-error'); frame.classList.add('is-loading'); }
+      setFusionStatus('正在生成 · 预计 30-60 秒', true);
+      startFusionLoadingTextRotation();
+      setFusionStateAttr('loading');
+      callFusionAPI();
+    }
+
+    window.initAncientFusion = function (opts) {
+      opts = opts || {};
+      console.log('[ANCIENT_FUSION] init · sampleId=' + opts.sampleId + ' · sampleName=' + opts.sampleName + ' · userImage bytes=' + ((opts.userImage || '').length || 0));
+      // ★ 旧状态清理
+      clearFusionTimers();
+      var img = el('ancientFusionImage');
+      if (img) { img.removeAttribute('src'); }
+      var frame = el('ancientFusionFrame');
+      if (frame) { frame.classList.remove('is-loading'); frame.classList.remove('is-error'); }
+      var module = el('ancientFusionPanel');
+      if (module) module.classList.remove('has-image');
+      var meta = el('ancientFusionMeta');
+      if (meta) meta.textContent = '';
+
+      fusionState.sampleId = opts.sampleId || '';
+      fusionState.sampleName = opts.sampleName || '';
+      fusionState.userImage = opts.userImage || '';
+      fusionState.generatedUrl = '';
+      fusionState.generatedAt = 0;
+      fusionState.loading = false;
+      // ★ requestId 留空,等用户点击后再生成,避免自动请求
+      fusionState.requestId = '';
+
+      // 校验数据
+      if (!fusionState.sampleId || !/^A(0[1-9]|1[0-6])$/.test(fusionState.sampleId)) {
+        showFusionError('样本编号缺失', '系统未提供有效的 A01-A16 样本编号。');
+        return;
+      }
+      if (!isValidDataUrl(fusionState.userImage)) {
+        showFusionError('当前帧缺失', '未拿到本轮摄像头截图,请返回摄像头重新采集。');
+        return;
+      }
+
+      // 绑定按钮(只绑一次)
+      var btn = el('ancientFusionButton');
+      if (btn && !btn.__ancientFusionBound) {
+        btn.addEventListener('click', doGenerate);
+        btn.__ancientFusionBound = true;
+        console.log('[ANCIENT_FUSION] button bound · #ancientFusionButton');
+        // ★ 防御：防止透明 overlay 拦截 click · 强制 pointer-events
+        btn.style.position = 'relative';
+        btn.style.zIndex = '10';
+        btn.style.pointerEvents = 'auto';
+      } else if (btn) {
+        console.log('[ANCIENT_FUSION] button already bound · skip');
+      } else {
+        console.warn('[ANCIENT_FUSION] button #ancientFusionButton NOT FOUND');
+      }
+      var retry = el('ancientFusionRetry');
+      if (retry && !retry.__ancientFusionBound) {
+        retry.addEventListener('click', doGenerate);
+        retry.__ancientFusionBound = true;
+        retry.style.position = 'relative';
+        retry.style.zIndex = '10';
+        retry.style.pointerEvents = 'auto';
+      }
+
+      showFusionIdle();
+      setFusionStatus('未启动 · sample=' + fusionState.sampleId + ' · ' + fusionState.sampleName, false);
+    };
+
+    window.resetAncientFusion = function () {
+      console.log('[ANCIENT_FUSION] reset');
+      clearFusionTimers();
+      var img = el('ancientFusionImage');
+      if (img) img.removeAttribute('src');
+      var frame = el('ancientFusionFrame');
+      if (frame) { frame.classList.remove('is-loading'); frame.classList.remove('is-error'); }
+      var module = el('ancientFusionPanel');
+      if (module) module.classList.remove('has-image');
+      var meta = el('ancientFusionMeta');
+      if (meta) meta.textContent = '';
+      var status = el('ancientFusionStatus');
+      if (status) { status.textContent = '未启动 · 等待用户点击生成'; status.classList.remove('is-active'); }
+      var actions = el('ancientFusionActions');
+      if (actions) actions.classList.remove('is-retry');
+      var btn = el('ancientFusionButton');
+      if (btn) { btn.disabled = false; }
+      var retry = el('ancientFusionRetry');
+      if (retry) { retry.disabled = false; }
+      fusionState.sampleId = '';
+      fusionState.sampleName = '';
+      fusionState.userImage = '';
+      fusionState.requestId = '';
+      fusionState.generatedUrl = '';
+      fusionState.generatedAt = 0;
+      fusionState.loading = false;
+      setFusionStateAttr('idle');
+    };
+
+    // 兼容 postMessage
+    window.addEventListener('message', function (ev) {
+      var d = ev.data;
+      if (!d || typeof d !== 'object') return;
+      if (d.type === 'ANCIENT_FUSION_INIT') {
+        window.initAncientFusion(d.payload || {});
+      } else if (d.type === 'ANCIENT_FUSION_RESET') {
+        window.resetAncientFusion();
+      }
+    });
   })();
 </script>
 </body>

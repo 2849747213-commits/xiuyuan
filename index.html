@@ -1288,7 +1288,8 @@
 <script src="./ai-client.js?v=20260710-02"></script>
 <script src="./image-reader.js?v=cn2026b"></script>
 <!-- ★ MediaPipe Face Landmarker（仅做 demo 视觉 · 不接入 AI / 分类 / 任何业务） -->
-<script src="https://unpkg.com/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs" type="module"></script>
+<!-- 优先本地 vendor/mediapipe/，避免每次启动等 unpkg -->
+<script src="/vendor/mediapipe/vision_bundle.mjs" type="module" onerror="this.removeAttribute('onerror');var s=document.createElement('script');s.src='https://unpkg.com/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs';s.type='module';document.head.appendChild(s);"></script>
 <!-- ★ Ancient 本地 16 样本分析器（仅在用户选择 ancient 分支时调用 · 不接 AI） -->
 <script src="./js/ancient-local-system.js?v=20260710-03"></script>
 <script src="./js/modern-local-system.js?v=4"></script>

@@ -10,7 +10,7 @@ if (!window.AIClient) {
 }
 
 // ★ 旧版 AIClient 健康检查（xapi.yhcj.com/version 等）总开关 · 默认禁用
-// 默认 true：拒绝一切 xapi.* / /version 流量；如果出现拦截，记录 trace 帮用户定位调用方
+// 默认 true：拦截一切 xapi.* / /version 流量；返回伪造的成功响应，不产生未捕获 Promise
 window.DISABLE_LEGACY_AI_HEALTH_CHECK = (window.DISABLE_LEGACY_AI_HEALTH_CHECK !== false);
 
 function _isLegacyAIUrl(url) {
@@ -18,41 +18,119 @@ function _isLegacyAIUrl(url) {
   var s = String(url);
   return s.indexOf("xapi.yhcj.com") >= 0 ||
          s.indexOf("xapi.yhchj.com") >= 0 ||
+         s.indexOf("xapi.legaldaily.com.cn") >= 0 ||
          s.indexOf("/version?") >= 0 ||
          /\/version(\s|$)/.test(s);
 }
 
-// ★ 拦截 fetch · 不伪造 200 · 直接抛错
+function _fakeDisabledResponse(url) {
+  // ★ 关键：返回 200 + JSON 而非 reject · 避免 Uncaught (in promise)
+  var body = JSON.stringify({
+    ok: false,
+    source: "legacy-disabled",
+    error: "LEGACY_AI_DISABLED",
+    message: "legacy AI endpoint disabled by DISABLE_LEGACY_AI_HEALTH_CHECK",
+    blockedUrl: url
+  });
+  try {
+    return new Response(body, {
+      status: 200,
+      statusText: "OK",
+      headers: { "Content-Type": "application/json; charset=utf-8" }
+    });
+  } catch (e) {
+    // 极老浏览器 fallback
+    return { ok: true, status: 200, text: function () { return Promise.resolve(body); }, json: function () { return Promise.resolve(JSON.parse(body)); }, headers: { get: function () { return "application/json"; } } };
+  }
+}
+
+function _logBlockOnce(kind, url) {
+  // ★ 同一 URL 只 warn 一次 · 不刷屏
+  var key = "legacyBlockLog:" + kind + ":" + url;
+  if (window.__legacyBlockLogged && window.__legacyBlockLogged[key]) return;
+  if (!window.__legacyBlockLogged) window.__legacyBlockLogged = {};
+  window.__legacyBlockLogged[key] = true;
+  console.warn("[LEGACY_AI] blocked " + kind + " " + url + " (returns fake 200, no uncaught promise)");
+}
+
+// ★ 拦截 fetch · 返回伪造 200 · 不产生 unhandled rejection
 if (typeof window.fetch === "function" && !window.__legacyFetchPatched) {
   var _origFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     var url = (typeof input === "string") ? input : (input && input.url) || "";
     if (_isLegacyAIUrl(url)) {
-      console.error("[LEGACY_AI] blocked fetch", url);
-      console.trace("[LEGACY_AI] fetch trace");
-      return Promise.reject(new Error("LEGACY_AI_DISABLED · blocked " + url));
+      _logBlockOnce("fetch", url);
+      return Promise.resolve(_fakeDisabledResponse(url));
     }
     return _origFetch(input, init);
   };
   window.__legacyFetchPatched = true;
 }
 
-// ★ 拦截 XMLHttpRequest · 不伪造响应 · 直接抛错
+// ★ 拦截 XMLHttpRequest · 返回伪造 200 · 不抛异常
 if (typeof window.XMLHttpRequest === "function" && !window.__legacyXHRPatched) {
   var _OrigXHROpen = window.XMLHttpRequest.prototype.open;
+  var _OrigXHRSend = window.XMLHttpRequest.prototype.send;
   window.XMLHttpRequest.prototype.open = function (method, url) {
-    if (_isLegacyAIUrl(url)) {
-      console.error("[LEGACY_AI] blocked XHR", method, url);
-      console.trace("[LEGACY_AI] xhr trace");
-      throw new Error("LEGACY_AI_DISABLED · blocked XHR " + method + " " + url);
+    this.__legacyBlocked = _isLegacyAIUrl(url);
+    if (this.__legacyBlocked) {
+      _logBlockOnce("xhr", method + " " + url);
+      // 不真调用 open（避免实际网络请求）· 只记录 method/url
+      this.__legacyMethod = method;
+      this.__legacyUrl = url;
+      return;
     }
     return _OrigXHROpen.apply(this, arguments);
+  };
+  window.XMLHttpRequest.prototype.send = function () {
+    if (this.__legacyBlocked) {
+      var self = this;
+      var body = JSON.stringify({
+        ok: false,
+        source: "legacy-disabled",
+        error: "LEGACY_AI_DISABLED",
+        message: "legacy AI endpoint disabled"
+      });
+      // ★ 异步触发伪造的 load 事件 · 业务代码能正常拿到 200
+      setTimeout(function () {
+        try {
+          Object.defineProperty(self, "readyState", { value: 4, configurable: true });
+          Object.defineProperty(self, "status", { value: 200, configurable: true });
+          Object.defineProperty(self, "statusText", { value: "OK", configurable: true });
+          Object.defineProperty(self, "responseText", { value: body, configurable: true });
+          Object.defineProperty(self, "response", { value: body, configurable: true });
+          self.dispatchEvent(new Event("load"));
+          self.dispatchEvent(new Event("loadend"));
+        } catch (e) { /* 静默 */ }
+      }, 0);
+      return;
+    }
+    return _OrigXHRSend.apply(this, arguments);
   };
   window.__legacyXHRPatched = true;
 }
 
+// ★ 拦截 Image / script / link 等可能探测 /version 的标签
+if (typeof window.HTMLImageElement !== "undefined" && !window.__legacyImgPatched) {
+  var _origImgSrcSetter = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "src");
+  if (_origImgSrcSetter && _origImgSrcSetter.set) {
+    Object.defineProperty(HTMLImageElement.prototype, "src", {
+      configurable: true,
+      get: _origImgSrcSetter.get,
+      set: function (v) {
+        if (_isLegacyAIUrl(v)) {
+          _logBlockOnce("img.src", v);
+          return;
+        }
+        return _origImgSrcSetter.set.call(this, v);
+      }
+    });
+  }
+  window.__legacyImgPatched = true;
+}
+
 if (window.DISABLE_LEGACY_AI_HEALTH_CHECK) {
-  console.log("[LEGACY_AI] all legacy AI traffic is blocked (fetch + XHR)");
+  console.log("[LEGACY_AI] all legacy AI traffic is blocked (fetch + XHR + img.src) · returns fake 200 JSON");
 } else {
   console.log("[LEGACY_AI] WARNING · DISABLE_LEGACY_AI_HEALTH_CHECK=false · legacy traffic ALLOWED");
 }

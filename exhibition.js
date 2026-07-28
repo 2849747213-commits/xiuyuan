@@ -342,8 +342,8 @@ const DETECT_HOLD_MS = 300;             // 失去脸后保留时间
 const DETECT_STREAK_TO_CONFIRM = 3;     // 连续几次才显示 FACE DETECTED
 const DETECT_INTERVAL_MS = 80;          // ≈12.5fps 检测
 let _lastDetectMs = 0;
-const FACE_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
-const FACE_WASM_BASE = 'https://unpkg.com/@mediapipe/tasks-vision@0.10.18/wasm';
+const FACE_MODEL_URL = '/vendor/mediapipe/face_landmarker.task';
+const FACE_WASM_BASE = '/vendor/mediapipe/wasm';
 
 async function _initFaceLandmarker() {
   if (_faceLandmarker) return _faceLandmarker;
@@ -351,31 +351,40 @@ async function _initFaceLandmarker() {
   _faceLandmarkerInitStarted = true;
   _faceLandmarkerStatus = 'loading';
   try {
-    // ★ 多 CDN fallback 链 · 任一成功即可
-    const VISION_CDN = [
+    // ★ 多源 fallback 链 · 优先本地 vendor · 然后 unpkg · 最后 jsdelivr
+    const VISION_SOURCES = [
+      '/vendor/mediapipe/vision_bundle.mjs',
       'https://unpkg.com/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs',
       'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs'
     ];
     let visionMod = null;
     let lastErr = null;
-    for (const url of VISION_CDN) {
+    for (const url of VISION_SOURCES) {
       try {
         console.log('[3vx] FaceLandmarker load · try', url);
         visionMod = await import(/* @vite-ignore */ url);
         if (visionMod) { console.log('[3vx] FaceLandmarker load OK ·', url); break; }
       } catch (e) {
-        console.warn('[3vx] FaceLandmarker CDN fail ·', url, e && e.message);
+        console.warn('[3vx] FaceLandmarker source fail ·', url, e && e.message);
         lastErr = e;
       }
     }
-    if (!visionMod) throw lastErr || new Error('all CDN failed');
+    if (!visionMod) throw lastErr || new Error('all sources failed');
     const { FilesetResolver, FaceLandmarker } = visionMod;
     // ★ 注入官方连接常量（与 FaceLandmarker 同一套）
     if (!_loadOfficialFaceConnections(FaceLandmarker) && typeof window !== 'undefined') {
       // 兜底：尝试从 window 读旧版
       _loadOfficialFaceConnections(window);
     }
-    const fileset = await FilesetResolver.forVisionTasks(FACE_WASM_BASE);
+    // ★ 优先用本地 WASM，失败时再回退到 unpkg
+    let fileset = null;
+    try {
+      fileset = await FilesetResolver.forVisionTasks(FACE_WASM_BASE);
+      console.log('[3vx] FaceLandmarker WASM · local OK', FACE_WASM_BASE);
+    } catch (e) {
+      console.warn('[3vx] local WASM fail, fallback unpkg', e && e.message);
+      fileset = await FilesetResolver.forVisionTasks('https://unpkg.com/@mediapipe/tasks-vision@0.10.18/wasm');
+    }
     _faceLandmarker = await FaceLandmarker.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: FACE_MODEL_URL, delegate: 'GPU' },
       runningMode: 'VIDEO',
@@ -1012,6 +1021,12 @@ function resetToCamera() {
     setState('waiting');
     // ★ 复用现有摄像头流（绝不重开 getUserMedia）
     try { ensureCameraRunning(); } catch (e) { console.warn('[FLOW] ensureCameraRunning failed', e); }
+    // ★ 清空 ancient iframe 内的归类融合像状态（避免上一轮的图残留）
+    try {
+      if (typeof window.resetAncientFusionInIframe === 'function') {
+        window.resetAncientFusionInIframe();
+      }
+    } catch (e) { console.warn('[FLOW] resetAncientFusionInIframe failed', e); }
     // ★ 恢复 go 按钮
     const btn = $('v3xGoBtn');
     if (btn) {
