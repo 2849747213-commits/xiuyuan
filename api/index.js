@@ -1,39 +1,37 @@
-// Vercel serverless function · 包装 server.js · 不动原文件
-// - 读 server.js 源码
-// - 替换 http.createServer 包裹为 async function handleRequest
-// - 替换 server.listen 包裹为 module.exports
-// - 在 VM context 跑 · 拿 handler
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
+// Vercel serverless function · 直接 import server.js 的 handler
+// 避免之前 VM 黑科技在 serverless 环境崩的问题
+const { Readable } = require('stream');
+const handler = require('../server.js');
 
-const SERVER_PATH = path.join(__dirname, '..', 'server.js');
-const SERVER_SRC = fs.readFileSync(SERVER_PATH, 'utf8');
-
-const TRANSFORMED = SERVER_SRC
-  .replace(
-    'const server = http.createServer(async (req, res) => {',
-    'async function handleRequest(req, res) {'
-  )
-  .replace(
-    /\}\);\s*\n\s*server\.listen\(PORT, '0\.0\.0\.0', \(\) => \{\s*\n\s*console\.log\('\[server\] listening on http:\/\/localhost:' \+ PORT\);\s*\n\s*\}\);/,
-    '}\n\nmodule.exports = handleRequest;\n'
-  );
-
-const ctx = {
-  require: require,
-  module: { exports: {} },
-  exports: {},
-  __dirname: path.join(__dirname, '..'),
-  __filename: SERVER_PATH,
-  process: process,
-  console: console,
-  Buffer: Buffer,
-  setTimeout: setTimeout,
-  clearTimeout: clearTimeout
+module.exports = async (req, res) => {
+  try {
+    // Vercel Node runtime 把 req 包装成 IncomingMessage-like · 但保险起见包一层
+    if (!req || typeof req.method !== 'string') {
+      // Edge runtime 或 Web Request · 包装
+      const u = new URL(req.url || '/', 'http://localhost');
+      const fakeReq = Object.assign(new Readable({ read() {} }), {
+        url: req.url,
+        method: req.method || 'GET',
+        headers: req.headers || {},
+      });
+      const fakeRes = {
+        statusCode: 200,
+        setHeader(k, v) { this.headers = this.headers || {}; this.headers[k] = v; },
+        end(body) {
+          res.statusCode = this.statusCode || 200;
+          if (this.headers) {
+            for (const k in this.headers) res.setHeader(k, this.headers[k]);
+          }
+          res.end(body);
+        }
+      };
+      return handler(fakeReq, fakeRes);
+    }
+    return handler(req, res);
+  } catch (e) {
+    console.error('[api] handler error:', e);
+    res.statusCode = 500;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({ ok: false, error: 'server-error', message: String(e && e.message) }));
+  }
 };
-ctx.exports = ctx.module.exports;
-vm.createContext(ctx);
-vm.runInContext(TRANSFORMED, ctx);
-module.exports = ctx.module.exports;
-console.log('[vercel] api/index.js loaded · handleRequest type =', typeof module.exports);

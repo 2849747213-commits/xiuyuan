@@ -2058,6 +2058,38 @@ const server = http.createServer(async (req, res) => {
   });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log('[server] listening on http://localhost:' + PORT);
-});
+// 同时支持：本地 node server.js 启动 HTTP 服务 · Vercel serverless 导出 handler
+if (require.main === module) {
+  // 本地启动
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log('[server] listening on http://localhost:' + PORT);
+  });
+} else {
+  // Vercel / 其他 serverless 平台直接导出 handler
+  module.exports = (req, res) => {
+    // 兼容 Vercel serverless 的 req/res 接口
+    if (typeof req.on !== 'function') {
+      // Vercel 提供的是 Web Request · 包装成 Node IncomingMessage
+      const u = new URL(req.url || '/', 'http://localhost');
+      const nodeReq = Object.assign(new Readable({ read() {} }), {
+        url: req.url,
+        method: req.method,
+        headers: req.headers,
+      });
+      const nodeRes = {
+        statusCode: 200,
+        setHeader(k, v) { this.headers = this.headers || {}; this.headers[k] = v; },
+        getHeader(k) { return (this.headers || {})[k]; },
+        end(body) {
+          res.statusCode = this.statusCode || 200;
+          if (this.headers) {
+            for (const k in this.headers) res.setHeader(k, this.headers[k]);
+          }
+          res.end(body);
+        }
+      };
+      return server.emit('request', nodeReq, nodeRes);
+    }
+    return server.emit('request', req, res);
+  };
+}
