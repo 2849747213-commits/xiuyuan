@@ -1285,9 +1285,16 @@ const server = http.createServer(async (req, res) => {
   // - 没任何 Key → 503 image-provider-not-configured
   // - 不在前端返回任何 API key
   // - 不在日志输出完整 base64
+  // - ★ 关键：Provider 返回的临时 OSS URL 浏览器常 ERR_CONNECTION_RESET
+  //          后端立即 fetch → 转 base64 data URL → 给前端（共用 image-proxy）
   // ============================================
   const fusionProvider = require('./providers/ancient-fusion-provider');
   const minimaxImage = require('./providers/minimax-image-provider');
+  const imageProxy = require('./providers/image-proxy');
+  // 日志 helper：只打 host+path · 不打签名参数
+  function _safeHostForLog(u) {
+    try { const x = new URL(u); return x.host + x.pathname.slice(0, 60); } catch (e) { return 'invalid'; }
+  }
   const isFusionAncientApi = (req.url.split('?')[0] === '/api/fusion/ancient' ||
                               req.url.split('?')[0] === '/exhibition-camera/api/fusion/ancient');
   if (req.method === 'POST' && isFusionAncientApi) {
@@ -1448,11 +1455,28 @@ const server = http.createServer(async (req, res) => {
       }
 
       const imageUrl = parsedResult.imageUrl || null;
-      const imageBase64 = parsedResult.imageDataUrl || null;
+      let imageDataUrl = parsedResult.imageDataUrl || null;
       const successCount = parsedResult.successCount || 0;
       const failedCount = parsedResult.failedCount || 0;
 
-      console.log('[FUSION_ANCIENT] SUCCESS · sampleId=' + sampleId + ' · success=' + successCount + ' failed=' + failedCount + ' · hasUrl=' + !!imageUrl + ' hasB64=' + !!imageBase64);
+      console.log('[FUSION_ANCIENT] SUCCESS · sampleId=' + sampleId + ' · success=' + successCount + ' failed=' + failedCount + ' · hasUrl=' + !!imageUrl + ' hasB64=' + !!imageDataUrl);
+
+      // ★ 关键：Provider 返回的临时 OSS URL 浏览器加载常 ERR_CONNECTION_RESET
+      //   后端立即下载 → 转 base64 data URL → 给前端
+      //   ancient / modern / western 共用 providers/image-proxy
+      let proxyFallbackUrl = null;
+      let proxyWarning = null;
+      if (imageUrl && !imageDataUrl) {
+        console.log('[FUSION_ANCIENT] need image proxy · url=' + _safeHostForLog(imageUrl));
+        const proxy = await imageProxy.downloadImageAsDataUrl(imageUrl, { requestId: requestId, label: 'FUSION_IMAGE_FETCH' });
+        if (proxy.ok) {
+          imageDataUrl = proxy.imageDataUrl;
+          proxyFallbackUrl = proxy.fallbackImageUrl || null;
+          proxyWarning = proxy.warning || null;
+        } else {
+          console.log('[FUSION_ANCIENT] image proxy failed · error=' + proxy.error + ' · reason=' + (proxy.reason || '') + ' · fallback to raw imageUrl');
+        }
+      }
 
       res.statusCode = 200;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -1466,8 +1490,11 @@ const server = http.createServer(async (req, res) => {
         successCount: successCount,
         failedCount: failedCount
       };
-      if (imageUrl) out.imageUrl = imageUrl;
-      if (imageBase64) out.imageDataUrl = imageBase64;
+      // 优先 imageDataUrl · 没 dataUrl 才回退到 imageUrl
+      if (imageDataUrl) out.imageDataUrl = imageDataUrl;
+      else if (imageUrl) out.imageUrl = imageUrl;
+      if (proxyFallbackUrl) out.imageUrl = proxyFallbackUrl;
+      if (proxyWarning) out.warning = proxyWarning;
       return res.end(JSON.stringify(out));
     });
     return;
