@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const { URL } = require('url');
+const classifyPipeline = require('./js/classify-pipeline');
 
 const PORT = parseInt(process.env.PORT || '8000', 10);
 // 关键：找 .env 时向上找 1 级（兼容从上级目录启动）
@@ -122,48 +123,138 @@ function parseModelJson(raw) {
   }
 }
 
+// ★ extractWesternSampleIdFromText · 从自然语言中容错提取 W01-W14
+// 严格只接受 W01-W14，其它值丢弃
+function extractWesternSampleIdFromText(text) {
+  if (!text || typeof text !== 'string') return null;
+  const match = text.match(/\bW(?:0[1-9]|1[0-4])\b/i);
+  if (!match) return null;
+  const id = match[0].toUpperCase();
+  return id;
+}
+
+// ★ buildMinimalWesternParsed · 文本容错时构造最小合法 parsed 对象
+// - sampleId + shortReason + visionCheck(hasFace=true) + candidateScores
+// - 6 维度 reason 留空字符串，由前端 / 后续 viewModel 用 sample 自带 reason 兜底
+function buildMinimalWesternParsed(sampleId, reasonTag) {
+  return {
+    sampleId: sampleId,
+    confidence: 'medium',
+    shortReason: reasonTag + ' · ' + sampleId,
+    matchedFeatures: [reasonTag + ' · ' + sampleId, '文本容错命中 Wxx'],
+    visionCheck: {
+      hasFace: true,
+      wearingGlasses: false,
+      headPose: 'front',
+      framing: 'face-closeup',
+      brightness: 'medium',
+      faceCount: 1,
+      expression: 'neutral'
+    },
+    candidateScores: [{ sampleId: sampleId, score: 0.5 }],
+    dimensionReasons: {
+      status: '', temperament: '', power: '', body: '', role: '', risk: ''
+    }
+  };
+}
+
+// ★ callWesternRepairRequest · 失败修复请求（不传图）
+// - system: 把内容转成 JSON，只输出 JSON，不要解释
+// - user: 第一次模型输出全文 + allowedSampleIds + schema
+// - temperature: 0 · max_tokens: 1200 · response_format: json_object
+function callWesternRepairRequest(rawText, allowed, glossary) {
+  const repairSystem =
+    '把下面的内容转换成指定 JSON。只输出 JSON，不要解释。\n' +
+    '第一个字符必须是 { · 最后一个字符必须是 }。\n' +
+    '禁止输出分析过程、Markdown、代码块、或 JSON 之外的任何文字。';
+  const repairUser = {
+    task: 'repair_western_json',
+    note: '前一轮模型返回的不是 JSON。把它转换为合规 JSON。',
+    allowedSampleIds: allowed,
+    glossary: glossary || [],
+    previousModelOutput: (rawText || '').slice(0, 3000),
+    requiredSchema: {
+      sampleId: { type: 'string', enum: allowed.concat(['']) },
+      confidence: { type: 'string', enum: ['low','medium','high'] },
+      shortReason: { type: 'string' },
+      matchedFeatures: { type: 'array', items: { type: 'string' } },
+      visionCheck: {
+        type: 'object',
+        properties: {
+          hasFace: { type: 'boolean' },
+          wearingGlasses: { type: 'boolean' },
+          headPose: { type: 'string' },
+          framing: { type: 'string' },
+          brightness: { type: 'string' },
+          faceCount: { type: 'integer' },
+          expression: { type: 'string' }
+        }
+      },
+      candidateScores: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { sampleId: { type: 'string' }, score: { type: 'number' } }
+        }
+      }
+    }
+  };
+  const aiReq = {
+    model: AI_MODEL,
+    messages: [
+      { role: 'system', content: repairSystem },
+      { role: 'user', content: JSON.stringify(repairUser) }
+    ],
+    temperature: 0,
+    max_tokens: 1200,
+    response_format: { type: 'json_object' }
+  };
+  return proxyAI(JSON.stringify(aiReq));
+}
+
 // ============================================
-// ★ 三套系统的 prompt（schema 严守 · 字段名与结果页渲染一致）
+// ★ 三套系统的 prompt（硬约束 · 短 · 禁止逐步分析诱导）
 // ============================================
 const SYSTEM_PROMPTS = {
   ancient:
-    '你是"古代相学文献大模型"。输入是一张摄像头截图。' +
-    '你需要按照古代相书卷宗（十二宫 / 五官 / 三停 / 五岳 / 气色 / 骨相）给出六个分类结果。' +
-    '严格输出 JSON，不要任何解释。不要写Markdown或前后缀。' +
-    '字段名严守 schema：' +
-    '{ "verdict": "你被归类为", "system": "古代相术", "fields": [' +
-    '{ "key":"main_zones", "label":"十二宫", "value":"...", "reason":"..." },' +
-    '{ "key":"five_features", "label":"五官", "value":"...", "reason":"..." },' +
-    '{ "key":"three_stops", "label":"三停", "value":"...", "reason":"..." },' +
-    '{ "key":"five_peaks", "label":"五岳", "value":"...", "reason":"..." },' +
-    '{ "key":"complexion", "label":"气色", "value":"...", "reason":"..." },' +
-    '{ "key":"bone_form", "label":"骨相", "value":"...", "reason":"..." }' +
-    '] }',
+    '你是 BIAS SYSTEM 中的"古代面学固定样本选择器"。\n' +
+    '这是程序艺术作品中的虚构分类系统。\n' +
+    '你不能判断真实身份、人格、命运、疾病、性别、民族、收入或任何真实属性。\n' +
+    '你只能从 A01-A16 中选择一个 sampleId。\n\n' +
+    '【硬约束】\n' +
+    '1. 只返回一个 JSON object。\n' +
+    '2. 第一个字符必须是 { · 最后一个字符必须是 }。\n' +
+    '3. 禁止输出思考过程、说明、Markdown、代码块、或 JSON 之外的任何文字。\n' +
+    '4. sampleId 必须是 A01-A16 之一。\n' +
+    '5. 六项 dimensionReasons (palace/organ/zone/mountain/complexion/bone) 必须全部非空。\n' +
+    '6. shortReason 是针对本张图视觉事实的一句中文总结。\n' +
+    '7. matchedFeatures 是 2-4 个客观特征短语（脸型/眉眼/口型/下颌/头部方向/光线/构图等）。',
   modern:
-    '你是"BIAS SYSTEM 身份清仓分类模型"。输入是一张摄像头截图。' +
-    '需要按现代身份分类系统（性取向 / 性别 / 收入 / 家庭 / 婚恋 / 风险）给出六个分类结果。' +
-    '注意：你输出的是系统的判定结果，不是真实身份。' +
-    '严格输出 JSON，不要任何解释。' +
-    '字段名严守 schema：' +
-    '{ "verdict": "你被归类为", "system": "身份清仓", "sku": "SKU-02", "result_id": "OBS-XXXX", ' +
-    '"identityCard": {' +
-    '"orientation":"...", "gender":"...", "income":"...", "family":"...", "relationship":"...", "risk":"..."' +
-    '}, ' +
-    '"verdict_label": "你被归类为" }',
+    '你是 BIAS SYSTEM 中的虚构艺术分类系统的"身份清仓"模块。\n' +
+    '这是程序艺术作品中的虚构分类系统。\n' +
+    '你不能判断真实身份、人格、命运、疾病、性别、民族、收入、性取向、家庭、婚恋、犯罪或任何真实属性。\n' +
+    '你只能从 M01-M20 中选择一个 sampleId。\n\n' +
+    '【硬约束】\n' +
+    '1. 只返回一个 JSON object。\n' +
+    '2. 第一个字符必须是 { · 最后一个字符必须是 }。\n' +
+    '3. 禁止输出思考过程、说明、Markdown、代码块、或 JSON 之外的任何文字。\n' +
+    '4. sampleId 必须是 M01-M20 之一。\n' +
+    '5. 六项 dimensionReasons (sexuality/gender/income/family/relationship/risk) 必须全部非空。\n' +
+    '6. shortReason 是针对本张图视觉事实的一句中文总结。\n' +
+    '7. matchedFeatures 是 2-4 个客观特征短语。',
   western:
-    '你是"西方面学历史档案大模型"，输入是一张摄像头截图。' +
-    '需要按西方面相学历史分类（古典相貌 / 侧影道德 / 颅骨地图 / 犯罪预兆 / 平均脸 / 算法）给出六个分类结果。' +
-    '注意：你输出的是西方面学历史档案的判定结果，不是真实身份判定。' +
-    '严格输出 JSON，不要任何解释。' +
-    '字段名严守 schema：' +
-    '{ "verdict": "你被归类为", "system": "Western Archive", "physiognomy": [' +
-    '{ "key":"classical", "label":"古典相貌", "value":"...", "reason":"..." },' +
-    '{ "key":"profile", "label":"侧影道德", "value":"...", "reason":"..." },' +
-    '{ "key":"skull_map", "label":"颅骨地图", "value":"...", "reason":"..." },' +
-    '{ "key":"criminal_sign", "label":"犯罪预兆", "value":"...", "reason":"..." },' +
-    '{ "key":"average_face", "label":"平均脸", "value":"...", "reason":"..." },' +
-    '{ "key":"algorithm", "label":"算法", "value":"...", "reason":"..." }' +
-    '] }',
+    '你是 BIAS SYSTEM 中的"西方面学历史档案大模型"。\n' +
+    '这是程序艺术作品中的虚构分类系统。\n' +
+    '你不能判断真实身份、人格、命运、疾病、性别、民族、收入或任何真实属性。\n' +
+    '你只能从 W01-W14 中选择一个 sampleId。\n\n' +
+    '【硬约束】\n' +
+    '1. 只返回一个 JSON object。\n' +
+    '2. 第一个字符必须是 { · 最后一个字符必须是 }。\n' +
+    '3. 禁止输出思考过程、说明、Markdown、代码块、或 JSON 之外的任何文字。\n' +
+    '4. sampleId 必须是 W01-W14 之一。\n' +
+    '5. 六项 dimensionReasons (status/temperament/power/body/role/risk) 必须全部非空。\n' +
+    '6. shortReason 是针对本张图视觉事实的一句中文总结。\n' +
+    '7. matchedFeatures 是 2-4 个客观特征短语。'
 };
 
 // ★ 三套系统的 fallback（与前端 ai-client.js / exhibition.js 完全一致）
@@ -539,17 +630,10 @@ const server = http.createServer(async (req, res) => {
         return res.end(JSON.stringify({ ok: false, source: 'error', error: 'missing-api-key' }));
       }
 
-      // ★ 3. prompt（不放 A07 示例，避免偏置；不放本地候选）
+      // ★ 3. 短硬约束 prompt（不再长篇罗列，逐步分析诱导已删除）
       const systemPrompt =
-        '你是 BIAS SYSTEM 中的古代面学固定样本选择器。\n' +
-        '这是程序艺术作品中的虚构分类系统。\n' +
-        '你不能判断真实身份、人格、命运、疾病、性别、民族、收入或任何真实属性。\n' +
-        '你只能从以下 sampleId 中选择一个：\n' + allowed.join(',') + '\n\n' +
-        '先看图，判断画面中是否有清晰可识别的人脸。\n' +
-        '如果没有人脸（hasFace=false），把 visionCheck.hasFace 设为 false，sampleId 设为空字符串 ""，其它字段保持。\n' +
-        '如果有人脸，根据面部构图特征（对称性 / 中轴 / 区域占比 / 整体气质）选择一个 sampleId。\n\n' +
-        '严禁输出任何受保护属性的判断（种族、性别、年龄、收入、健康、犯罪倾向）。\n' +
-        '不要输出 markdown。不要代码块。只返回严格 JSON。';
+        SYSTEM_PROMPTS.ancient +
+        '\n允许的 sampleId 列表：' + allowed.join(',') + '\n';
 
       const userText = JSON.stringify({
         task: 'choose_one_sample_from_fixed_library',
@@ -582,7 +666,7 @@ const server = http.createServer(async (req, res) => {
             schema: {
               type: 'object',
               additionalProperties: false,
-              required: ['sampleId', 'confidence', 'shortReason', 'matchedFeatures', 'visionCheck'],
+              required: ['sampleId', 'confidence', 'shortReason', 'matchedFeatures', 'visionCheck', 'dimensionReasons'],
               properties: {
                 sampleId: { type: 'string', enum: allowed },
                 confidence: { type: 'string', enum: ['low','medium','high'] },
@@ -598,6 +682,19 @@ const server = http.createServer(async (req, res) => {
                     headPose: { type: 'string', enum: ['front','left','right','up','down','unclear'] },
                     framing: { type: 'string', enum: ['face-closeup','head-and-shoulders','upper-body','distant','unclear'] },
                     brightness: { type: 'string', enum: ['dark','medium','bright','unclear'] }
+                  }
+                },
+                dimensionReasons: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['palace','organ','zone','mountain','complexion','bone'],
+                  properties: {
+                    palace:     { type: 'string' },
+                    organ:      { type: 'string' },
+                    zone:       { type: 'string' },
+                    mountain:   { type: 'string' },
+                    complexion: { type: 'string' },
+                    bone:       { type: 'string' }
                   }
                 }
               }
@@ -615,14 +712,9 @@ const server = http.createServer(async (req, res) => {
         const parsed = parseModelJson(txt);
         console.log('[ANCIENT_API] parsed', parsed);
 
-        if (!parsed) {
-          res.statusCode = 200;
-          res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          return res.end(JSON.stringify({ ok: false, source: 'error', error: 'model-output-not-json', upstreamStatus: upstream.status, upstreamRaw: (upstream.raw || '').slice(0, 400) }));
-        }
-
+        // ★ hasFace=false 直接返回 · 不进入分类（保留原有逻辑）
         // ★ 校验 visionCheck · 至少 5 个核心字段存在 · 缺则用默认值
-        let vc = parsed.visionCheck || {};
+        let vc = parsed ? (parsed.visionCheck || {}) : {};
         // 强制规范化 5 个核心字段 · 允许模型使用同义词（比如 pose → headPose）
         if (typeof vc !== 'object' || vc === null) vc = {};
         // hasFace
@@ -676,73 +768,90 @@ const server = http.createServer(async (req, res) => {
           }));
         }
 
-        // ★ 规范化 shortReason / confidence / matchedFeatures / sampleId · 兼容模型同义词
-        // sampleId: 模型有时放进 visionCheck 里
-        if (typeof parsed.sampleId !== 'string' || ANCIENT_CHOOSE_ALLOWED.indexOf(parsed.sampleId) < 0) {
-          if (parsed.visionCheck && typeof parsed.visionCheck.sampleId === 'string' && ANCIENT_CHOOSE_ALLOWED.indexOf(parsed.visionCheck.sampleId) >= 0) {
-            parsed.sampleId = parsed.visionCheck.sampleId;
-          } else {
-            parsed.sampleId = '';
+        // ★ 1. 优先使用模型直接返回的完整 JSON
+        if (parsed && classifyPipeline.isCompleteParsed(parsed, 'ancient')) {
+          console.log('[ANCIENT_API] first parse complete · sampleId =', parsed.sampleId);
+          // ★ 把模型同义词补齐（shortReason / matchedFeatures / sampleId）
+          if (typeof parsed.shortReason !== 'string' || parsed.shortReason.length === 0) {
+            if (typeof parsed.reason === 'string') parsed.shortReason = parsed.reason;
+            else if (typeof parsed.why === 'string') parsed.shortReason = parsed.why;
+            else if (typeof parsed.explanation === 'string') parsed.shortReason = parsed.explanation;
+            else if (parsed.visionCheck && typeof parsed.visionCheck.reason === 'string') parsed.shortReason = parsed.visionCheck.reason;
+            else if (parsed.visionCheck && typeof parsed.visionCheck.notes === 'string') parsed.shortReason = parsed.visionCheck.notes;
+            else if (parsed.visionCheck && typeof parsed.visionCheck.description === 'string') parsed.shortReason = parsed.visionCheck.description;
+            else if (parsed.sampleId) parsed.shortReason = 'AI 根据面部构图与气质选择样本 ' + parsed.sampleId;
           }
-        }
-        if (typeof parsed.shortReason !== 'string' || parsed.shortReason.length === 0) {
-          if (typeof parsed.reason === 'string') parsed.shortReason = parsed.reason;
-          else if (typeof parsed.why === 'string') parsed.shortReason = parsed.why;
-          else if (typeof parsed.explanation === 'string') parsed.shortReason = parsed.explanation;
-          else if (parsed.visionCheck && typeof parsed.visionCheck.reason === 'string') parsed.shortReason = parsed.visionCheck.reason;
-          else if (parsed.visionCheck && typeof parsed.visionCheck.notes === 'string') parsed.shortReason = parsed.visionCheck.notes;
-          else if (parsed.visionCheck && typeof parsed.visionCheck.description === 'string') parsed.shortReason = parsed.visionCheck.description;
-          else if (parsed.visionCheck && typeof parsed.visionCheck.overallBearing === 'string') parsed.shortReason = parsed.visionCheck.overallBearing;
-          else if (parsed.visionCheck && typeof parsed.visionCheck.temperament === 'string') parsed.shortReason = '面部气质：' + parsed.visionCheck.temperament;
-          else if (parsed.visionCheck && typeof parsed.visionCheck.overallTemperament === 'string') parsed.shortReason = '面部气质：' + parsed.visionCheck.overallTemperament;
-          else if (parsed.sampleId) parsed.shortReason = 'AI 根据面部构图与气质选择样本 ' + parsed.sampleId;
-        }
-        if (!['low','medium','high'].includes(parsed.confidence)) {
-          const c = (parsed.confidence || '').toString().toLowerCase();
-          if (/high|strong|very|明显|高/.test(c)) parsed.confidence = 'high';
-          else if (/low|weak|slight|轻微|低/.test(c)) parsed.confidence = 'low';
-          else parsed.confidence = 'medium';
-        }
-        if (!Array.isArray(parsed.matchedFeatures) || parsed.matchedFeatures.length < 2) {
-          if (Array.isArray(parsed.features)) parsed.matchedFeatures = parsed.features;
-          else if (Array.isArray(parsed.tags)) parsed.matchedFeatures = parsed.tags;
-          else if (parsed.visionCheck && Array.isArray(parsed.visionCheck.matchedFeatures)) parsed.matchedFeatures = parsed.visionCheck.matchedFeatures;
-          else if (typeof parsed.shortReason === 'string') {
-            const segs = parsed.shortReason.split(/[，。,；;]+/).filter(Boolean);
-            if (segs.length >= 2) parsed.matchedFeatures = segs.slice(0, 4);
-            else if (parsed.visionCheck && typeof parsed.visionCheck.symmetry === 'string') parsed.matchedFeatures = [parsed.visionCheck.symmetry, parsed.visionCheck.centralAxisAlignment || parsed.visionCheck.centerline || '中轴居中'];
-            else if (parsed.visionCheck && typeof parsed.visionCheck.faceCount === 'number') parsed.matchedFeatures = ['面部 ' + parsed.visionCheck.faceCount + ' 人', 'AI 选样本 ' + (parsed.sampleId || '')];
-            else parsed.matchedFeatures = ['面部构图匹配', 'AI 选样本 ' + (parsed.sampleId || '')];
+          if (!['low','medium','high'].includes(parsed.confidence)) {
+            const c = (parsed.confidence || '').toString().toLowerCase();
+            if (/high|strong|very|明显|高/.test(c)) parsed.confidence = 'high';
+            else if (/low|weak|slight|轻微|低/.test(c)) parsed.confidence = 'low';
+            else parsed.confidence = 'medium';
           }
-        }
-
-        const validSampleId = ANCIENT_CHOOSE_ALLOWED.indexOf(parsed.sampleId) >= 0;
-        const validConfidence = ['low','medium','high'].indexOf(parsed.confidence) >= 0;
-        const validReason = typeof parsed.shortReason === 'string' && parsed.shortReason.length > 0;
-        const validFeatures = Array.isArray(parsed.matchedFeatures) && parsed.matchedFeatures.length >= 2;
-
-        if (!(validSampleId && validConfidence && validReason && validFeatures)) {
+          if (!Array.isArray(parsed.matchedFeatures) || parsed.matchedFeatures.length < 2) {
+            if (Array.isArray(parsed.features)) parsed.matchedFeatures = parsed.features;
+            else if (Array.isArray(parsed.tags)) parsed.matchedFeatures = parsed.tags;
+            else if (parsed.visionCheck && Array.isArray(parsed.visionCheck.matchedFeatures)) parsed.matchedFeatures = parsed.visionCheck.matchedFeatures;
+            else if (typeof parsed.shortReason === 'string') {
+              const segs = parsed.shortReason.split(/[，。,；;]+/).filter(Boolean);
+              if (segs.length >= 2) parsed.matchedFeatures = segs.slice(0, 4);
+              else parsed.matchedFeatures = ['面部构图匹配', 'AI 选样本 ' + (parsed.sampleId || '')];
+            }
+          }
+          const unified = classifyPipeline.buildUnifiedResult(parsed, 'ancient', { reasonSource: 'ai-personalized', upstreamStatus: upstream.status });
+          unified.visionCheck = vc;
+          unified.matchedFeatures = Array.isArray(unified.matchedFeatures) ? unified.matchedFeatures.slice(0, 4) : [];
+          console.log('[ANCIENT_API] SUCCESS · sampleId =', unified.sampleId, '· reasonSource =', unified.reasonSource, '· dimReasons =', classifyPipeline.countNonEmptyDimensionReasons(unified.dimensionReasons) + '/6');
           res.statusCode = 200;
           res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-ancient-schema', reason: { validSampleId, validConfidence, validReason, validFeatures }, parsed: parsed }));
+          return res.end(JSON.stringify({
+            ok: true,
+            source: 'ai',
+            system: 'ancient',
+            sampleId: unified.sampleId,
+            confidence: unified.confidence,
+            shortReason: unified.shortReason,
+            matchedFeatures: unified.matchedFeatures,
+            visionCheck: unified.visionCheck,
+            dimensionReasons: unified.dimensionReasons,
+            reasonSource: unified.reasonSource,
+            upstreamStatus: upstream.status
+          }));
         }
 
-        if (!['low','medium','high'].includes(parsed.confidence)) parsed.confidence = 'medium';
-
-        const aiPayload = {
-          sampleId: parsed.sampleId,
-          confidence: parsed.confidence,
-          shortReason: parsed.shortReason,
-          matchedFeatures: parsed.matchedFeatures.slice(0, 4),
-          visionCheck: vc
-        };
-        console.log('[ANCIENT_API] SUCCESS · sampleId =', aiPayload.sampleId, '· hasFace =', vc.hasFace, '· glasses =', vc.wearingGlasses);
+        // ★ 2. 解析失败 / 字段缺失 → 公共修复流水线（先从自然语言提取 Axx，再走理由补全）
+        console.warn('[ANCIENT_API] first parse incomplete · entering common pipeline');
+        const repaired = await classifyPipeline.parseAndRepairClassification({
+          system: 'ancient',
+          upstreamText: txt,
+          visualSummary: vc,
+          sampleGlossary: glossary,
+          proxyAI: proxyAI,
+          model: AI_MODEL,
+          logTag: '[ANCIENT_REPAIR]',
+          extractModelText: extractModelText
+        });
+        if (!repaired || !repaired.sampleId) {
+          console.error('[ANCIENT_API] repair pipeline returned no sampleId');
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          return res.end(JSON.stringify({ ok: false, source: 'error', error: 'model-output-not-json', upstreamStatus: upstream.status, upstreamRaw: (upstream.raw || '').slice(0, 400) }));
+        }
+        repaired.visionCheck = vc;
+        repaired.matchedFeatures = Array.isArray(repaired.matchedFeatures) ? repaired.matchedFeatures.slice(0, 4) : [];
+        console.log('[ANCIENT_API] SUCCESS · sampleId =', repaired.sampleId, '· reasonSource =', repaired.reasonSource, '· dimReasons =', classifyPipeline.countNonEmptyDimensionReasons(repaired.dimensionReasons) + '/6');
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         return res.end(JSON.stringify({
           ok: true,
           source: 'ai',
-          result: aiPayload,
+          system: 'ancient',
+          sampleId: repaired.sampleId,
+          confidence: repaired.confidence,
+          shortReason: repaired.shortReason,
+          matchedFeatures: repaired.matchedFeatures,
+          visionCheck: repaired.visionCheck,
+          dimensionReasons: repaired.dimensionReasons,
+          reasonSource: repaired.reasonSource,
           upstreamStatus: upstream.status
         }));
       } catch (e) {
@@ -1141,14 +1250,8 @@ const server = http.createServer(async (req, res) => {
       const parsed = parseModelJson(txt);
       console.log('[MODERN_API] parsed', parsed);
 
-      if (!parsed) {
-        res.statusCode = 502;
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'upstream-parse-failed', upstreamStatus: upstream.status, upstreamRaw: (upstream.raw || '').slice(0, 400) }));
-      }
-
       // visionCheck 净化
-      let vc = parsed.visionCheck || {};
+      let vc = parsed ? (parsed.visionCheck || {}) : {};
       if (typeof vc !== 'object' || vc === null) vc = {};
       const allowedKeys = ['hasFace','wearingGlasses','headPose','framing','brightness','faceCount','expression'];
       const cleanedVc = {};
@@ -1181,95 +1284,91 @@ const server = http.createServer(async (req, res) => {
         }));
       }
 
-      let sampleId = typeof parsed.sampleId === 'string' ? parsed.sampleId : '';
-      // ★ 兼容模型返回 finalSampleId / stepN_xxxSampleId / topCandidates[0].sampleId / candidateScores
-      if (allowed.indexOf(sampleId) < 0) {
-        if (typeof parsed.finalSampleId === 'string' && allowed.indexOf(parsed.finalSampleId) >= 0) sampleId = parsed.finalSampleId;
-        // ★ 兼容模型返回 step1_observation / step3_scores / step4_finalSampleId 等带 step 前缀字段
-        else {
-          for (const k of Object.keys(parsed)) {
-            const m = /^step\d+_(?:final)?sampleid$/i.exec(k);
-            if (m && typeof parsed[k] === 'string' && allowed.indexOf(parsed[k]) >= 0) { sampleId = parsed[k]; break; }
+      // ★ 1. 优先使用模型直接返回的完整 JSON（isCompleteParsed 已校验 sampleId + 6 维度）
+      if (parsed && classifyPipeline.isCompleteParsed(parsed, 'modern')) {
+        console.log('[MODERN_API] first parse complete · sampleId =', parsed.sampleId);
+        // ★ 把 sampleId 同义词补齐
+        if (typeof parsed.sampleId !== 'string' || allowed.indexOf(parsed.sampleId) < 0) {
+          if (typeof parsed.finalSampleId === 'string' && allowed.indexOf(parsed.finalSampleId) >= 0) parsed.sampleId = parsed.finalSampleId;
+          else if (Array.isArray(parsed.topCandidates) && parsed.topCandidates[0] && allowed.indexOf(parsed.topCandidates[0].sampleId) >= 0) parsed.sampleId = parsed.topCandidates[0].sampleId;
+          else if (parsed.candidateScores && typeof parsed.candidateScores === 'object') {
+            let topK = null, topS = -1;
+            for (const k of Object.keys(parsed.candidateScores)) {
+              const s = Number(parsed.candidateScores[k]) || 0;
+              if (s > topS && allowed.indexOf(k) >= 0) { topS = s; topK = k; }
+            }
+            if (topK) parsed.sampleId = topK;
           }
         }
-        if (!sampleId && Array.isArray(parsed.topCandidates) && parsed.topCandidates[0] && allowed.indexOf(parsed.topCandidates[0].sampleId) >= 0) sampleId = parsed.topCandidates[0].sampleId;
-        if (!sampleId && parsed.candidateScores && typeof parsed.candidateScores === 'object') {
-          let topK = null, topS = -1;
-          for (const k of Object.keys(parsed.candidateScores)) {
-            const s = Number(parsed.candidateScores[k]) || 0;
-            if (s > topS && allowed.indexOf(k) >= 0) { topS = s; topK = k; }
-          }
-          if (topK) sampleId = topK;
+        // ★ 规范化 confidence / shortReason / matchedFeatures
+        var confidence = ['low','medium','high'].indexOf(parsed.confidence) >= 0 ? parsed.confidence : 'medium';
+        if (!['low','medium','high'].includes(parsed.confidence)) parsed.confidence = 'medium';
+        if (typeof parsed.shortReason !== 'string' || parsed.shortReason.length === 0) {
+          if (typeof parsed.finalReason === 'string') parsed.shortReason = parsed.finalReason;
+          else if (Array.isArray(parsed.topCandidates) && parsed.topCandidates[0] && parsed.topCandidates[0].rationale) parsed.shortReason = parsed.topCandidates[0].rationale;
+          else if (parsed.sampleId) parsed.shortReason = '视觉匹配 · 候选 ' + parsed.sampleId;
         }
-        if (!sampleId && Array.isArray(parsed.candidates) && parsed.candidates[0] && allowed.indexOf(parsed.candidates[0].sampleId) >= 0) {
-          sampleId = parsed.candidates[0].sampleId;
+        if (!Array.isArray(parsed.matchedFeatures) || parsed.matchedFeatures.length < 2) {
+          if (Array.isArray(parsed.topCandidates)) parsed.matchedFeatures = parsed.topCandidates.slice(0, 4).map(function (c) { return c.rationale || c.sampleId; }).filter(Boolean);
+          else parsed.matchedFeatures = ['视觉匹配', '视觉特征比对'];
         }
-      }
-      if (!sampleId || allowed.indexOf(sampleId) < 0) {
-        res.statusCode = 502;
+        const unified = classifyPipeline.buildUnifiedResult(parsed, 'modern', { reasonSource: 'ai-personalized', upstreamStatus: upstream.status });
+        unified.visionCheck = vc;
+        unified.matchedFeatures = Array.isArray(unified.matchedFeatures) ? unified.matchedFeatures.slice(0, 4) : [];
+        const dimCount = classifyPipeline.countNonEmptyDimensionReasons(unified.dimensionReasons);
+        console.log('[MODERN_API] SUCCESS · sampleId =', unified.sampleId, '· reasonSource =', unified.reasonSource, '· dimReasons =', dimCount + '/6');
+        res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'no-valid-sample-id', parsed: parsed }));
+        return res.end(JSON.stringify({
+          ok: true,
+          source: 'ai',
+          system: 'modern',
+          sampleId: unified.sampleId,
+          confidence: unified.confidence,
+          shortReason: unified.shortReason,
+          matchedFeatures: unified.matchedFeatures,
+          visionCheck: unified.visionCheck,
+          dimensionReasons: unified.dimensionReasons,
+          reasonSource: unified.reasonSource,
+          upstreamStatus: upstream.status
+        }));
       }
 
-      // ★ 规范化 candidateScores：兼容模型返回对象 {Mxx:0.93} 或数组 [{sampleId, score}] 或 topCandidates / candidates
-      var cs = [];
-      if (Array.isArray(parsed.candidateScores)) cs = parsed.candidateScores.slice();
-      else if (parsed.candidateScores && typeof parsed.candidateScores === 'object') {
-        cs = Object.keys(parsed.candidateScores).map(function (k) { return { sampleId: k, score: Number(parsed.candidateScores[k]) || 0 }; });
+      // ★ 2. 解析失败 / 字段缺失 → 公共修复流水线（先从自然语言提取 Mxx，再走理由补全）
+      console.warn('[MODERN_API] first parse incomplete · entering common pipeline');
+      const repaired = await classifyPipeline.parseAndRepairClassification({
+        system: 'modern',
+        upstreamText: txt,
+        visualSummary: vc,
+        sampleGlossary: (refProfiles || []).map(function (r) { return { sampleId: r.sampleId, sampleName: r.sampleId }; }),
+        proxyAI: proxyAI,
+        model: AI_MODEL,
+        logTag: '[MODERN_REPAIR]',
+        extractModelText: extractModelText
+      });
+      if (!repaired || !repaired.sampleId) {
+        console.error('[MODERN_API] repair pipeline returned no sampleId');
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'upstream-parse-failed', upstreamStatus: upstream.status }));
       }
-      if (!cs.length && Array.isArray(parsed.topCandidates)) cs = parsed.topCandidates.map(function (c) { return { sampleId: c.sampleId, score: Number(c.score) || 0 }; });
-      if (!cs.length && Array.isArray(parsed.candidates)) cs = parsed.candidates.map(function (c) { return { sampleId: c.sampleId, score: Number(c.score) || 0 }; });
-      cs.sort(function (a, b) { return (b.score || 0) - (a.score || 0); });
-      console.log('[MODERN_MATCH] top1', (cs[0] && cs[0].sampleId) || '-', (cs[0] && cs[0].score) || 0);
-      console.log('[MODERN_MATCH] top2', (cs[1] && cs[1].sampleId) || '-', (cs[1] && cs[1].score) || 0);
-      console.log('[MODERN_MATCH] top3', (cs[2] && cs[2].sampleId) || '-', (cs[2] && cs[2].score) || 0);
-      var margin = ((cs[0] && cs[0].score) || 0) - ((cs[1] && cs[1].score) || 0);
-      console.log('[MODERN_MATCH] margin', margin.toFixed(3));
-
-      var confidence = ['low','medium','high'].indexOf(parsed.confidence) >= 0 ? parsed.confidence : 'medium';
-      if (margin < 0.08 && confidence === 'high') confidence = 'medium';
-      if (margin < 0.05) confidence = 'low';
-
-      // ★ 兼容 finalReason / topCandidates[0].rationale / candidates[0].rationale
-      var shortReason = typeof parsed.shortReason === 'string' && parsed.shortReason.length > 0 ? parsed.shortReason : null;
-      if (!shortReason && typeof parsed.finalReason === 'string' && parsed.finalReason.length > 0) shortReason = parsed.finalReason;
-      if (!shortReason && Array.isArray(parsed.topCandidates) && parsed.topCandidates[0] && parsed.topCandidates[0].rationale) shortReason = parsed.topCandidates[0].rationale;
-      if (!shortReason && Array.isArray(parsed.candidates) && parsed.candidates[0] && parsed.candidates[0].rationale) shortReason = parsed.candidates[0].rationale;
-      if (!shortReason) shortReason = '视觉匹配 · 候选 ' + sampleId;
-      // ★ 兼容 matchedFeatures / topCandidates.rationale / candidates.rationale
-      var matchedFeatures = Array.isArray(parsed.matchedFeatures) && parsed.matchedFeatures.length >= 2 ? parsed.matchedFeatures.slice(0, 4) : [];
-      if (!matchedFeatures.length && Array.isArray(parsed.topCandidates)) matchedFeatures = parsed.topCandidates.slice(0, 4).map(function (c) { return c.rationale || c.sampleId; }).filter(Boolean);
-      if (!matchedFeatures.length && Array.isArray(parsed.candidates)) matchedFeatures = parsed.candidates.slice(0, 4).map(function (c) { return c.rationale || c.sampleId; }).filter(Boolean);
-      if (!matchedFeatures.length) matchedFeatures = ['视觉匹配', '视觉特征比对'];
-
-      // ★ 6 维度 AI 判定原因（dimensionReasons · modern）· sexuality/gender/income/family/relationship/risk
-      var dimReasonsM = (parsed.dimensionReasons && typeof parsed.dimensionReasons === 'object') ? parsed.dimensionReasons : {};
-      var normalizedDimReasonsM = {
-        sexuality:     (typeof dimReasonsM.sexuality     === 'string' && dimReasonsM.sexuality.trim())     ? dimReasonsM.sexuality.trim()     : '',
-        gender:        (typeof dimReasonsM.gender        === 'string' && dimReasonsM.gender.trim())        ? dimReasonsM.gender.trim()        : '',
-        income:        (typeof dimReasonsM.income        === 'string' && dimReasonsM.income.trim())        ? dimReasonsM.income.trim()        : '',
-        family:        (typeof dimReasonsM.family        === 'string' && dimReasonsM.family.trim())        ? dimReasonsM.family.trim()        : '',
-        relationship:  (typeof dimReasonsM.relationship  === 'string' && dimReasonsM.relationship.trim())  ? dimReasonsM.relationship.trim()  : '',
-        risk:          (typeof dimReasonsM.risk          === 'string' && dimReasonsM.risk.trim())          ? dimReasonsM.risk.trim()          : ''
-      };
-      var dimReasonCountM = [normalizedDimReasonsM.sexuality, normalizedDimReasonsM.gender, normalizedDimReasonsM.income, normalizedDimReasonsM.family, normalizedDimReasonsM.relationship, normalizedDimReasonsM.risk].filter(function (s) { return s.length > 0; }).length;
-      console.log('[MODERN_DIM_REASONS] provided by AI:', dimReasonCountM + '/6');
-
-      const aiPayload = {
-        sampleId: sampleId,
-        confidence: confidence,
-        shortReason: shortReason,
-        matchedFeatures: matchedFeatures,
-        visionCheck: vc,
-        dimensionReasons: normalizedDimReasonsM
-      };
-      console.log('[MODERN_API] SUCCESS · sampleId =', aiPayload.sampleId, '· hasFace =', vc.hasFace, '· glasses =', vc.wearingGlasses, '· confidence =', confidence);
+      repaired.visionCheck = vc;
+      repaired.matchedFeatures = Array.isArray(repaired.matchedFeatures) ? repaired.matchedFeatures.slice(0, 4) : [];
+      const dimCount2 = classifyPipeline.countNonEmptyDimensionReasons(repaired.dimensionReasons);
+      console.log('[MODERN_API] SUCCESS · sampleId =', repaired.sampleId, '· reasonSource =', repaired.reasonSource, '· dimReasons =', dimCount2 + '/6');
       res.statusCode = 200;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       return res.end(JSON.stringify({
         ok: true,
         source: 'ai',
-        result: aiPayload,
+        system: 'modern',
+        sampleId: repaired.sampleId,
+        confidence: repaired.confidence,
+        shortReason: repaired.shortReason,
+        matchedFeatures: repaired.matchedFeatures,
+        visionCheck: repaired.visionCheck,
+        dimensionReasons: repaired.dimensionReasons,
+        reasonSource: repaired.reasonSource,
         upstreamStatus: upstream.status
       }));
     });
@@ -1501,6 +1600,46 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ============================================
+  // ★ /api/fusion/modern · 现代身份合成像 · 共享 fusion handler
+  // - 校验 sampleId ∈ M01-M20 · 校验 userImage 是合法 data URL
+  // - 限制 body 8MB · 后端读取 modern sample main 图
+  // - 共用 ancient-fusion-provider (Key/BaseUrl/Model) + image-proxy
+  // ============================================
+  const isFusionModernApi = (req.url.split('?')[0] === '/api/fusion/modern' ||
+                              req.url.split('?')[0] === '/exhibition-camera/api/fusion/modern');
+  if (req.method === 'POST' && isFusionModernApi) {
+    const fusionHandler = require('./providers/fusion-handler');
+    return fusionHandler.createFusionHandler({
+      system: 'modern',
+      directory: DIRECTORY,
+      resolveSampleName: function (sampleId) {
+        const map = minimaxImage && minimaxImage.MODERN_SAMPLE_NAMES;
+        return (map && map[sampleId]) || sampleId;
+      }
+    })(req, res);
+  }
+
+  // ============================================
+  // ★ /api/fusion/western · 西方历史合成像 · 共享 fusion handler
+  // - 校验 sampleId ∈ W01-W14 · 校验 userImage 是合法 data URL
+  // - 后端读取 western sample main 图 (normalized/Wxx/Wxx_sample_main.jpg)
+  // - 共用 ancient-fusion-provider (Key/BaseUrl/Model) + image-proxy
+  // ============================================
+  const isFusionWesternApi = (req.url.split('?')[0] === '/api/fusion/western' ||
+                               req.url.split('?')[0] === '/exhibition-camera/api/fusion/western');
+  if (req.method === 'POST' && isFusionWesternApi) {
+    const fusionHandler = require('./providers/fusion-handler');
+    return fusionHandler.createFusionHandler({
+      system: 'western',
+      directory: DIRECTORY,
+      resolveSampleName: function (sampleId) {
+        const map = minimaxImage && minimaxImage.WESTERN_SAMPLE_NAMES;
+        return (map && map[sampleId]) || sampleId;
+      }
+    })(req, res);
+  }
+
+  // ============================================
   // ★ /api/classify/western · 独立 western 专用路由 · 14 个历史样本
   // - 真实 AI 只接收一张当前摄像头截图 + 14 组样本元数据
   // - 不传 visualProfile（历史人物是固定档案，直接传 sampleId + 类别）
@@ -1671,49 +1810,34 @@ const server = http.createServer(async (req, res) => {
         return res.end(JSON.stringify({ ok: false, source: 'error', error: 'missing-api-key' }));
       }
 
+      // ★ 硬约束短 prompt：禁止模型在正文里逐步分析（"步骤一/二/三/四"会诱导它先输出推理文字）
+      // ★ 14 个样本的视觉风格 + 6 维度 reason 仍然必要，但只能塞进 JSON 字段中
       const systemPrompt =
         '你是 BIAS SYSTEM 中的"西方面学历史档案大模型"。\n' +
         '输入是一张摄像头截图。\n' +
-        '你需要按照西方面相学历史档案（古典相貌 / 侧影道德 / 颅骨地图 / 犯罪预兆 / 平均脸 / 算法）给出 14 个历史样本中视觉最接近的一个。\n\n' +
-        '【关键·人脸已确认】本地 MediaPipe FaceLandmarker 已确认裁切图中存在完整人脸（共 ' + localLandmarkCount + ' 个 landmarks）。\n' +
-        '你不得重新否定人脸存在。\n' +
-        '你不得返回 visionCheck.hasFace=false。\n' +
-        '你必须从 W01-W14 中选择一个。\n\n' +
-        '【14 个样本说明】\n' +
-        '- W01 苏格拉底脸 / Socrates · 丑陋与智慧悖论\n' +
-        '- W02 亚历山大大帝脸 / Alexander the Great · 英雄侧影\n' +
-        '- W03 尼禄脸 / Nero · 暴君道德化\n' +
-        '- W04 圣女贞德脸 / Joan of Arc · 圣徒与异端\n' +
-        '- W05 伊丽莎白一世脸 / Elizabeth I · 双面假面\n' +
-        '- W06 路易十四脸 / Louis XIV · 太阳王表演\n' +
-        '- W07 玛丽·安托瓦内特脸 / Marie Antoinette · 奢侈归罪\n' +
-        '- W08 拿破仑脸 / Napoleon · 英雄与讽刺画\n' +
-        '- W09 文艺复兴女性肖像型 / Renaissance Female · 理想美被格式化\n' +
-        '- W10 梵高自画像型 / Van Gogh · 重复凝视的艺术家\n' +
-        '- W11 阿尔钦博托复合脸 / Arcimboldo · 面孔被自然接管\n' +
-        '- W12 梅塞施密特性格头像 / Messerschmidt · 极端表情被永久定型\n' +
-        '- W13 拉瓦特侧影相 / Lavater · 轮廓被转换成人格\n' +
+        '【硬约束】\n' +
+        '1. 只输出一个 JSON object。\n' +
+        '2. 第一个字符必须是 { · 最后一个字符必须是 }。\n' +
+        '3. 严禁输出任何分析过程、说明、Markdown、代码块、或 JSON 之外的任何文字。\n' +
+        '4. 必须从 W01-W14 中选择一个 sampleId。\n' +
+        '5. 本地 MediaPipe FaceLandmarker 已确认裁切图中存在完整人脸（共 ' + localLandmarkCount + ' 个 landmarks），不得返回 visionCheck.hasFace=false。\n\n' +
+        '【W01-W14 视觉档案】\n' +
+        '- W01 苏格拉底 / Socrates · 丑陋与智慧悖论\n' +
+        '- W02 亚历山大大帝 / Alexander the Great · 英雄侧影\n' +
+        '- W03 尼禄 / Nero · 暴君道德化\n' +
+        '- W04 圣女贞德 / Joan of Arc · 圣徒与异端\n' +
+        '- W05 伊丽莎白一世 / Elizabeth I · 双面假面\n' +
+        '- W06 路易十四 / Louis XIV · 太阳王表演\n' +
+        '- W07 玛丽·安托瓦内特 / Marie Antoinette · 奢侈归罪\n' +
+        '- W08 拿破仑 / Napoleon · 英雄与讽刺画\n' +
+        '- W09 文艺复兴女性肖像型 · 理想美被格式化\n' +
+        '- W10 梵高自画像型 · 重复凝视的艺术家\n' +
+        '- W11 阿尔钦博托复合脸 · 面孔被自然接管\n' +
+        '- W12 梅塞施密特性格头像 · 极端表情被永久定型\n' +
+        '- W13 拉瓦特侧影相 · 轮廓被转换成人格\n' +
         '- W14 天生罪犯型 / Lombroso · 面孔提前定罪\n\n' +
-        '【匹配规则】\n' +
-        '只能比较视觉特征（脸型 / 五官比例 / 头部姿态 / 明暗 / 表情 / 构图距离）。\n' +
-        '严禁：因为人物名气、艺术品类别或社会标签选择样本。\n' +
-        '必须综合：脸型、眉眼、鼻梁、口型、下颌、发型、明暗、构图距离。\n\n' +
-        '【步骤一·观察 content[1] 裁切图】客观可见特征：脸型、眉眼形态、鼻梁、口型、下颌宽度、头部方向、构图距离、明暗。\n' +
-        '【步骤二·在 14 个样本中找出视觉最接近的 3 个候选】\n' +
-        '【步骤三·给出 candidateScores（0-1 浮点）】\n' +
-        '【步骤四·只返回最终 sampleId】\n\n' +
-        '【步骤五·给出 6 个维度的具体判定原因 · 必填 · dimensionReasons】\n' +
-        '在视觉上确认 sampleId 后，必须再为 6 个 WP 维度（status / temperament / power / body / role / risk）分别给出一段 AI 自己的判定原因。\n' +
-        '要求：\n' +
-        '- 必须基于当前摄像头裁切图（content[1]）的客观可见特征 + 选中的 Wxx 样本的视觉风格 写具体原因\n' +
-        '- 每条 30-80 字（中文）· 不能是数据里写死的固定套话 · 必须针对本张图和该样本的关系\n' +
-        '- 不能引用人物的真实身份 · 只能说视觉/历史风格上的相似\n' +
-        '- status: 解释为什么这张脸在社会身份类别上被系统判定为该状态（如「哲人例外」是因为非标准英雄面孔）\n' +
-        '- temperament: 解释为什么这张脸的气质归入该类别（眉眼/口型/表情方向）\n' +
-        '- power: 解释为什么这张脸在权力象征上对应该样本（颧骨/下颌/头部姿态的支配感）\n' +
-        '- body: 解释为什么这张脸在身体/侧影/对称性上被归入该范畴（轮廓线/比例）\n' +
-        '- role: 解释为什么这张脸在社会角色定位上匹配该样本（凝视方向/构图距离/明暗）\n' +
-        '- risk: 解释为什么这张脸触发了该样本的预先定罪/规范化/道德化风险（与样本的视觉历史呼应）\n';
+        '【匹配规则】只比较视觉特征（脸型 / 五官比例 / 头部姿态 / 明暗 / 表情 / 构图距离）。严禁因为人物名气、艺术品类别或社会标签选择样本。\n' +
+        '【6 维度 reason】必须在 dimensionReasons 内为 status / temperament / power / body / role / risk 各写 30-80 字中文判定原因（针对本张图 + 选中的 Wxx 样本的视觉关系），不能是套话。';
 
       const userText = JSON.stringify({
         task: 'choose_one_sample_from_14_western_archive',
@@ -1875,17 +1999,13 @@ const server = http.createServer(async (req, res) => {
       }
 
       const txt = extractModelText(upstream.body);
-      const parsed = parseModelJson(txt);
-      console.log('[WESTERN_API] parsed', parsed);
-
-      if (!parsed) {
-        res.statusCode = 502;
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'upstream-parse-failed', upstreamStatus: upstream.status, upstreamRaw: (upstream.raw || '').slice(0, 400) }));
-      }
+      console.log('[WESTERN_AI] upstream response received · status', upstream.status, '· raw length', (upstream.raw || '').length);
+      console.log('[WESTERN_AI] first response text head:', (txt || '').slice(0, 200));
+      let parsed = parseModelJson(txt);
+      console.log('[WESTERN_API] first parse parsed?', !!parsed);
 
       // visionCheck 净化
-      let vc = parsed.visionCheck || {};
+      let vc = parsed ? (parsed.visionCheck || {}) : {};
       if (typeof vc !== 'object' || vc === null) vc = {};
       const allowedKeys = ['hasFace','wearingGlasses','headPose','framing','brightness','faceCount','expression'];
       const cleanedVc = {};
@@ -1918,99 +2038,105 @@ const server = http.createServer(async (req, res) => {
         }));
       }
 
-      let sampleId = typeof parsed.sampleId === 'string' ? parsed.sampleId : '';
-      // 兼容 finalSampleId / stepN_xxxSampleId / topCandidates / candidateScores / candidates
-      if (allowed.indexOf(sampleId) < 0) {
-        if (typeof parsed.finalSampleId === 'string' && allowed.indexOf(parsed.finalSampleId) >= 0) sampleId = parsed.finalSampleId;
-        if (!sampleId) {
-          for (const k of Object.keys(parsed)) {
-            const m = /^step\d+_(?:final)?sampleid$/i.exec(k);
-            if (m && typeof parsed[k] === 'string' && allowed.indexOf(parsed[k]) >= 0) { sampleId = parsed[k]; break; }
-          }
-        }
-        if (!sampleId && Array.isArray(parsed.topCandidates) && parsed.topCandidates[0] && allowed.indexOf(parsed.topCandidates[0].sampleId) >= 0) sampleId = parsed.topCandidates[0].sampleId;
-        if (!sampleId && parsed.candidateScores && typeof parsed.candidateScores === 'object') {
-          let topK = null, topS = -1;
-          if (Array.isArray(parsed.candidateScores)) {
-            for (const c of parsed.candidateScores) { const s = Number(c && c.score) || 0; if (s > topS && c && allowed.indexOf(c.sampleId) >= 0) { topS = s; topK = c.sampleId; } }
-          } else {
-            for (const k of Object.keys(parsed.candidateScores)) {
-              const s = Number(parsed.candidateScores[k]) || 0;
-              if (s > topS && allowed.indexOf(k) >= 0) { topS = s; topK = k; }
+      // ★ 1. 优先使用模型直接返回的完整 JSON（isCompleteParsed 已校验 sampleId + 6 维度）
+      if (parsed && classifyPipeline.isCompleteParsed(parsed, 'western')) {
+        console.log('[WESTERN_API] first parse complete · sampleId =', parsed.sampleId);
+        // ★ 把 sampleId 同义词补齐
+        if (typeof parsed.sampleId !== 'string' || allowed.indexOf(parsed.sampleId) < 0) {
+          if (typeof parsed.finalSampleId === 'string' && allowed.indexOf(parsed.finalSampleId) >= 0) parsed.sampleId = parsed.finalSampleId;
+          else if (Array.isArray(parsed.topCandidates) && parsed.topCandidates[0] && allowed.indexOf(parsed.topCandidates[0].sampleId) >= 0) parsed.sampleId = parsed.topCandidates[0].sampleId;
+          else if (parsed.candidateScores && typeof parsed.candidateScores === 'object') {
+            let topK = null, topS = -1;
+            if (Array.isArray(parsed.candidateScores)) {
+              for (const c of parsed.candidateScores) { const s = Number(c && c.score) || 0; if (s > topS && c && allowed.indexOf(c.sampleId) >= 0) { topS = s; topK = c.sampleId; } }
+            } else {
+              for (const k of Object.keys(parsed.candidateScores)) {
+                const s = Number(parsed.candidateScores[k]) || 0;
+                if (s > topS && allowed.indexOf(k) >= 0) { topS = s; topK = k; }
+              }
             }
+            if (topK) parsed.sampleId = topK;
           }
-          if (topK) sampleId = topK;
         }
-        if (!sampleId && Array.isArray(parsed.candidates) && parsed.candidates[0] && allowed.indexOf(parsed.candidates[0].sampleId) >= 0) {
-          sampleId = parsed.candidates[0].sampleId;
+        // ★ 规范化 confidence / shortReason / matchedFeatures
+        if (!['low','medium','high'].includes(parsed.confidence)) parsed.confidence = 'medium';
+        if (typeof parsed.shortReason !== 'string' || parsed.shortReason.length === 0) {
+          if (typeof parsed.finalReason === 'string') parsed.shortReason = parsed.finalReason;
+          else if (Array.isArray(parsed.topCandidates) && parsed.topCandidates[0] && parsed.topCandidates[0].rationale) parsed.shortReason = parsed.topCandidates[0].rationale;
+          else if (parsed.sampleId) parsed.shortReason = '视觉匹配 · 候选 ' + parsed.sampleId;
         }
-      }
-      if (!sampleId || allowed.indexOf(sampleId) < 0) {
-        res.statusCode = 502;
+        if (!Array.isArray(parsed.matchedFeatures) || parsed.matchedFeatures.length < 2) {
+          if (Array.isArray(parsed.topCandidates)) parsed.matchedFeatures = parsed.topCandidates.slice(0, 4).map(function (c) { return c.rationale || c.sampleId; }).filter(Boolean);
+          else parsed.matchedFeatures = ['视觉匹配', '视觉特征比对'];
+        }
+        const unified = classifyPipeline.buildUnifiedResult(parsed, 'western', { reasonSource: 'ai-personalized', upstreamStatus: upstream.status });
+        unified.visionCheck = vc;
+        unified.matchedFeatures = Array.isArray(unified.matchedFeatures) ? unified.matchedFeatures.slice(0, 4) : [];
+        const dimCount = classifyPipeline.countNonEmptyDimensionReasons(unified.dimensionReasons);
+        console.log('[WESTERN_API] SUCCESS · sampleId =', unified.sampleId, '· reasonSource =', unified.reasonSource, '· dimReasons =', dimCount + '/6 · westernSource = normal');
+        res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'no-valid-sample-id', parsed: parsed }));
+        return res.end(JSON.stringify({
+          ok: true,
+          source: 'ai',
+          system: 'western',
+          sampleId: unified.sampleId,
+          confidence: unified.confidence,
+          shortReason: unified.shortReason,
+          matchedFeatures: unified.matchedFeatures,
+          visionCheck: unified.visionCheck,
+          dimensionReasons: unified.dimensionReasons,
+          reasonSource: unified.reasonSource,
+          upstreamStatus: upstream.status,
+          westernSource: 'normal'
+        }));
       }
 
-      // 规范化 candidateScores
-      var cs = [];
-      if (Array.isArray(parsed.candidateScores)) cs = parsed.candidateScores.slice();
-      else if (parsed.candidateScores && typeof parsed.candidateScores === 'object') {
-        cs = Object.keys(parsed.candidateScores).map(function (k) { return { sampleId: k, score: Number(parsed.candidateScores[k]) || 0 }; });
+      // ★ 2. 解析失败 / 字段缺失 → 公共修复流水线（先从自然语言提取 Wxx，再走理由补全）
+      console.warn('[WESTERN_API] first parse incomplete · entering common pipeline');
+      const repaired = await classifyPipeline.parseAndRepairClassification({
+        system: 'western',
+        upstreamText: txt,
+        visualSummary: vc,
+        sampleGlossary: (westernGlossary || []).map(function (g) { return { sampleId: g.sampleId, sampleName: g.sampleName, subtitle: g.subtitle }; }),
+        proxyAI: proxyAI,
+        model: AI_MODEL,
+        logTag: '[WESTERN_REPAIR]',
+        extractModelText: extractModelText
+      });
+      if (!repaired || !repaired.sampleId) {
+        console.error('[WESTERN_API] repair pipeline returned no sampleId');
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({
+          ok: false,
+          source: 'error',
+          error: 'upstream-parse-failed',
+          upstreamStatus: upstream.status,
+          upstreamMessage: '模型返回格式异常 · 请重新分析'
+        }));
       }
-      if (!cs.length && Array.isArray(parsed.topCandidates)) cs = parsed.topCandidates.map(function (c) { return { sampleId: c.sampleId, score: Number(c.score) || 0 }; });
-      if (!cs.length && Array.isArray(parsed.candidates)) cs = parsed.candidates.map(function (c) { return { sampleId: c.sampleId, score: Number(c.score) || 0 }; });
-      cs.sort(function (a, b) { return (b.score || 0) - (a.score || 0); });
-      console.log('[WESTERN_MATCH] top1', (cs[0] && cs[0].sampleId) || '-', (cs[0] && cs[0].score) || 0);
-      console.log('[WESTERN_MATCH] top2', (cs[1] && cs[1].sampleId) || '-', (cs[1] && cs[1].score) || 0);
-      console.log('[WESTERN_MATCH] top3', (cs[2] && cs[2].sampleId) || '-', (cs[2] && cs[2].score) || 0);
-      var margin = ((cs[0] && cs[0].score) || 0) - ((cs[1] && cs[1].score) || 0);
-      console.log('[WESTERN_MATCH] margin', margin.toFixed(3));
-
-      var confidence = ['low','medium','high'].indexOf(parsed.confidence) >= 0 ? parsed.confidence : 'medium';
-      if (margin < 0.08 && confidence === 'high') confidence = 'medium';
-      if (margin < 0.05) confidence = 'low';
-
-      // 兼容 shortReason / finalReason / topCandidates.rationale / candidates.rationale
-      var shortReason = typeof parsed.shortReason === 'string' && parsed.shortReason.length > 0 ? parsed.shortReason : null;
-      if (!shortReason && typeof parsed.finalReason === 'string' && parsed.finalReason.length > 0) shortReason = parsed.finalReason;
-      if (!shortReason && Array.isArray(parsed.topCandidates) && parsed.topCandidates[0] && parsed.topCandidates[0].rationale) shortReason = parsed.topCandidates[0].rationale;
-      if (!shortReason && Array.isArray(parsed.candidates) && parsed.candidates[0] && parsed.candidates[0].rationale) shortReason = parsed.candidates[0].rationale;
-      if (!shortReason) shortReason = '视觉匹配 · 候选 ' + sampleId;
-
-      var matchedFeatures = Array.isArray(parsed.matchedFeatures) && parsed.matchedFeatures.length >= 2 ? parsed.matchedFeatures.slice(0, 4) : [];
-      if (!matchedFeatures.length && Array.isArray(parsed.topCandidates)) matchedFeatures = parsed.topCandidates.slice(0, 4).map(function (c) { return c.rationale || c.sampleId; }).filter(Boolean);
-      if (!matchedFeatures.length && Array.isArray(parsed.candidates)) matchedFeatures = parsed.candidates.slice(0, 4).map(function (c) { return c.rationale || c.sampleId; }).filter(Boolean);
-      if (!matchedFeatures.length) matchedFeatures = ['视觉匹配', '视觉特征比对'];
-
-      // ★ 6 维度 AI 判定原因（dimensionReasons）· 缺则降级为 '—' 但仍下发（前端会兜底 sample 自带 reason）
-      var dimReasons = (parsed.dimensionReasons && typeof parsed.dimensionReasons === 'object') ? parsed.dimensionReasons : {};
-      var normalizedDimReasons = {
-        status:      (typeof dimReasons.status      === 'string' && dimReasons.status.trim())      ? dimReasons.status.trim()      : '',
-        temperament: (typeof dimReasons.temperament === 'string' && dimReasons.temperament.trim()) ? dimReasons.temperament.trim() : '',
-        power:       (typeof dimReasons.power       === 'string' && dimReasons.power.trim())       ? dimReasons.power.trim()       : '',
-        body:        (typeof dimReasons.body        === 'string' && dimReasons.body.trim())        ? dimReasons.body.trim()        : '',
-        role:        (typeof dimReasons.role        === 'string' && dimReasons.role.trim())        ? dimReasons.role.trim()        : '',
-        risk:        (typeof dimReasons.risk        === 'string' && dimReasons.risk.trim())        ? dimReasons.risk.trim()        : ''
-      };
-      var dimReasonCount = [normalizedDimReasons.status, normalizedDimReasons.temperament, normalizedDimReasons.power, normalizedDimReasons.body, normalizedDimReasons.role, normalizedDimReasons.risk].filter(function (s) { return s.length > 0; }).length;
-      console.log('[WESTERN_DIM_REASONS] provided by AI:', dimReasonCount + '/6');
-
-      const aiPayload = {
-        sampleId: sampleId,
-        confidence: confidence,
-        shortReason: shortReason,
-        matchedFeatures: matchedFeatures,
-        visionCheck: vc,
-        dimensionReasons: normalizedDimReasons
-      };
-      console.log('[WESTERN_API] SUCCESS · sampleId =', aiPayload.sampleId, '· hasFace =', vc.hasFace, '· glasses =', vc.wearingGlasses, '· confidence =', confidence);
+      repaired.visionCheck = vc;
+      repaired.matchedFeatures = Array.isArray(repaired.matchedFeatures) ? repaired.matchedFeatures.slice(0, 4) : [];
+      // ★ 区分修复来源：reasonSource='reason-completion' / 'sample-fallback'
+      const dimCount2 = classifyPipeline.countNonEmptyDimensionReasons(repaired.dimensionReasons);
+      const westernSourceTag = (repaired.reasonSource === 'reason-completion') ? 'repair' : ((repaired.reasonSource === 'sample-fallback') ? 'repair-text-fallback' : 'text-fallback');
+      console.log('[WESTERN_API] SUCCESS · sampleId =', repaired.sampleId, '· reasonSource =', repaired.reasonSource, '· dimReasons =', dimCount2 + '/6 · westernSource =', westernSourceTag);
       res.statusCode = 200;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       return res.end(JSON.stringify({
         ok: true,
         source: 'ai',
-        result: aiPayload,
-        upstreamStatus: upstream.status
+        system: 'western',
+        sampleId: repaired.sampleId,
+        confidence: repaired.confidence,
+        shortReason: repaired.shortReason,
+        matchedFeatures: repaired.matchedFeatures,
+        visionCheck: repaired.visionCheck,
+        dimensionReasons: repaired.dimensionReasons,
+        reasonSource: repaired.reasonSource,
+        upstreamStatus: upstream.status,
+        westernSource: westernSourceTag
       }));
     });
     return;

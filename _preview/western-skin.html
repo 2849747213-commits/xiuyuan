@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -19,8 +19,22 @@
   B. 不做大排重排 / 不更换风格 / 不删历史图 / 内部滚动保持
 
   详细历史与禁止清单见 WESTERN_LOCK_NOTE.md。
+  ★ WESTERN BUILD: 2026-07-30-r6 · 双栏布局（档案 + ARCHIVE FUSION 融合模块） + 修复 W05 19_phrenology 404
   ====================================================================
 -->
+<!-- ★ BUILD MARKER · 任何缓存/CDN 都不要错位引用本文件 -->
+<script>
+  (function () {
+    try {
+      var buildId = 'WESTERN-2026-07-30-r6';
+      var file = '_preview/western-skin.html?v=4';
+      window.__WESTERN_BUILD_ID = buildId;
+      window.__WESTERN_RUNTIME_FILE = file;
+      console.log('[RUNTIME_FILE] western result page = ' + file);
+      console.log('[RUNTIME_BUILD] build id = ' + buildId);
+    } catch (e) {}
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;700&family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
@@ -534,6 +548,268 @@
   @media (max-width: 560px) {
     .fs-strip__cell { width: 100%; }
   }
+
+  /* ==================== 西方结果页 · 双栏布局（档案 + 融合） ==================== */
+  .western-result-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 36%);
+    gap: 22px;
+    align-items: start;
+    padding: 0 0 8px;
+  }
+  .western-archive-column {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .western-fusion-column {
+    min-width: 0;
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  /* 6 宫格在双栏内保持 2×3 */
+  .western-archive-column .grid-section {
+    margin-bottom: 0;
+  }
+  @media (max-width: 960px) {
+    .western-result-grid {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    .western-fusion-column {
+      position: static;
+    }
+  }
+  /* 融合模块在右栏内的紧凑样式 */
+  .western-fusion-column .wf-module {
+    margin: 0 0 8px;
+  }
+
+  /* ==================== ARCHIVE FUSION · 西方历史相貌学融合像 ==================== */
+  .wf-module {
+    margin: 18px 0 8px;
+    padding: 16px 18px 14px;
+    border: 1px solid var(--ink-black);
+    background: rgba(246, 241, 228, 0.92);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    color: var(--ink-black);
+  }
+  .wf-module::before {
+    content: "▌ ARCHIVE FUSION";
+    position: absolute;
+    top: -1px; left: -1px;
+    background: var(--ink-black);
+    color: var(--paper);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    padding: 3px 8px;
+    font-weight: 700;
+  }
+  .wf-module__head {
+    display: flex; align-items: baseline; gap: 8px; margin-top: 8px;
+  }
+  .wf-module__title {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    letter-spacing: 3px;
+    color: var(--ink-black);
+    font-weight: 700;
+  }
+  .wf-module__sub {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--ink-gray);
+    letter-spacing: 1px;
+    flex: 1;
+    text-align: right;
+  }
+  .wf-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    max-height: 430px;
+    margin: 0 auto;
+    border: 1.5px solid var(--ink-black);
+    background: var(--paper-inside);
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  .wf-frame img {
+    display: none;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center center;
+    background: #1a1a1a;
+  }
+  .wf-frame img[src] { display: block; }
+  .wf-frame .wf-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: var(--ink-gray);
+    text-align: center;
+    padding: 12px;
+  }
+  .wf-frame .wf-placeholder .ph-icon {
+    font-family: var(--font-serif);
+    font-size: 36px;
+    color: var(--archive-blue);
+    letter-spacing: 6px;
+    font-weight: 700;
+  }
+  .wf-frame .wf-placeholder .ph-text {
+    font-family: var(--font-serif);
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--ink-deep);
+  }
+  .wf-frame .wf-placeholder .ph-hint {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 1.5px;
+    color: var(--ink-gray);
+    text-transform: uppercase;
+    margin-top: 4px;
+    font-weight: 600;
+  }
+  .wf-frame .wf-loading {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(238, 232, 216, 0.92);
+    backdrop-filter: blur(1px);
+  }
+  .wf-frame.is-loading .wf-loading { display: flex; }
+  .wf-frame.is-loading img,
+  .wf-frame.is-loading .wf-placeholder { display: none; }
+  .wf-frame .wf-loading .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--archive-blue);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: wf-spin 0.9s linear infinite;
+  }
+  @keyframes wf-spin { to { transform: rotate(360deg); } }
+  .wf-frame .wf-loading .ll-text {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-black);
+    letter-spacing: 2px;
+    font-weight: 600;
+  }
+  .wf-frame .wf-error {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: rgba(246, 241, 228, 0.95);
+    padding: 14px;
+    text-align: center;
+  }
+  .wf-frame.is-error .wf-error { display: flex; }
+  .wf-frame.is-error img,
+  .wf-frame.is-error .wf-placeholder,
+  .wf-frame.is-error .wf-loading { display: none; }
+  .wf-frame .wf-error .err-title {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    color: var(--ink-red);
+    letter-spacing: 3px;
+    font-weight: 700;
+  }
+  .wf-frame .wf-error .err-msg {
+    font-family: var(--font-serif);
+    font-size: 11.5px;
+    color: var(--ink-deep);
+    line-height: 1.55;
+  }
+  .wf-status {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-gray);
+    letter-spacing: 0.5px;
+    line-height: 1.5;
+    min-height: 14px;
+  }
+  .wf-status.is-active { color: var(--archive-blue); }
+  .wf-actions { display: flex; gap: 6px; }
+  .wf-btn {
+    flex: 1;
+    padding: 10px 8px;
+    background: var(--ink-black);
+    color: var(--paper);
+    border: 1.5px solid var(--ink-black);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  .wf-btn:hover { background: var(--archive-blue); border-color: var(--archive-blue); }
+  .wf-btn:disabled {
+    background: var(--ink-gray);
+    border-color: var(--ink-gray);
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  .wf-btn.retry { background: var(--archive-blue); }
+  .wf-btn.retry:hover { background: var(--ink-black); }
+  .wf-actions.is-retry .wf-btn.primary { display: none; }
+  .wf-actions:not(.is-retry) .wf-btn.retry { display: none; }
+  .wf-meta {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--ink-gray);
+    letter-spacing: 0.5px;
+    display: none;
+  }
+  .wf-module.has-image .wf-meta { display: block; }
+  .wf-module.has-image::before {
+    content: "▌ ARCHIVE FUSION · GENERATED";
+    background: #1a3a5c;
+  }
+
+  /* ★ 融合生成成功状态 · 彻底隐藏所有 placeholder/loading */
+  .wf-frame.has-image .wf-placeholder,
+  .wf-frame.has-image .wf-loading,
+  .wf-frame.has-image .wf-error,
+  .wf-frame.has-image .ph-icon {
+    display: none !important;
+  }
+  .wf-frame.has-image img,
+  .wf-frame.has-image img[src] {
+    display: block !important;
+  }
+  #westernFusionPanel.is-generated .wf-placeholder,
+  #westernFusionPanel.is-generated .wf-loading,
+  #westernFusionPanel.is-generated .wf-error,
+  #westernFusionPanel.is-generated .ph-icon {
+    display: none !important;
+  }
+  #westernFusionPanel.is-generated #westernFusionImage {
+    display: block !important;
+  }
 </style>
 </head>
 
@@ -574,6 +850,10 @@
             <div class="sub">MODE › 西方面学 · Western Physiognomic Archive · 9-axis classification</div>
             <div class="verdict-stamp">颅骨地图脸</div>
           </div>
+
+          <!-- ★ 双栏布局：左侧档案 + 右侧 ARCHIVE FUSION 融合模块 -->
+          <div class="western-result-grid">
+            <section class="western-archive-column">
 
           <!-- 3. 档案图廊 · 真图素材（3 列） -->
           <div class="archive-strip">
@@ -662,6 +942,41 @@
             </div>
           </div>
 
+            </section><!-- /western-archive-column -->
+
+            <aside class="western-fusion-column">
+          <!-- ★ ARCHIVE FUSION · 西方历史相貌学融合像模块（侧栏固定比例肖像卡） -->
+          <div class="wf-module" id="westernFusionPanel" data-fusion-state="idle" data-system="western" data-build="WESTERN-2026-07-30-r6">
+            <div class="wf-module__head">
+              <span class="wf-module__title">历史融合像</span>
+              <span class="wf-module__sub" id="westernFusionSub">当前帧 × Wxx 西方历史档案 · ARCHIVE FUSION</span>
+            </div>
+            <div class="wf-frame" id="westernFusionFrame">
+              <img id="westernFusionImage" alt="历史融合像" />
+              <div class="wf-placeholder" id="westernFusionPlaceholder">
+                <div class="ph-icon">合</div>
+                <div class="ph-text">将当前面孔写入 AI 选中的西方历史相貌学档案</div>
+                <div class="ph-hint">ARCHIVE FUSION · CLICK TO GENERATE</div>
+              </div>
+              <div class="wf-loading">
+                <div class="spinner"></div>
+                <div class="ll-text" id="westernFusionLoadingText">正在读取当前帧</div>
+              </div>
+              <div class="wf-error">
+                <div class="err-title" id="westernFusionErrorTitle">生成失败</div>
+                <div class="err-msg" id="westernFusionErrorMsg">融合服务暂时没有返回有效图片。</div>
+              </div>
+            </div>
+            <div class="wf-status" id="westernFusionStatus">未启动 · 等待用户点击生成</div>
+            <div class="wf-actions" id="westernFusionActions">
+              <button class="wf-btn primary" id="westernFusionButton" type="button">生成历史合成像</button>
+              <button class="wf-btn retry" id="westernFusionRetry" type="button">重新生成</button>
+            </div>
+            <div class="wf-meta" id="westernFusionMeta"></div>
+          </div>
+            </aside><!-- /western-fusion-column -->
+          </div><!-- /western-result-grid -->
+
           <!-- 6. 底部证据链 / 警示 / 按钮 -->
           <div class="bottom">
             <div class="info">
@@ -681,11 +996,11 @@
               <div class="fs-strip__sub">系统将 19 世纪颅相学图谱转化为「颅骨地图化 / 脑区想象 / cranial archive」的参照样本。</div>
               <div class="fs-strip__row">
                 <div class="fs-strip__cell">
-                  <img class="fs-strip__img" src="../assets/sample-library/western/W05_19_phrenology_main.jpg" alt="WS-01 颅相学头部图谱 / 颅骨地图样本" onerror="this.style.display='none'" />
+                  <img class="fs-strip__img" src="../assets/sample-library/western/normalized/W05/W05_sample_main.jpg" alt="WS-01 颅相学头部图谱 / 颅骨地图样本" onerror="this.style.display='none'" />
                   <div class="fs-strip__cap"><b>WS-01</b>颅相学头部图谱 / 颅骨地图样本</div>
                 </div>
                 <div class="fs-strip__cell">
-                  <img class="fs-strip__img" src="../assets/sample-library/western/W05_19_phrenology_alt.jpg" alt="WS-02 相貌测量参照样本" onerror="this.style.display='none'" />
+                  <img class="fs-strip__img" src="../assets/sample-library/western/normalized/W05/W05_sample_alt.jpg" alt="WS-02 相貌测量参照样本" onerror="this.style.display='none'" />
                   <div class="fs-strip__cap"><b>WS-02</b>相貌测量参照样本</div>
                 </div>
               </div>
@@ -819,6 +1134,9 @@
         applied++;
       });
       console.log('[WESTERN_AIR] applied ' + applied + '/6 AI reasons for', sid);
+      // ★ 输出结果页 reasonSource 日志（与 ancient / modern 一致）
+      var _wSource = (aiDR && aiDR.reasonSource) ? aiDR.reasonSource : 'ai-personalized';
+      console.log('[WESTERN_REASON_RENDER] source=' + _wSource + ' · count=' + applied + '/6');
     };
 
     // ★ LOCKED UI 自带的 fs-strip：只隐藏不替换（避免与下方 4 张图 ARCHIVE EVIDENCE STRIP 重复）
@@ -874,7 +1192,7 @@
       .catch(function (e) { console.error('[WESTERN] evidence strip fail', e); });
 
     // ★ 初始化完成后自动拉 parent.SPA.LAST_WESTERN_AIREASONS · 用 AI 写的 6 reason 覆盖 sample reason
-    // - pipeline 在 showResultOverlay 之前已经把 aiResult.dimensionReasons 存到 parent.SPA
+    // - pipeline 在 showResultOverlay 之前已经把 aiResult.dimensionReasons + reasonSource 存到 parent.SPA
     // - 短延迟（250ms）让数据先稳定 · 找不到就放弃（保持 sample reason 不动）
     setTimeout(function () {
       try {
@@ -884,10 +1202,403 @@
           return;
         }
         if (typeof window.applyWesternAIR === 'function') {
+          // ★ aiDR 里已经含 reasonSource（pipeline 注入）· applyWesternAIR 内部会读
           window.applyWesternAIR(parentSPA.LAST_WESTERN_AIREASONS);
         }
       } catch (e) { console.warn('[WESTERN_AIR] auto-pull err', e); }
     }, 250);
+
+    // ★ ARCHIVE FUSION 初始化：把当前用户帧 + AI 选出的 Wxx 注入到融合模块
+    try {
+      setTimeout(function () {
+        var snap = (window.parent && window.parent.__lockedSnapshot) || null;
+        var userImage = (snap && snap.dataUrl) || (window.parent && window.parent.capturedFrameDataUrl) || window.__lastLockedUserImage || '';
+        var aiSampleId = (window.parent && window.parent.SPA && window.parent.SPA.LAST_WESTERN_RESULT && window.parent.SPA.LAST_WESTERN_RESULT.sampleId) || sid;
+        // ★ 动态替换 sub 标题（Wxx 必须用 AI 真实返回的编号）
+        try {
+          var subEl = document.getElementById('westernFusionSub');
+          if (subEl) {
+            subEl.textContent = '当前帧 × ' + (aiSampleId || 'Wxx') + ' ' + (sample.sampleName || '西方历史档案') + ' · ARCHIVE FUSION';
+          }
+        } catch (e) {}
+        if (typeof window.initWesternFusion === 'function') {
+          window.initWesternFusion({
+            sampleId: aiSampleId,
+            sampleName: sample.sampleName || '',
+            userImage: userImage
+          });
+          console.log('[WESTERN_FUSION] init from IIFE · sampleId=' + aiSampleId + ' · userImage bytes=' + (userImage || '').length);
+        }
+      }, 300);
+    } catch (e) { console.warn('[WESTERN_FUSION] init from IIFE err', e && e.message); }
+  })();
+  </script>
+
+  <!-- ============================================================
+       ★ 西方历史融合像 · 独立模块（与 ancient/modern fusion 同形态）
+       - 父页面通过 initWesternFusion({ sampleId, sampleName, userImage }) 初始化
+       - 点击 #westernFusionButton → POST /api/fusion/western
+       - 90 秒超时
+       ============================================================ -->
+  <script>
+  (function () {
+    var FUSION_LOADING_TEXTS = [
+      '正在读取当前帧',
+      '正在调取西方历史档案',
+      '正在重写历史相貌',
+      '正在生成历史合成像'
+    ];
+    var FUSION_TIMEOUT_MS = 90 * 1000;
+    var FUSION_TEXT_ROTATE_MS = 1800;
+
+    var fusionState = {
+      sampleId: '',
+      sampleName: '',
+      userImage: '',
+      requestId: '',
+      generatedUrl: '',
+      generatedAt: 0,
+      loading: false,
+      timer: null,
+      textTimer: null
+    };
+
+    function el(id) { return document.getElementById(id); }
+
+    function setFusionStatus(text, isActive) {
+      var n = el('westernFusionStatus');
+      if (!n) return;
+      n.textContent = text || '';
+      if (isActive) n.classList.add('is-active');
+      else n.classList.remove('is-active');
+    }
+
+    function setFusionStateAttr(state) {
+      var p = el('westernFusionPanel');
+      if (p) p.setAttribute('data-fusion-state', state);
+    }
+
+    function clearFusionTimers() {
+      if (fusionState.timer) { clearTimeout(fusionState.timer); fusionState.timer = null; }
+      if (fusionState.textTimer) { clearInterval(fusionState.textTimer); fusionState.textTimer = null; }
+    }
+
+    function showFusionError(title, msg) {
+      var frame = el('westernFusionFrame');
+      var t = el('westernFusionErrorTitle');
+      var m = el('westernFusionErrorMsg');
+      if (t && title) t.textContent = title;
+      if (m && msg) m.textContent = msg;
+      if (frame) { frame.classList.remove('is-loading'); frame.classList.add('is-error'); }
+      var actions = el('westernFusionActions');
+      if (actions) actions.classList.add('is-retry');
+      var btn = el('westernFusionButton');
+      if (btn) { btn.disabled = false; btn.textContent = '生成历史合成像'; }
+      var retry = el('westernFusionRetry');
+      if (retry) retry.disabled = false;
+      setFusionStateAttr('error');
+    }
+
+    function showFusionIdle() {
+      var frame = el('westernFusionFrame');
+      if (frame) { frame.classList.remove('is-loading'); frame.classList.remove('is-error'); }
+      var actions = el('westernFusionActions');
+      if (actions) actions.classList.remove('is-retry');
+      var btn = el('westernFusionButton');
+      if (btn) btn.disabled = false;
+      var retry = el('westernFusionRetry');
+      if (retry) retry.disabled = false;
+      setFusionStateAttr('idle');
+    }
+
+    function startFusionLoadingTextRotation() {
+      var n = el('westernFusionLoadingText');
+      if (!n) return;
+      var idx = 0;
+      n.textContent = FUSION_LOADING_TEXTS[0];
+      fusionState.textTimer = setInterval(function () {
+        idx = (idx + 1) % FUSION_LOADING_TEXTS.length;
+        n.textContent = FUSION_LOADING_TEXTS[idx];
+      }, FUSION_TEXT_ROTATE_MS);
+    }
+
+    function makeRequestId(sampleId) {
+      return 'wfusion_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '_' + (sampleId || 'W00');
+    }
+
+    function buildFusionEndpoint() {
+      var origin = (window.location && window.location.origin) || '';
+      if (origin) return origin + '/api/fusion/western';
+      return '/api/fusion/western';
+    }
+
+    function isValidDataUrl(s) {
+      if (typeof s !== 'string') return false;
+      return /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]{200,}$/i.test(s);
+    }
+
+    function renderFusionImage(url) {
+      var img = el('westernFusionImage');
+      var frame = el('westernFusionFrame');
+      var meta = el('westernFusionMeta');
+      var module = el('westernFusionPanel');
+      var placeholder = el('westernFusionPlaceholder');
+      if (!img || !frame) return;
+      if (!url) { console.warn('[WESTERN_FUSION] renderFusionImage · invalid url, skip'); return; }
+      if (fusionState.generatedUrl === url && img.src && img.src.indexOf(url) >= 0) return;
+      if (placeholder) {
+        placeholder.hidden = true;
+        placeholder.style.display = 'none';
+        placeholder.style.visibility = 'hidden';
+        placeholder.setAttribute('aria-hidden', 'true');
+      }
+      img.hidden = false;
+      img.style.display = 'block';
+      img.style.visibility = 'visible';
+      if (module) { module.classList.add('has-image'); module.classList.add('is-generated'); }
+      frame.classList.add('has-image');
+      frame.classList.remove('is-loading');
+      frame.classList.remove('is-error');
+      setFusionStateAttr('done');
+      console.log('[WESTERN_FUSION] hide placeholder · show image · panel classes=' + (module ? module.className : '-'));
+
+      img.onload = function () {
+        frame.classList.remove('is-loading');
+        frame.classList.remove('is-error');
+        setFusionStateAttr('done');
+        if (module) { module.classList.add('has-image'); module.classList.add('is-generated'); }
+        if (placeholder) { placeholder.hidden = true; placeholder.style.display = 'none'; }
+        console.log('[WESTERN_FUSION] image loaded · placeholder hidden (onload)');
+      };
+      img.onerror = function () {
+        console.error('[WESTERN_FUSION] img.onerror · url-head=' + (url || '').slice(0, 40));
+        frame.classList.remove('has-image');
+        if (module) { module.classList.remove('has-image'); module.classList.remove('is-generated'); }
+        showFusionError('图像加载失败', '图片资源无法在浏览器中加载。');
+      };
+      img.src = url;
+      if (meta) {
+        meta.textContent = 'requestId=' + (fusionState.requestId || '-') +
+          ' · sampleId=' + (fusionState.sampleId || '-') +
+          ' · ' + (fusionState.sampleName || '');
+      }
+    }
+
+    function callFusionAPI() {
+      var endpoint = buildFusionEndpoint();
+      var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+      var body = {
+        sampleId: fusionState.sampleId,
+        userImage: fusionState.userImage,
+        requestId: fusionState.requestId
+      };
+      console.log('[WESTERN_FUSION] request start · sampleId=' + fusionState.sampleId + ' · bytes=' + (fusionState.userImage || '').length + ' · endpoint=' + endpoint);
+      var p = fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: ctrl ? ctrl.signal : undefined
+      });
+      var timer = setTimeout(function () {
+        if (ctrl) { try { ctrl.abort(); } catch (e) {} }
+        console.warn('[WESTERN_FUSION] request timeout · ' + (FUSION_TIMEOUT_MS / 1000) + 's');
+        showFusionError('生成超时', '融合服务未在 ' + (FUSION_TIMEOUT_MS / 1000) + ' 秒内返回，请重试。');
+        fusionState.loading = false;
+      }, FUSION_TIMEOUT_MS);
+      return p.then(function (resp) {
+        clearTimeout(timer);
+        console.log('[WESTERN_FUSION] response status ' + resp.status + ' · content-type=' + (resp.headers.get('content-type') || ''));
+        return resp.text().then(function (text) {
+          var data = null;
+          try { data = JSON.parse(text); } catch (e) {
+            console.error('[WESTERN_FUSION] response not JSON:', (text || '').slice(0, 200));
+            showFusionError('服务响应异常', '融合服务返回了非 JSON 数据。');
+            fusionState.loading = false;
+            return null;
+          }
+          if (!data) return null;
+          if (data.ok && (data.imageUrl || data.imageDataUrl)) {
+            var url = data.imageDataUrl || data.imageUrl;
+            console.log('[WESTERN_FUSION] image received · source=' + data.source + ' · bytes=' + (data.imageDataUrl ? data.imageDataUrl.length : (data.imageUrl ? data.imageUrl.length : 0)));
+            fusionState.generatedUrl = url;
+            fusionState.generatedAt = Date.now();
+            renderFusionImage(url);
+            setFusionStatus('生成成功 · ' + (data.sampleName || fusionState.sampleName || ''), false);
+            var btn = el('westernFusionButton');
+            if (btn) btn.disabled = true;
+            var actions = el('westernFusionActions');
+            if (actions) actions.classList.remove('is-retry');
+            return data;
+          }
+          var code = data.error || 'unknown';
+          var msg = data.message || '融合服务暂时没有返回有效图片。';
+          console.error('[WESTERN_FUSION] error code=' + code + ' · message=' + msg);
+          if (code === 'image-provider-not-configured') {
+            showFusionError('融合生成服务尚未配置', '当前分类结果仍可正常查看。');
+          } else if (code === 'image-provider-timeout') {
+            showFusionError('融合服务超时', '请求供应商超时，请稍后重试。');
+          } else if (code === 'image-provider-rejected' || code === 'image-provider-unauthorized' || code === 'image-provider-rate-limit') {
+            showFusionError('融合服务被拒绝', '供应商未接受此请求（可能为敏感内容或限流）。');
+          } else if (code === 'image-generation-failed' || code === 'invalid-image-response') {
+            showFusionError('生成失败', '融合服务暂时没有返回有效图片。');
+          } else if (code === 'invalid-sample-id') {
+            showFusionError('样本编号错误', '系统选中的西方历史档案编号不在 W01-W14 范围。');
+          } else if (code === 'invalid-user-image' || code === 'missing-user-image') {
+            showFusionError('当前帧不可用', '请返回摄像头重新采集。');
+          } else if (code === 'payload-too-large') {
+            showFusionError('请求过大', '请压缩当前帧后重试。');
+          } else if (code === 'sample-image-not-found') {
+            showFusionError('样本主图缺失', '该 Wxx 样本在服务器端没有主图，请检查 assets。');
+          } else {
+            showFusionError('生成失败', '[' + code + '] ' + msg);
+          }
+          return null;
+        });
+      }).catch(function (err) {
+        clearTimeout(timer);
+        var name = (err && err.name) || '';
+        if (name === 'AbortError') return null;
+        console.error('[WESTERN_FUSION] network error:', err && (err.message || err));
+        showFusionError('网络错误', '无法连接到融合服务，请检查网络后重试。');
+        return null;
+      }).then(function (v) {
+        fusionState.loading = false;
+        return v;
+      });
+    }
+
+    function doGenerate() {
+      console.log('[WESTERN_FUSION] button click · sampleId=' + (fusionState.sampleId || '(empty)') + ' · userImage bytes=' + ((fusionState.userImage || '').length || 0));
+      if (fusionState.loading) { console.log('[WESTERN_FUSION] already loading · ignore re-click'); return; }
+      if (!fusionState.sampleId || !/^W(0[1-9]|1[0-4])$/.test(fusionState.sampleId)) {
+        console.warn('[WESTERN_FUSION] request start blocked · invalid sampleId=' + fusionState.sampleId);
+        showFusionError('样本编号缺失', '系统未提供有效的 W01-W14 样本编号。');
+        return;
+      }
+      if (!isValidDataUrl(fusionState.userImage)) {
+        console.warn('[WESTERN_FUSION] request start blocked · invalid userImage dataUrl');
+        showFusionError('当前帧缺失', '未拿到本轮摄像头截图，请返回摄像头重新采集。');
+        return;
+      }
+      if (fusionState.generatedUrl && (Date.now() - fusionState.generatedAt) < 30 * 60 * 1000) {
+        console.log('[WESTERN_FUSION] already generated in this session · skip');
+        renderFusionImage(fusionState.generatedUrl);
+        return;
+      }
+
+      console.log('[WESTERN_FUSION] request start · sampleId=' + fusionState.sampleId + ' · userImage bytes=' + (fusionState.userImage || '').length);
+      fusionState.requestId = makeRequestId(fusionState.sampleId);
+      fusionState.loading = true;
+      var btn = el('westernFusionButton');
+      if (btn) btn.disabled = true;
+      var retry = el('westernFusionRetry');
+      if (retry) retry.disabled = true;
+      var frame = el('westernFusionFrame');
+      if (frame) { frame.classList.remove('is-error'); frame.classList.add('is-loading'); }
+      setFusionStatus('正在生成 · 预计 30-60 秒', true);
+      startFusionLoadingTextRotation();
+      setFusionStateAttr('loading');
+      callFusionAPI();
+    }
+
+    window.initWesternFusion = function (opts) {
+      opts = opts || {};
+      console.log('[WESTERN_FUSION] init · sampleId=' + opts.sampleId + ' · sampleName=' + opts.sampleName + ' · userImage bytes=' + ((opts.userImage || '').length || 0));
+      clearFusionTimers();
+      var img = el('westernFusionImage');
+      if (img) { img.removeAttribute('src'); }
+      var frame = el('westernFusionFrame');
+      if (frame) { frame.classList.remove('is-loading'); frame.classList.remove('is-error'); }
+      var module = el('westernFusionPanel');
+      if (module) module.classList.remove('has-image');
+      var meta = el('westernFusionMeta');
+      if (meta) meta.textContent = '';
+
+      fusionState.sampleId = opts.sampleId || '';
+      fusionState.sampleName = opts.sampleName || '';
+      fusionState.userImage = opts.userImage || '';
+      fusionState.generatedUrl = '';
+      fusionState.generatedAt = 0;
+      fusionState.loading = false;
+      fusionState.requestId = '';
+
+      if (!fusionState.sampleId || !/^W(0[1-9]|1[0-4])$/.test(fusionState.sampleId)) {
+        showFusionError('样本编号缺失', '系统未提供有效的 W01-W14 样本编号。');
+        return;
+      }
+      if (!isValidDataUrl(fusionState.userImage)) {
+        showFusionError('当前帧缺失', '未拿到本轮摄像头截图，请返回摄像头重新采集。');
+        return;
+      }
+
+      // 绑定按钮（一次性）
+      var btn = el('westernFusionButton');
+      if (btn && !btn.__westernFusionBound) {
+        btn.addEventListener('click', doGenerate);
+        btn.__westernFusionBound = true;
+        console.log('[WESTERN_FUSION] button bound · #westernFusionButton');
+        btn.style.position = 'relative';
+        btn.style.zIndex = '10';
+        btn.style.pointerEvents = 'auto';
+      } else if (btn) {
+        console.log('[WESTERN_FUSION] button already bound · skip');
+      } else {
+        console.warn('[WESTERN_FUSION] button #westernFusionButton NOT FOUND');
+      }
+      var retry = el('westernFusionRetry');
+      if (retry && !retry.__westernFusionBound) {
+        retry.addEventListener('click', doGenerate);
+        retry.__westernFusionBound = true;
+        retry.style.position = 'relative';
+        retry.style.zIndex = '10';
+        retry.style.pointerEvents = 'auto';
+      }
+
+      showFusionIdle();
+      setFusionStatus('未启动 · sample=' + fusionState.sampleId + ' · ' + fusionState.sampleName, false);
+    };
+
+    window.resetWesternFusion = function () {
+      console.log('[WESTERN_FUSION] reset');
+      clearFusionTimers();
+      var img = el('westernFusionImage');
+      if (img) img.removeAttribute('src');
+      var frame = el('westernFusionFrame');
+      if (frame) { frame.classList.remove('is-loading'); frame.classList.remove('is-error'); }
+      var module = el('westernFusionPanel');
+      if (module) module.classList.remove('has-image');
+      var meta = el('westernFusionMeta');
+      if (meta) meta.textContent = '';
+      var status = el('westernFusionStatus');
+      if (status) { status.textContent = '未启动 · 等待用户点击生成'; status.classList.remove('is-active'); }
+      var actions = el('westernFusionActions');
+      if (actions) actions.classList.remove('is-retry');
+      var btn = el('westernFusionButton');
+      if (btn) btn.disabled = false;
+      var retry = el('westernFusionRetry');
+      if (retry) retry.disabled = false;
+      fusionState.sampleId = '';
+      fusionState.sampleName = '';
+      fusionState.userImage = '';
+      fusionState.requestId = '';
+      fusionState.generatedUrl = '';
+      fusionState.generatedAt = 0;
+      fusionState.loading = false;
+      setFusionStateAttr('idle');
+    };
+
+    // postMessage 兼容
+    window.addEventListener('message', function (ev) {
+      var d = ev.data;
+      if (!d || typeof d !== 'object') return;
+      if (d.type === 'INIT_WESTERN_FUSION' && typeof window.initWesternFusion === 'function') {
+        try { window.initWesternFusion(d.payload || {}); } catch (e) { console.warn('[WESTERN_FUSION] postMessage init err', e && e.message); }
+      } else if (d.type === 'RESET_WESTERN_FUSION' && typeof window.resetWesternFusion === 'function') {
+        try { window.resetWesternFusion(); } catch (e) {}
+      }
+    });
+
+    console.log('[WESTERN_FUSION] module script ready · build=WESTERN-2026-07-30-r6');
   })();
   </script>
 </body>

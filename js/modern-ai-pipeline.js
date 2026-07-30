@@ -33,6 +33,13 @@
     var sample = getModernSampleById(sampleId);
     if (!sample) throw new Error('[MODERN_VIEW_MODEL] unknown sample ' + sampleId);
 
+    // ★ AI 给的 6 维度判定原因 · 优先使用 · 缺则降级 sample 自带 reason
+    var aiDR = (aiResult.dimensionReasons && typeof aiResult.dimensionReasons === 'object') ? aiResult.dimensionReasons : {};
+    function pickReason(aiText, fallback) {
+      if (typeof aiText === 'string' && aiText.trim().length >= 4) return aiText.trim();
+      return fallback || '';
+    }
+
     var viewModel = {
       sampleId: sample.sampleId,
       sampleName: sample.sampleName,
@@ -41,18 +48,19 @@
       verdictCategoryLine: sample.verdictCategoryLine || '',
       matchReasonLine: aiResult.shortReason || sample.defaultMatchReason || '',
 
+      // ★ 6 维度 reason 优先用 AI 生成的 · fallback 到 sample 库
       sexualityValue: sample.sexuality_value || '',
-      sexualityReason: sample.sexuality_reason || '',
+      sexualityReason: pickReason(aiDR.sexuality, sample.sexuality_reason),
       genderValue: sample.gender_value || '',
-      genderReason: sample.gender_reason || '',
+      genderReason: pickReason(aiDR.gender, sample.gender_reason),
       incomeValue: sample.income_value || '',
-      incomeReason: sample.income_reason || '',
+      incomeReason: pickReason(aiDR.income, sample.income_reason),
       familyValue: sample.family_value || '',
-      familyReason: sample.family_reason || '',
+      familyReason: pickReason(aiDR.family, sample.family_reason),
       relationshipValue: sample.relationship_value || '',
-      relationshipReason: sample.relationship_reason || '',
+      relationshipReason: pickReason(aiDR.relationship, sample.relationship_reason),
       riskValue: sample.risk_value || '',
-      riskReason: sample.risk_reason || '',
+      riskReason: pickReason(aiDR.risk, sample.risk_reason),
 
       evidenceSubtitle: sample.evidenceSubtitle || '',
       evidenceTitle: sample.evidenceTitle || '',
@@ -76,6 +84,17 @@
       confidence: aiResult.confidence || 'medium',
       matchedFeatures: aiResult.matchedFeatures || [],
       visionCheck: aiResult.visionCheck || null,
+
+      // ★ 把 reasonSource 透传到结果页 · 供调试 / IIFE 渲染用
+      reasonSource: aiResult.reasonSource || 'ai-personalized',
+      reasonOrigin: {
+        sexuality:     (typeof aiDR.sexuality     === 'string' && aiDR.sexuality.trim().length     >= 4) ? 'ai' : 'sample',
+        gender:        (typeof aiDR.gender        === 'string' && aiDR.gender.trim().length        >= 4) ? 'ai' : 'sample',
+        income:        (typeof aiDR.income        === 'string' && aiDR.income.trim().length        >= 4) ? 'ai' : 'sample',
+        family:        (typeof aiDR.family        === 'string' && aiDR.family.trim().length        >= 4) ? 'ai' : 'sample',
+        relationship:  (typeof aiDR.relationship  === 'string' && aiDR.relationship.trim().length  >= 4) ? 'ai' : 'sample',
+        risk:          (typeof aiDR.risk          === 'string' && aiDR.risk.trim().length          >= 4) ? 'ai' : 'sample'
+      },
 
       bottomWarning: '本次报告未识别输入对象的真实属性 · 仅展示分类系统的运作方式'
     };
@@ -286,10 +305,17 @@
       var data; try { data = JSON.parse(text); } catch (e) {
         console.error('[MODERN_AI] REAL AI FAILED · response not JSON:', e.message); return null;
       }
+      // ★ 兼容新统一结构（顶层 sampleId + dimensionReasons + reasonSource）和老 nested 结构（data.result.sampleId）
+      if (data && data.ok === true && data.source === 'ai' && MODERN_AI_ALLOWED.indexOf(data.sampleId) >= 0) {
+        console.log('[MODERN_AI] response ok true · source ai · sampleId', data.sampleId);
+        console.log('[MODERN_AI] response status 200 · source=' + data.source);
+        console.log('[MODERN_AI] parsed sampleId', data.sampleId);
+        console.log('[MODERN_AI] selected sample', data.sampleId);
+        console.log('[MODERN_AI] reasonSource', data.reasonSource, '· dimReasons count =', (data.dimensionReasons ? Object.keys(data.dimensionReasons).length : 0) + '/6');
+        return data;
+      }
       if (data && data.ok === true && data.source === 'ai' && data.result && MODERN_AI_ALLOWED.indexOf(data.result.sampleId) >= 0) {
-        console.log('[MODERN_AI] response ok true · source ai · sampleId', data.result.sampleId);
-        console.log('[MODERN_AI] parsed sampleId', data.result.sampleId);
-        console.log('[MODERN_AI] selected sample', data.result.sampleId);
+        console.log('[MODERN_AI] legacy nested result · sampleId', data.result.sampleId);
         return data.result;
       }
       if (data && data.source === 'no-face' && data.visionCheck) {
@@ -383,6 +409,10 @@
   function showModernAIFailedOverlay(reason) {
     var root = document.getElementById('result-layer');
     if (!root) return;
+    // ★ 严格模式：禁止 upstreamRaw / 详细错误 / HTTP 状态码显示给用户
+    // ★ 只显示用户友好提示
+    var userTitle = 'AI 返回格式异常';
+    var userHint = '系统未能完成档案整理，请重新分析。';
     root.innerHTML =
       '<div class="result-modal-shell" data-result-view="modern">' +
         '<div class="result-modal-toolbar">' +
@@ -391,9 +421,36 @@
         '<div class="result-modal-content ancient-loading">' +
           '<div class="ancient-loading__inner ancient-loading__failed">' +
             '<div class="ancient-loading__kicker">▌ REAL AI FAILED</div>' +
-            '<div class="ancient-loading__title">真实 AI 分析失败</div>' +
-            '<div class="ancient-loading__subtitle">' + (reason || '请检查服务端日志 [MODERN_API]') + '</div>' +
+            '<div class="ancient-loading__title">' + userTitle + '</div>' +
+            '<div class="ancient-loading__subtitle">' + userHint + '</div>' +
             '<div class="ancient-loading__note">按上方按钮返回摄像头重新采集</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    root.style.display = 'block';
+    root.classList.add('is-active');
+    document.body.classList.add('v3x-view-active');
+    var bc = root.querySelector('.result-back-camera-btn');
+    if (bc) bc.onclick = function () { if (window.resetToCamera) try { window.resetToCamera(); } catch (e) {} };
+  }
+
+  // ★ 修复中 overlay · 当服务端走公共修复流水线时显示
+  // ★ 不再整页崩 · 告诉用户"系统正在整理判定档案……"
+  function showModernRepairingOverlay() {
+    var root = document.getElementById('result-layer');
+    if (!root) return;
+    root.innerHTML =
+      '<div class="result-modal-shell" data-result-view="modern">' +
+        '<div class="result-modal-toolbar">' +
+          '<button class="result-back-camera-btn" type="button">← 摄像头</button>' +
+        '</div>' +
+        '<div class="result-modal-content ancient-loading">' +
+          '<div class="ancient-loading__inner">' +
+            '<div class="ancient-loading__bar"><span></span><span></span><span></span></div>' +
+            '<div class="ancient-loading__kicker">▌ ARCHIVE REPAIRING</div>' +
+            '<div class="ancient-loading__title">系统正在整理判定档案……</div>' +
+            '<div class="ancient-loading__subtitle">模型首次返回格式异常，正在补全判定理由</div>' +
+            '<div class="ancient-loading__note">请稍候 · 不需要重新拍摄</div>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -444,6 +501,7 @@
     var landmarkCount = faceLandmarks && Array.isArray(faceLandmarks) ? faceLandmarks.length : 0;
     var capturedAt = snap && snap.capturedAt || Date.now();
     console.log('[MODERN_AI] mode real');
+    console.log('[MODERN_AI] request URL=/api/classify/modern');
     console.log('[MODERN_AI] sampleId before request', null);
     console.log('[CAPTURE] landmark count', landmarkCount, '· faceDetected:', faceDetected);
 
@@ -537,11 +595,20 @@
       confidence: aiResult.confidence,
       matchedFeatures: aiResult.matchedFeatures || [],
       source: 'ai',
-      visionCheck: aiResult.visionCheck || { hasFace: true, wearingGlasses: false, headPose: 'unclear', framing: 'unclear', brightness: 'unclear' }
+      visionCheck: aiResult.visionCheck || { hasFace: true, wearingGlasses: false, headPose: 'unclear', framing: 'unclear', brightness: 'unclear' },
+      // ★ 把服务端给的 dimensionReasons + reasonSource 透传 · 供 buildModernViewModel 内部 pickReason 用
+      dimensionReasons: aiResult.dimensionReasons || {},
+      reasonSource: aiResult.reasonSource || 'ai-personalized'
     };
     var viewModel = buildModernViewModel(aiForVm);
-    console.log('[MODERN_VIEW_MODEL] built', viewModel.sampleId);
-    console.log('[MODERN_FLOW] final result', viewModel.sampleId, viewModel.sampleName, 'ai');
+    // ★ 把本轮用户帧也写进 viewModel · 融合模块需要
+    viewModel.userImage = dataUrl;
+    viewModel.reasonSource = aiForVm.reasonSource;
+    viewModel.dimensionReasons = aiForVm.dimensionReasons;
+    window.__lastLockedUserImage = dataUrl;
+    console.log('[MODERN_VIEW_MODEL] built', viewModel.sampleId, '· userImage bytes=' + (viewModel.userImage || '').length);
+    console.log('[MODERN_FLOW] final result', viewModel.sampleId, viewModel.sampleName, 'ai · reasonSource=' + viewModel.reasonSource);
+    console.log('[MODERN_REASON_RENDER] source=' + viewModel.reasonSource + ' · count=' + (aiForVm.dimensionReasons ? Object.keys(aiForVm.dimensionReasons).filter(function (k) { return typeof aiForVm.dimensionReasons[k] === 'string' && aiForVm.dimensionReasons[k].trim().length >= 4; }).length : 0) + '/6');
     window.pendingModernResult = viewModel;
     if (typeof window.showResultOverlay === 'function') window.showResultOverlay('modern');
     await fillModernIframeWhenReady(viewModel);

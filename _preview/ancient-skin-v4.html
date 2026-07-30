@@ -30,7 +30,21 @@
     · modern-* 主流程
 
   静态预览 · 假数据 · 不接 AI / 摄像头 / 主流程。
+  ★ ANCIENT BUILD: 2026-07-29-r5 · 维持 ARCHIVE FUSION 融合模块
 -->
+<!-- ★ BUILD MARKER · 任何缓存/CDN 都不要错位引用本文件 -->
+<script>
+  (function () {
+    try {
+      var buildId = 'ANCIENT-2026-07-29-r5';
+      var file = '_preview/ancient-skin-v4.html?v=7';
+      window.__ANCIENT_BUILD_ID = buildId;
+      window.__ANCIENT_RUNTIME_FILE = file;
+      console.log('[RUNTIME_FILE] ancient result page = ' + file);
+      console.log('[RUNTIME_BUILD] build id = ' + buildId);
+    } catch (e) {}
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;700&family=Source+Han+Serif+SC:wght@400;700&family=STKaiti&family=Noto+Sans+CJK+SC:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
@@ -1477,6 +1491,20 @@
           }
 
           console.log('[ancient-skin-v4] filled · sample=' + (result.sampleId || '') + ' ' + (result.sampleName || ''));
+
+          // ★ 输出结果页 reasonSource 日志（与 modern / western 一致）
+          var _anKeys = ['palace','organ','zone','mountain','complexion','bone'];
+          var _anFilled = 0;
+          var _anSource = result.reasonSource || 'ai-personalized';
+          if (result.dimensionReasons && typeof result.dimensionReasons === 'object') {
+            for (var _ai = 0; _ai < _anKeys.length; _ai++) {
+              var _ak = _anKeys[_ai];
+              var _av = result.dimensionReasons[_ak];
+              if (typeof _av === 'string' && _av.trim().length >= 4) _anFilled++;
+            }
+          }
+          console.log('[ANCIENT_REASON_RENDER] source=' + _anSource + ' · count=' + _anFilled + '/6');
+
           return true;
         } catch (e) {
           console.warn('[ancient-skin-v4] fill err', e);

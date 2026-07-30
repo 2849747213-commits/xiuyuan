@@ -10,7 +10,21 @@
   - 数据完全从 MODERN_LOCAL_SAMPLES 动态读取（M01-M20）
   - 不写死任何样本名 / 字段值
   - 由父页面调用 fillModernSkin(viewModel) 注入
+  ★ MODERN BUILD: 2026-07-30-r6 · 双栏布局（6 卡 + IDENTITY FUSION 融合模块）
 -->
+<!-- ★ BUILD MARKER · 任何缓存/CDN 都不要错位引用本文件 -->
+<script>
+  (function () {
+    try {
+      var buildId = 'MODERN-2026-07-30-r6';
+      var file = '_preview/modern-skin-v4.html?v=1';
+      window.__MODERN_BUILD_ID = buildId;
+      window.__MODERN_RUNTIME_FILE = file;
+      console.log('[RUNTIME_FILE] modern result page = ' + file);
+      console.log('[RUNTIME_BUILD] build id = ' + buildId);
+    } catch (e) {}
+  })();
+</script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -314,6 +328,274 @@
   @media (max-width: 560px) {
     .fs-strip__cell { width: 100%; }
   }
+
+  /* ==================== 结果页 · 双栏布局（分类 + 融合） ==================== */
+  .modern-result-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 36%);
+    gap: 16px;
+    align-items: start;
+    margin: 14px 0 10px;
+  }
+  .modern-classification-column {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .modern-fusion-column {
+    min-width: 0;
+    position: sticky;
+    top: 0;
+  }
+  @media (max-width: 960px) {
+    .modern-result-grid {
+      grid-template-columns: 1fr;
+    }
+    .modern-fusion-column {
+      position: static;
+    }
+  }
+  /* 6 卡：在双栏内保持 2×3，不缩小到难以阅读 */
+  .modern-classification-column .v3x-result__grid {
+    margin-bottom: 0;
+  }
+
+  /* ==================== IDENTITY FUSION · 现代身份融合像 ==================== */
+  .mf-module {
+    margin: 0 0 8px;
+    padding: 14px 14px 12px;
+    border: 3.5px solid #1a1a1a;
+    box-shadow: 5px 5px 0 #1a1a1a;
+    background: #fde047;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    color: #0a0a0a;
+  }
+  .mf-module::before {
+    content: "▌ IDENTITY FUSION";
+    position: absolute;
+    top: -1.5px; left: -1.5px;
+    background: #d60000;
+    color: #fff;
+    font-family: 'Courier New', 'SimHei', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    padding: 3px 8px;
+    font-weight: 900;
+    box-shadow: 2px 2px 0 #1a1a1a;
+  }
+  .mf-module__head {
+    display: flex; align-items: baseline; gap: 8px; margin-top: 8px;
+  }
+  .mf-module__title {
+    font-family: 'Impact', 'Arial Black', 'SimHei', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: #0a0a0a;
+    font-weight: 900;
+  }
+  .mf-module__sub {
+    font-family: 'Courier New', 'SimHei', monospace;
+    font-size: 10.5px;
+    color: #444;
+    letter-spacing: 1px;
+    flex: 1;
+    text-align: right;
+  }
+  .mf-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    max-height: 430px;
+    margin: 0 auto;
+    border: 3.5px solid #1a1a1a;
+    background: #fff;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  .mf-frame img {
+    display: none;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center center;
+    background: #111;
+  }
+  .mf-frame img[src] { display: block; }
+  .mf-frame .mf-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: #1a1a1a;
+    text-align: center;
+    padding: 12px;
+    background: repeating-linear-gradient(45deg, #fde047 0 14px, #fff7c0 14px 28px);
+  }
+  .mf-frame .mf-placeholder .ph-icon {
+    font-family: 'Impact', 'Arial Black', 'SimHei', sans-serif;
+    font-size: 40px;
+    color: #d60000;
+    letter-spacing: 4px;
+    font-weight: 900;
+    text-shadow: 2px 2px 0 #1a1a1a;
+  }
+  .mf-frame .mf-placeholder .ph-text {
+    font-family: 'Courier New', 'SimHei', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #0a0a0a;
+    font-weight: 700;
+  }
+  .mf-frame .mf-placeholder .ph-hint {
+    font-family: 'Courier New', 'SimHei', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: #444;
+    text-transform: uppercase;
+    margin-top: 4px;
+    font-weight: 700;
+  }
+  .mf-frame .mf-loading {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(253, 224, 71, 0.92);
+    backdrop-filter: blur(1px);
+  }
+  .mf-frame.is-loading .mf-loading { display: flex; }
+  .mf-frame.is-loading img,
+  .mf-frame.is-loading .mf-placeholder { display: none; }
+  .mf-frame .mf-loading .spinner {
+    width: 36px; height: 36px;
+    border: 4px solid #d60000;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: mf-spin 0.9s linear infinite;
+  }
+  @keyframes mf-spin { to { transform: rotate(360deg); } }
+  .mf-frame .mf-loading .ll-text {
+    font-family: 'Courier New', 'SimHei', monospace;
+    font-size: 12px;
+    color: #0a0a0a;
+    letter-spacing: 2px;
+    font-weight: 900;
+  }
+  .mf-frame .mf-error {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: rgba(255, 247, 192, 0.95);
+    padding: 14px;
+    text-align: center;
+  }
+  .mf-frame.is-error .mf-error { display: flex; }
+  .mf-frame.is-error img,
+  .mf-frame.is-error .mf-placeholder,
+  .mf-frame.is-error .mf-loading { display: none; }
+  .mf-frame .mf-error .err-title {
+    font-family: 'Impact', 'Arial Black', 'SimHei', sans-serif;
+    font-size: 18px;
+    color: #d60000;
+    letter-spacing: 3px;
+    font-weight: 900;
+  }
+  .mf-frame .mf-error .err-msg {
+    font-family: 'Courier New', 'SimHei', monospace;
+    font-size: 11.5px;
+    color: #0a0a0a;
+    line-height: 1.55;
+    font-weight: 700;
+  }
+  .mf-status {
+    font-family: 'Courier New', 'SimHei', monospace;
+    font-size: 10.5px;
+    color: #444;
+    letter-spacing: 0.5px;
+    line-height: 1.5;
+    min-height: 14px;
+    font-weight: 700;
+  }
+  .mf-status.is-active { color: #d60000; }
+  .mf-actions { display: flex; gap: 8px; }
+  .mf-btn {
+    flex: 1;
+    padding: 12px 8px;
+    background: #d60000;
+    color: #fff;
+    border: 3px solid #1a1a1a;
+    box-shadow: 4px 4px 0 #1a1a1a;
+    font-family: 'Impact', 'Arial Black', 'SimHei', sans-serif;
+    font-weight: 900;
+    font-size: 16px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  .mf-btn:hover {
+    background: #1a1a1a;
+    transform: translate(-1px, -1px);
+    box-shadow: 5px 5px 0 #d60000;
+  }
+  .mf-btn:disabled {
+    background: #888;
+    border-color: #555;
+    box-shadow: 2px 2px 0 #555;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  .mf-btn.retry { background: #22d3ee; color: #1a1a1a; }
+  .mf-btn.retry:hover { background: #1a1a1a; color: #22d3ee; }
+  .mf-actions.is-retry .mf-btn.primary { display: none; }
+  .mf-actions:not(.is-retry) .mf-btn.retry { display: none; }
+  .mf-meta {
+    font-family: 'Courier New', 'SimHei', monospace;
+    font-size: 9.5px;
+    color: #444;
+    letter-spacing: 0.5px;
+    display: none;
+  }
+  .mf-module.has-image .mf-meta { display: block; }
+
+  /* ★ 融合生成成功状态 · 彻底隐藏所有 placeholder/loading/overlay */
+  .mf-frame.has-image .mf-placeholder,
+  .mf-frame.has-image .mf-loading,
+  .mf-frame.has-image .mf-error,
+  .mf-frame.has-image .ph-icon {
+    display: none !important;
+  }
+  .mf-frame.has-image img,
+  .mf-frame.has-image img[src] {
+    display: block !important;
+  }
+  .mf-module.has-image::before {
+    content: "▌ IDENTITY FUSION · GENERATED";
+    background: #22c55e;
+  }
+  #modernFusionPanel.is-generated .mf-placeholder,
+  #modernFusionPanel.is-generated .mf-loading,
+  #modernFusionPanel.is-generated .mf-error,
+  #modernFusionPanel.is-generated .ph-icon {
+    display: none !important;
+  }
+  #modernFusionPanel.is-generated #modernFusionImage {
+    display: block !important;
+  }
 </style>
 </head>
 
@@ -337,44 +619,83 @@
     <!-- 分类标签：动态 -->
     <div class="v3x-result__stamp" id="sampleStamp">—</div>
 
-    <!-- 6 张彩色分类卡（SKU-01..SKU-06 · 动态注入） -->
-    <div class="v3x-result__grid">
-      <div class="v3x-result__cell" id="cellSexuality" style="background: #fde047;">
-        <div class="v3x-result__cell-label">性取向</div>
-        <div class="v3x-result__cell-sku">SKU-01</div>
-        <div class="v3x-result__cell-value" id="sexualityValue">—</div>
-        <div class="v3x-result__cell-reason" id="sexualityReason">—</div>
-      </div>
-      <div class="v3x-result__cell" id="cellGender" style="background: #22d3ee;">
-        <div class="v3x-result__cell-label">性别</div>
-        <div class="v3x-result__cell-sku">SKU-02</div>
-        <div class="v3x-result__cell-value" id="genderValue">—</div>
-        <div class="v3x-result__cell-reason" id="genderReason">—</div>
-      </div>
-      <div class="v3x-result__cell" id="cellIncome" style="background: #22c55e;">
-        <div class="v3x-result__cell-label">收入等级</div>
-        <div class="v3x-result__cell-sku">SKU-03</div>
-        <div class="v3x-result__cell-value" id="incomeValue">—</div>
-        <div class="v3x-result__cell-reason" id="incomeReason">—</div>
-      </div>
-      <div class="v3x-result__cell" id="cellFamily" style="background: #fde047;">
-        <div class="v3x-result__cell-label">家庭结构</div>
-        <div class="v3x-result__cell-sku">SKU-04</div>
-        <div class="v3x-result__cell-value" id="familyValue">—</div>
-        <div class="v3x-result__cell-reason" id="familyReason">—</div>
-      </div>
-      <div class="v3x-result__cell" id="cellRelationship" style="background: #f9a8d4;">
-        <div class="v3x-result__cell-label">婚恋状态</div>
-        <div class="v3x-result__cell-sku">SKU-05</div>
-        <div class="v3x-result__cell-value" id="relationshipValue">—</div>
-        <div class="v3x-result__cell-reason" id="relationshipReason">—</div>
-      </div>
-      <div class="v3x-result__cell" id="cellRisk" style="background: #fef3c7;">
-        <div class="v3x-result__cell-label">风险等级</div>
-        <div class="v3x-result__cell-sku">SKU-06</div>
-        <div class="v3x-result__cell-value" id="riskValue">—</div>
-        <div class="v3x-result__cell-reason" id="riskReason">—</div>
-      </div>
+    <!-- ★ 双栏布局：左侧六张身份分类卡 + 右侧身份融合像卡 -->
+    <div class="modern-result-grid">
+      <section class="modern-classification-column">
+
+        <!-- 6 张彩色分类卡（SKU-01..SKU-06 · 动态注入） -->
+        <div class="v3x-result__grid">
+          <div class="v3x-result__cell" id="cellSexuality" style="background: #fde047;">
+            <div class="v3x-result__cell-label">性取向</div>
+            <div class="v3x-result__cell-sku">SKU-01</div>
+            <div class="v3x-result__cell-value" id="sexualityValue">—</div>
+            <div class="v3x-result__cell-reason" id="sexualityReason">—</div>
+          </div>
+          <div class="v3x-result__cell" id="cellGender" style="background: #22d3ee;">
+            <div class="v3x-result__cell-label">性别</div>
+            <div class="v3x-result__cell-sku">SKU-02</div>
+            <div class="v3x-result__cell-value" id="genderValue">—</div>
+            <div class="v3x-result__cell-reason" id="genderReason">—</div>
+          </div>
+          <div class="v3x-result__cell" id="cellIncome" style="background: #22c55e;">
+            <div class="v3x-result__cell-label">收入等级</div>
+            <div class="v3x-result__cell-sku">SKU-03</div>
+            <div class="v3x-result__cell-value" id="incomeValue">—</div>
+            <div class="v3x-result__cell-reason" id="incomeReason">—</div>
+          </div>
+          <div class="v3x-result__cell" id="cellFamily" style="background: #fde047;">
+            <div class="v3x-result__cell-label">家庭结构</div>
+            <div class="v3x-result__cell-sku">SKU-04</div>
+            <div class="v3x-result__cell-value" id="familyValue">—</div>
+            <div class="v3x-result__cell-reason" id="familyReason">—</div>
+          </div>
+          <div class="v3x-result__cell" id="cellRelationship" style="background: #f9a8d4;">
+            <div class="v3x-result__cell-label">婚恋状态</div>
+            <div class="v3x-result__cell-sku">SKU-05</div>
+            <div class="v3x-result__cell-value" id="relationshipValue">—</div>
+            <div class="v3x-result__cell-reason" id="relationshipReason">—</div>
+          </div>
+          <div class="v3x-result__cell" id="cellRisk" style="background: #fef3c7;">
+            <div class="v3x-result__cell-label">风险等级</div>
+            <div class="v3x-result__cell-sku">SKU-06</div>
+            <div class="v3x-result__cell-value" id="riskValue">—</div>
+            <div class="v3x-result__cell-reason" id="riskReason">—</div>
+          </div>
+        </div>
+
+      </section>
+
+      <aside class="modern-fusion-column">
+        <!-- ★ IDENTITY FUSION · 现代身份融合像模块（侧栏固定比例肖像卡） -->
+        <div class="mf-module" id="modernFusionPanel" data-fusion-state="idle" data-system="modern" data-build="MODERN-2026-07-30-r6">
+          <div class="mf-module__head">
+            <span class="mf-module__title">身份融合像</span>
+            <span class="mf-module__sub" id="modernFusionSub">当前帧 × Mxx 现代身份 · IDENTITY FUSION</span>
+          </div>
+          <div class="mf-frame" id="modernFusionFrame">
+            <img id="modernFusionImage" alt="身份融合像" />
+            <div class="mf-placeholder" id="modernFusionPlaceholder">
+              <div class="ph-icon">合</div>
+              <div class="ph-text">将当前面孔写入系统选中的现代身份档案</div>
+              <div class="ph-hint">IDENTITY FUSION · CLICK TO GENERATE</div>
+            </div>
+            <div class="mf-loading">
+              <div class="spinner"></div>
+              <div class="ll-text" id="modernFusionLoadingText">正在读取当前帧</div>
+            </div>
+            <div class="mf-error">
+              <div class="err-title" id="modernFusionErrorTitle">生成失败</div>
+              <div class="err-msg" id="modernFusionErrorMsg">融合服务暂时没有返回有效图片。</div>
+            </div>
+          </div>
+          <div class="mf-status" id="modernFusionStatus">未启动 · 等待用户点击生成</div>
+          <div class="mf-actions" id="modernFusionActions">
+            <button class="mf-btn primary" id="modernFusionButton" type="button">生成身份合成像</button>
+            <button class="mf-btn retry" id="modernFusionRetry" type="button">重新生成</button>
+          </div>
+          <div class="mf-meta" id="modernFusionMeta"></div>
+        </div>
+      </aside>
     </div>
 
     <!-- 样本来源 -->
@@ -451,6 +772,12 @@ window.fillModernSkin = function (viewModel) {
   setText('sampleStamp', viewModel.sampleName || '—');
   document.title = '现代面学 · ' + (viewModel.sampleName || viewModel.sampleId);
 
+  // ★ 动态注入融合区 sub 标题（Mxx 必须用真实 sampleId）
+  var subEl = document.getElementById('modernFusionSub');
+  if (subEl) {
+    subEl.textContent = '当前帧 × ' + (viewModel.sampleId || 'Mxx') + ' ' + (viewModel.sampleName || '现代身份') + ' · IDENTITY FUSION';
+  }
+
   // 6 张卡（SKU-01..SKU-06）· 严格按字段映射
   setText('sexualityValue', viewModel.sexualityValue);
   setText('sexualityReason', viewModel.sexualityReason);
@@ -491,10 +818,423 @@ window.fillModernSkin = function (viewModel) {
   if (close) close.onclick = function () { if (window.resetToCamera) try { window.resetToCamera(); } catch (e) {} };
 
   console.log('[MODERN_SKIN] fill complete', viewModel.sampleId, viewModel.sampleName);
+
+  // ★ 输出结果页 reasonSource 日志（与 ancient / western 一致）
+  // 优先级 1. viewModel.dimensionReasons（AI 来的）  2. sample 自带  3. 缺失
+  var _modReasonKeys = ['sexuality','gender','income','family','relationship','risk'];
+  var _modFilledCount = 0;
+  var _modSource = viewModel.reasonSource || 'ai-personalized';
+  if (viewModel.dimensionReasons && typeof viewModel.dimensionReasons === 'object') {
+    for (var _mi = 0; _mi < _modReasonKeys.length; _mi++) {
+      var _mk = _modReasonKeys[_mi];
+      var _mv = viewModel.dimensionReasons[_mk];
+      if (typeof _mv === 'string' && _mv.trim().length >= 4) _modFilledCount++;
+    }
+  }
+  console.log('[MODERN_REASON_RENDER] source=' + _modSource + ' · count=' + _modFilledCount + '/6');
+
+  // ★ 触发 modern fusion 初始化（如果有 userImage 传进来）
+  if (typeof window.initModernFusion === 'function') {
+    try {
+      window.initModernFusion({
+        sampleId: viewModel.sampleId,
+        sampleName: viewModel.sampleName,
+        userImage: viewModel.userImage || window.__lastLockedUserImage || ''
+      });
+    } catch (e) { console.warn('[MODERN_FUSION] init from fill err', e && e.message); }
+  }
 };
 
 // 兼容老 entrypoint
 window.fillModernSkinV4 = window.fillModernSkin;
+
+// ============================================================
+// ★ 现代身份融合像 · 独立模块
+// - 父页面通过 initModernFusion({ sampleId, sampleName, userImage }) 初始化
+// - 点击 #modernFusionButton → POST /api/fusion/modern
+// - 返回 data:image/... 时直接渲染
+// - 90 秒超时
+// ============================================================
+(function () {
+  var FUSION_LOADING_TEXTS = [
+    '正在读取当前帧',
+    '正在调取现代样本',
+    '正在重写身份档案',
+    '正在生成身份合成像'
+  ];
+  var FUSION_TIMEOUT_MS = 90 * 1000;
+  var FUSION_TEXT_ROTATE_MS = 1800;
+
+  var fusionState = {
+    sampleId: '',
+    sampleName: '',
+    userImage: '',
+    requestId: '',
+    generatedUrl: '',
+    generatedAt: 0,
+    loading: false,
+    timer: null,
+    textTimer: null
+  };
+
+  function el(id) { return document.getElementById(id); }
+
+  function setFusionStatus(text, isActive) {
+    var n = el('modernFusionStatus');
+    if (!n) return;
+    n.textContent = text || '';
+    if (isActive) n.classList.add('is-active');
+    else n.classList.remove('is-active');
+  }
+
+  function setFusionStateAttr(state) {
+    var p = el('modernFusionPanel');
+    if (p) p.setAttribute('data-fusion-state', state);
+  }
+
+  function clearFusionTimers() {
+    if (fusionState.timer) { clearTimeout(fusionState.timer); fusionState.timer = null; }
+    if (fusionState.textTimer) { clearInterval(fusionState.textTimer); fusionState.textTimer = null; }
+  }
+
+  function showFusionError(title, msg) {
+    var frame = el('modernFusionFrame');
+    var t = el('modernFusionErrorTitle');
+    var m = el('modernFusionErrorMsg');
+    if (t && title) t.textContent = title;
+    if (m && msg) m.textContent = msg;
+    if (frame) {
+      frame.classList.remove('is-loading');
+      frame.classList.add('is-error');
+    }
+    var actions = el('modernFusionActions');
+    if (actions) actions.classList.add('is-retry');
+    var btn = el('modernFusionButton');
+    if (btn) { btn.disabled = false; btn.textContent = '生成身份合成像'; }
+    var retry = el('modernFusionRetry');
+    if (retry) retry.disabled = false;
+    setFusionStateAttr('error');
+  }
+
+  function showFusionIdle() {
+    var frame = el('modernFusionFrame');
+    if (frame) { frame.classList.remove('is-loading'); frame.classList.remove('is-error'); }
+    var actions = el('modernFusionActions');
+    if (actions) actions.classList.remove('is-retry');
+    var btn = el('modernFusionButton');
+    if (btn) { btn.disabled = false; }
+    var retry = el('modernFusionRetry');
+    if (retry) retry.disabled = false;
+    setFusionStateAttr('idle');
+  }
+
+  function startFusionLoadingTextRotation() {
+    var n = el('modernFusionLoadingText');
+    if (!n) return;
+    var idx = 0;
+    n.textContent = FUSION_LOADING_TEXTS[0];
+    fusionState.textTimer = setInterval(function () {
+      idx = (idx + 1) % FUSION_LOADING_TEXTS.length;
+      n.textContent = FUSION_LOADING_TEXTS[idx];
+    }, FUSION_TEXT_ROTATE_MS);
+  }
+
+  function makeRequestId(sampleId) {
+    return 'fusion_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '_' + (sampleId || 'M00');
+  }
+
+  function buildFusionEndpoint() {
+    var origin = (window.location && window.location.origin) || '';
+    if (origin) return origin + '/api/fusion/modern';
+    return '/api/fusion/modern';
+  }
+
+  function isValidDataUrl(s) {
+    if (typeof s !== 'string') return false;
+    return /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]{200,}$/i.test(s);
+  }
+
+  function renderFusionImage(url) {
+    var img = el('modernFusionImage');
+    var frame = el('modernFusionFrame');
+    var meta = el('modernFusionMeta');
+    var module = el('modernFusionPanel');
+    var placeholder = el('modernFusionPlaceholder');
+    if (!img || !frame) return;
+    if (!url || !/^data:image\//.test(url) && !/^https?:\/\//.test(url)) {
+      console.warn('[MODERN_FUSION] renderFusionImage · invalid url, skip');
+      return;
+    }
+    if (fusionState.generatedUrl === url && img.src && img.src.indexOf(url) >= 0) return;
+    if (placeholder) {
+      placeholder.hidden = true;
+      placeholder.style.display = 'none';
+      placeholder.style.visibility = 'hidden';
+      placeholder.setAttribute('aria-hidden', 'true');
+    }
+    img.hidden = false;
+    img.style.display = 'block';
+    img.style.visibility = 'visible';
+    if (module) {
+      module.classList.add('has-image');
+      module.classList.add('is-generated');
+    }
+    frame.classList.add('has-image');
+    frame.classList.remove('is-loading');
+    frame.classList.remove('is-error');
+    setFusionStateAttr('done');
+    console.log('[MODERN_FUSION] hide placeholder · show image · panel classes=' + (module ? module.className : '-') + ' · frame classes=' + frame.className);
+
+    img.onload = function () {
+      frame.classList.remove('is-loading');
+      frame.classList.remove('is-error');
+      setFusionStateAttr('done');
+      if (module) {
+        module.classList.add('has-image');
+        module.classList.add('is-generated');
+      }
+      if (placeholder) {
+        placeholder.hidden = true;
+        placeholder.style.display = 'none';
+      }
+      console.log('[MODERN_FUSION] image loaded · placeholder hidden (onload)');
+    };
+    img.onerror = function () {
+      console.error('[MODERN_FUSION] img.onerror · url-head=' + (url || '').slice(0, 40));
+      frame.classList.remove('has-image');
+      if (module) {
+        module.classList.remove('has-image');
+        module.classList.remove('is-generated');
+      }
+      showFusionError('图像加载失败', '图片资源无法在浏览器中加载。');
+    };
+    img.src = url;
+    if (meta) {
+      meta.textContent = 'requestId=' + (fusionState.requestId || '-') +
+        ' · sampleId=' + (fusionState.sampleId || '-') +
+        ' · ' + (fusionState.sampleName || '');
+    }
+  }
+
+  function callFusionAPI() {
+    var endpoint = buildFusionEndpoint();
+    var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+    var body = {
+      sampleId: fusionState.sampleId,
+      userImage: fusionState.userImage,
+      requestId: fusionState.requestId
+    };
+    console.log('[MODERN_FUSION] request start · sampleId=' + fusionState.sampleId + ' · bytes=' + (fusionState.userImage || '').length + ' · endpoint=' + endpoint);
+    var p = fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl ? ctrl.signal : undefined
+    });
+    var timer = setTimeout(function () {
+      if (ctrl) { try { ctrl.abort(); } catch (e) {} }
+      console.warn('[MODERN_FUSION] request timeout · ' + (FUSION_TIMEOUT_MS / 1000) + 's');
+      showFusionError('生成超时', '融合服务未在 ' + (FUSION_TIMEOUT_MS / 1000) + ' 秒内返回，请重试。');
+      fusionState.loading = false;
+    }, FUSION_TIMEOUT_MS);
+    return p.then(function (resp) {
+      clearTimeout(timer);
+      console.log('[MODERN_FUSION] response status ' + resp.status + ' · content-type=' + (resp.headers.get('content-type') || ''));
+      return resp.text().then(function (text) {
+        var data = null;
+        try { data = JSON.parse(text); } catch (e) {
+          console.error('[MODERN_FUSION] response not JSON:', (text || '').slice(0, 200));
+          showFusionError('服务响应异常', '融合服务返回了非 JSON 数据。');
+          fusionState.loading = false;
+          return null;
+        }
+        if (!data) return null;
+        if (data.ok && (data.imageUrl || data.imageDataUrl)) {
+          var url = data.imageDataUrl || data.imageUrl;
+          console.log('[MODERN_FUSION] image received · source=' + data.source + ' · bytes=' + (data.imageDataUrl ? data.imageDataUrl.length : (data.imageUrl ? data.imageUrl.length : 0)));
+          fusionState.generatedUrl = url;
+          fusionState.generatedAt = Date.now();
+          renderFusionImage(url);
+          setFusionStatus('生成成功 · ' + (data.sampleName || fusionState.sampleName || ''), false);
+          var btn = el('modernFusionButton');
+          if (btn) btn.disabled = true;
+          var actions = el('modernFusionActions');
+          if (actions) actions.classList.remove('is-retry');
+          return data;
+        }
+        var code = data.error || 'unknown';
+        var msg = data.message || '融合服务暂时没有返回有效图片。';
+        console.error('[MODERN_FUSION] error code=' + code + ' · message=' + msg);
+        if (code === 'image-provider-not-configured') {
+          showFusionError('融合生成服务尚未配置', '当前分类结果仍可正常查看。');
+        } else if (code === 'image-provider-timeout') {
+          showFusionError('融合服务超时', '请求供应商超时，请稍后重试。');
+        } else if (code === 'image-provider-rejected' || code === 'image-provider-unauthorized' || code === 'image-provider-rate-limit') {
+          showFusionError('融合服务被拒绝', '供应商未接受此请求（可能为敏感内容或限流）。');
+        } else if (code === 'image-generation-failed' || code === 'invalid-image-response') {
+          showFusionError('生成失败', '融合服务暂时没有返回有效图片。');
+        } else if (code === 'invalid-sample-id') {
+          showFusionError('样本编号错误', '系统选中的现代身份编号不在 M01-M20 范围。');
+        } else if (code === 'invalid-user-image' || code === 'missing-user-image') {
+          showFusionError('当前帧不可用', '请返回摄像头重新采集。');
+        } else if (code === 'payload-too-large') {
+          showFusionError('请求过大', '请压缩当前帧后重试。');
+        } else if (code === 'sample-image-not-found') {
+          showFusionError('样本主图缺失', '该 Mxx 样本在服务器端没有主图，请检查 assets。');
+        } else {
+          showFusionError('生成失败', '[' + code + '] ' + msg);
+        }
+        return null;
+      });
+    }).catch(function (err) {
+      clearTimeout(timer);
+      var name = (err && err.name) || '';
+      if (name === 'AbortError') return null;
+      console.error('[MODERN_FUSION] network error:', err && (err.message || err));
+      showFusionError('网络错误', '无法连接到融合服务，请检查网络后重试。');
+      return null;
+    }).then(function (v) {
+      fusionState.loading = false;
+      return v;
+    });
+  }
+
+  function doGenerate() {
+    console.log('[MODERN_FUSION] button click · sampleId=' + (fusionState.sampleId || '(empty)') + ' · userImage bytes=' + ((fusionState.userImage || '').length || 0));
+    if (fusionState.loading) {
+      console.log('[MODERN_FUSION] already loading · ignore re-click');
+      return;
+    }
+    if (!fusionState.sampleId || !/^M(0[1-9]|1[0-9]|20)$/.test(fusionState.sampleId)) {
+      console.warn('[MODERN_FUSION] request start blocked · invalid sampleId=' + fusionState.sampleId);
+      showFusionError('样本编号缺失', '系统未提供有效的 M01-M20 样本编号。');
+      return;
+    }
+    if (!isValidDataUrl(fusionState.userImage)) {
+      console.warn('[MODERN_FUSION] request start blocked · invalid userImage dataUrl');
+      showFusionError('当前帧缺失', '未拿到本轮摄像头截图，请返回摄像头重新采集。');
+      return;
+    }
+    if (fusionState.generatedUrl && (Date.now() - fusionState.generatedAt) < 30 * 60 * 1000) {
+      console.log('[MODERN_FUSION] already generated in this session · skip · url-bytes=' + (fusionState.generatedUrl || '').length);
+      renderFusionImage(fusionState.generatedUrl);
+      return;
+    }
+
+    console.log('[MODERN_FUSION] request start · sampleId=' + fusionState.sampleId + ' · userImage bytes=' + (fusionState.userImage || '').length);
+    fusionState.requestId = makeRequestId(fusionState.sampleId);
+    fusionState.loading = true;
+    var btn = el('modernFusionButton');
+    if (btn) btn.disabled = true;
+    var retry = el('modernFusionRetry');
+    if (retry) retry.disabled = true;
+    var frame = el('modernFusionFrame');
+    if (frame) { frame.classList.remove('is-error'); frame.classList.add('is-loading'); }
+    setFusionStatus('正在生成 · 预计 30-60 秒', true);
+    startFusionLoadingTextRotation();
+    setFusionStateAttr('loading');
+    callFusionAPI();
+  }
+
+  window.initModernFusion = function (opts) {
+    opts = opts || {};
+    console.log('[MODERN_FUSION] init · sampleId=' + opts.sampleId + ' · sampleName=' + opts.sampleName + ' · userImage bytes=' + ((opts.userImage || '').length || 0));
+    clearFusionTimers();
+    var img = el('modernFusionImage');
+    if (img) { img.removeAttribute('src'); }
+    var frame = el('modernFusionFrame');
+    if (frame) { frame.classList.remove('is-loading'); frame.classList.remove('is-error'); }
+    var module = el('modernFusionPanel');
+    if (module) module.classList.remove('has-image');
+    var meta = el('modernFusionMeta');
+    if (meta) meta.textContent = '';
+
+    fusionState.sampleId = opts.sampleId || '';
+    fusionState.sampleName = opts.sampleName || '';
+    fusionState.userImage = opts.userImage || '';
+    fusionState.generatedUrl = '';
+    fusionState.generatedAt = 0;
+    fusionState.loading = false;
+    fusionState.requestId = '';
+
+    if (!fusionState.sampleId || !/^M(0[1-9]|1[0-9]|20)$/.test(fusionState.sampleId)) {
+      showFusionError('样本编号缺失', '系统未提供有效的 M01-M20 样本编号。');
+      return;
+    }
+    if (!isValidDataUrl(fusionState.userImage)) {
+      showFusionError('当前帧缺失', '未拿到本轮摄像头截图，请返回摄像头重新采集。');
+      return;
+    }
+
+    // 绑定按钮（一次性）
+    var btn = el('modernFusionButton');
+    if (btn && !btn.__modernFusionBound) {
+      btn.addEventListener('click', doGenerate);
+      btn.__modernFusionBound = true;
+      console.log('[MODERN_FUSION] button bound · #modernFusionButton');
+      btn.style.position = 'relative';
+      btn.style.zIndex = '10';
+      btn.style.pointerEvents = 'auto';
+    } else if (btn) {
+      console.log('[MODERN_FUSION] button already bound · skip');
+    } else {
+      console.warn('[MODERN_FUSION] button #modernFusionButton NOT FOUND');
+    }
+    var retry = el('modernFusionRetry');
+    if (retry && !retry.__modernFusionBound) {
+      retry.addEventListener('click', doGenerate);
+      retry.__modernFusionBound = true;
+      retry.style.position = 'relative';
+      retry.style.zIndex = '10';
+      retry.style.pointerEvents = 'auto';
+    }
+
+    showFusionIdle();
+    setFusionStatus('未启动 · sample=' + fusionState.sampleId + ' · ' + fusionState.sampleName, false);
+  };
+
+  window.resetModernFusion = function () {
+    console.log('[MODERN_FUSION] reset');
+    clearFusionTimers();
+    var img = el('modernFusionImage');
+    if (img) img.removeAttribute('src');
+    var frame = el('modernFusionFrame');
+    if (frame) { frame.classList.remove('is-loading'); frame.classList.remove('is-error'); }
+    var module = el('modernFusionPanel');
+    if (module) module.classList.remove('has-image');
+    var meta = el('modernFusionMeta');
+    if (meta) meta.textContent = '';
+    var status = el('modernFusionStatus');
+    if (status) { status.textContent = '未启动 · 等待用户点击生成'; status.classList.remove('is-active'); }
+    var actions = el('modernFusionActions');
+    if (actions) actions.classList.remove('is-retry');
+    var btn = el('modernFusionButton');
+    if (btn) { btn.disabled = false; }
+    var retry = el('modernFusionRetry');
+    if (retry) { retry.disabled = false; }
+    fusionState.sampleId = '';
+    fusionState.sampleName = '';
+    fusionState.userImage = '';
+    fusionState.requestId = '';
+    fusionState.generatedUrl = '';
+    fusionState.generatedAt = 0;
+    fusionState.loading = false;
+    setFusionStateAttr('idle');
+  };
+
+  // postMessage 兼容
+  window.addEventListener('message', function (ev) {
+    var d = ev.data;
+    if (!d || typeof d !== 'object') return;
+    if (d.type === 'INIT_MODERN_FUSION' && typeof window.initModernFusion === 'function') {
+      try { window.initModernFusion(d.payload || {}); } catch (e) { console.warn('[MODERN_FUSION] postMessage init err', e && e.message); }
+    } else if (d.type === 'RESET_MODERN_FUSION' && typeof window.resetModernFusion === 'function') {
+      try { window.resetModernFusion(); } catch (e) {}
+    }
+  });
+
+  console.log('[MODERN_FUSION] module script ready · build=MODERN-2026-07-30-r6');
+})();
 </script>
 </body>
 </html>

@@ -209,8 +209,13 @@
       var data; try { data = JSON.parse(text); } catch (e) {
         console.error('[WESTERN_AI] REAL AI FAILED · response not JSON:', e.message); return null;
       }
+      // ★ 兼容新统一结构（顶层 sampleId + dimensionReasons + reasonSource）和老 nested 结构（data.result.sampleId）
+      if (data && data.ok === true && data.source === 'ai' && WESTERN_AI_ALLOWED.indexOf(data.sampleId) >= 0) {
+        console.log('[WESTERN_AI] new unified structure · sampleId=' + data.sampleId + ' · reasonSource=' + data.reasonSource);
+        return data;
+      }
       if (data && data.ok === true && data.source === 'ai' && data.result && WESTERN_AI_ALLOWED.indexOf(data.result.sampleId) >= 0) {
-        console.log('[WESTERN_AI] response ok true · source ai · sampleId', data.result.sampleId);
+        console.log('[WESTERN_AI] legacy nested result · sampleId', data.result.sampleId);
         data.result.source = 'ai';
         return data.result;
       }
@@ -414,12 +419,34 @@
 
     var vm;
     try {
-      vm = buildWesternViewModel(aiResult);
+      // ★ 把服务端给的 dimensionReasons + reasonSource 注入 vm，buildWesternViewModel 内部 pickReason 会优先用 AI 的
+      var aiForVm = {
+        sampleId: aiResult.sampleId,
+        shortReason: aiResult.shortReason,
+        confidence: aiResult.confidence,
+        matchedFeatures: aiResult.matchedFeatures || [],
+        source: 'ai',
+        visionCheck: aiResult.visionCheck || { hasFace: true, wearingGlasses: false, headPose: 'unclear', framing: 'unclear', brightness: 'unclear' },
+        dimensionReasons: aiResult.dimensionReasons || {},
+        reasonSource: aiResult.reasonSource || 'ai-personalized'
+      };
+      vm = buildWesternViewModel(aiForVm);
     } catch (e) {
       console.error('[WESTERN_AI] viewModel build failed:', e.message);
       showWesternAIFailed({ __failed: true, httpStatus: 0, error: 'viewmodel-build-failed', upstreamMessage: e.message });
       return;
     }
+
+    // ★ 输出结果页 reasonSource 日志（与 ancient / modern 一致）
+    var drCount = 0;
+    var drObj = (vm && vm.reasonOrigin) ? vm.reasonOrigin : null;
+    if (aiResult.dimensionReasons && typeof aiResult.dimensionReasons === 'object') {
+      for (var dk in aiResult.dimensionReasons) {
+        var dv = aiResult.dimensionReasons[dk];
+        if (typeof dv === 'string' && dv.trim().length >= 4) drCount++;
+      }
+    }
+    console.log('[WESTERN_REASON_RENDER] source=' + (vm.reasonSource || 'ai-personalized') + ' · count=' + drCount + '/6' + ' · westernSource=' + (aiResult.westernSource || 'normal'));
 
     // ★ 拿到 sampleId 后，加载 western iframe · 用 ?id=Wxx 让 IIFE 自动渲染
     var sampleId = vm.sampleId;
@@ -432,9 +459,15 @@
     if (window.SPA) {
       window.SPA.LAST_WESTERN_VM = vm;
       window.SPA.LAST_WESTERN_RESULT = aiResult;
-      // ★ 把 AI 写的 6 维度 reason 存到 parent · IIFE 会在自己初始化完成后自动拉
-      window.SPA.LAST_WESTERN_AIREASONS = (aiResult && aiResult.dimensionReasons) ? aiResult.dimensionReasons : null;
+      // ★ 把 AI 写的 6 维度 reason + reasonSource 存到 parent · IIFE 会在自己初始化完成后自动拉
+      var air = (aiResult && aiResult.dimensionReasons) ? aiResult.dimensionReasons : null;
+      if (air && typeof air === 'object') {
+        air.reasonSource = aiResult.reasonSource || 'ai-personalized';
+      }
+      window.SPA.LAST_WESTERN_AIREASONS = air;
     }
+    // ★ 把本轮用户帧暴露到 window · 西方融合模块需要
+    window.__lastLockedUserImage = frameDataUrl;
 
     // ★ 调 showResultOverlay 并改 src · 不动 ancient/modern 逻辑
     if (typeof window.SPA !== 'undefined' && typeof window.SPA.showResultOverlay === 'function') {
@@ -450,12 +483,49 @@
     }
   }
 
+  // ★ 修复中 overlay · 当服务端走公共修复流水线时显示
+  // ★ 不再整页崩 · 告诉用户"系统正在整理判定档案……"
+  function showWesternRepairingOverlay() {
+    var root = document.getElementById('result-layer');
+    if (!root) return;
+    root.innerHTML =
+      '<div class="result-modal-shell" data-result-view="western">' +
+        '<div class="result-modal-toolbar">' +
+          '<button class="result-back-camera-btn" type="button">← 摄像头</button>' +
+        '</div>' +
+        '<div class="result-modal-content ancient-loading">' +
+          '<div class="ancient-loading__inner">' +
+            '<div class="ancient-loading__bar"><span></span><span></span><span></span></div>' +
+            '<div class="ancient-loading__kicker">▌ ARCHIVE REPAIRING</div>' +
+            '<div class="ancient-loading__title">系统正在整理判定档案……</div>' +
+            '<div class="ancient-loading__subtitle">模型首次返回格式异常，正在补全判定理由</div>' +
+            '<div class="ancient-loading__note">请稍候 · 不需要重新拍摄</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    root.style.display = 'block';
+    root.classList.add('is-active');
+    document.body.classList.add('v3x-view-active');
+    var bc = root.querySelector('.result-back-camera-btn');
+    if (bc) bc.onclick = function () { if (window.resetToCamera) try { window.resetToCamera(); } catch (e) {} };
+  }
+
   // ★ REAL AI FAILED · 严格模式：禁止 local fallback 掩盖 AI 失败 · 显示失败原因
+  // ★ 前端不展示 upstreamRaw（避免泄露模型原文/不好看）· 只展示用户友好提示
+  //   详细错误已 console.error 留在服务端 / 客户端 console
   function showWesternAIFailed(failInfo) {
     console.error('[WESTERN_AI] REAL AI FAILED · ', failInfo);
     var httpStatus = failInfo.httpStatus || 0;
     var error = failInfo.error || 'unknown';
-    var msg = failInfo.upstreamMessage || '';
+    var statusLabel = httpStatus === 0 ? 'NETWORK' : ('HTTP ' + httpStatus);
+
+    // 用户友好提示：只在 error 真正是 "upstream-parse-failed" 时切换文案
+    var isParseFailed = (error === 'upstream-parse-failed');
+    var userTitle = isParseFailed ? '西方档案模型返回格式异常，请重新分析。' : '真实 AI 分析失败';
+    var userHint = isParseFailed
+      ? '上游模型本轮未能输出结构化 JSON，已尝试文本容错与修复请求，均未恢复。'
+      : '请检查网络 / Token Plan 配额，或更换人脸样本后重试。';
+
     // ★ 不渲染 LOCKED western-skin.html（避免误导）· 直接在 result-layer 弹失败
     if (typeof window.SPA === 'undefined' || typeof window.SPA.showResultOverlay !== 'function') {
       console.error('[WESTERN_AI] cannot show fail overlay · SPA missing');
@@ -468,7 +538,6 @@
     if (fr) { try { fr.src = 'about:blank'; } catch (e) {} }
     var shell = root.querySelector('.result-modal-shell');
     if (shell) {
-      var statusLabel = httpStatus === 0 ? 'NETWORK' : ('HTTP ' + httpStatus);
       shell.innerHTML =
         '<div class="result-modal-toolbar">' +
           '<button class="result-back-select-btn" type="button" data-action="back-to-path-select">← 返回选择</button>' +
@@ -476,10 +545,9 @@
         '</div>' +
         '<div class="result-modal-content" style="background:#1a0d0d;border:2px solid #b84545;padding:60px 40px;text-align:center;font-family:monospace;">' +
           '<div style="font-size:14px;letter-spacing:4px;color:#b84545;margin-bottom:20px;">▌ REAL AI FAILED</div>' +
-          '<div style="font-size:32px;color:#f6efde;letter-spacing:6px;margin-bottom:30px;">真实 AI 分析失败</div>' +
-          '<div style="font-size:14px;color:#998a72;line-height:1.8;max-width:680px;margin:0 auto;">REAL WESTERN AI FAILED 上游 ' + statusLabel + ' · ' + error + '<br>' +
-            '上游消息：' + (msg || '—') +
-          '</div>' +
+          '<div style="font-size:32px;color:#f6efde;letter-spacing:4px;line-height:1.4;margin-bottom:24px;max-width:780px;margin-left:auto;margin-right:auto;">' + userTitle + '</div>' +
+          '<div style="font-size:14px;color:#998a72;line-height:1.9;max-width:680px;margin:0 auto;">' + userHint + '</div>' +
+          '<div style="margin-top:24px;font-size:11px;color:#5e5340;letter-spacing:2px;">[' + statusLabel + ' · ' + error + ']</div>' +
           '<div style="margin-top:30px;font-size:12px;color:#998a72;letter-spacing:2px;">按上方按钮返回摄像头重新采集</div>' +
         '</div>';
     }
@@ -488,6 +556,7 @@
   // ★ 暴露给父页面
   window.runWesternAIAnalysis = runWesternAIAnalysis;
   window.buildWesternViewModel = buildWesternViewModel;
+  window.showWesternRepairingOverlay = showWesternRepairingOverlay;
   window.WESTERN_AI_ALLOWED = WESTERN_AI_ALLOWED;
   window.WESTERN_AI_STRICT_TEST = WESTERN_AI_STRICT_TEST;
   console.log('[WESTERN_AI] pipeline loaded · allowed:', WESTERN_AI_ALLOWED.join(','));

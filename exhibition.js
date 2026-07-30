@@ -47,6 +47,77 @@ let lastFpsTime = 0;
 let currentFps = 0;
 
 // ============================================
+// ★★★ 摄像头单例锁 + generation token · 禁止并发 getUserMedia
+//   - cameraStartPromise: 当前进行中的 getUserMedia Promise（不允许第二个并存）
+//   - activeCameraStream: 当前 live MediaStream（带 live video track）
+//   - cameraStartGeneration: 每次新启动自增；旧 Promise 完成后若 generation 不匹配 → 立即 stop 新流
+//   - lastCameraStartSource: 最近一次启动来源（用于排查 + log）
+// ============================================
+let cameraStartPromise = null;
+let activeCameraStream = null;
+let cameraStartGeneration = 0;
+let lastCameraStartSource = 'none';
+let _cameraOpened = false;
+
+// ============================================
+// ★ 释放摄像头 · 统一入口
+//   - invalidatePending: true  → 取消旧启动任务（自增 generation · 用于离开摄像头 / 新一轮任务 / 卸载）
+//                          false → 仅释放当前流，不动 generation（用于同一启动任务内部错误恢复）
+// ============================================
+async function releaseCameraStream(reason, options) {
+  options = options || {};
+  const invalidatePending = options.invalidatePending !== false;  // 默认 true
+
+  // 1. 仅在需要时自增 generation
+  if (invalidatePending) {
+    cameraStartGeneration++;
+  }
+
+  // 2. 收集要停止的所有流（activeCameraStream 优先 · video.srcObject 兜底）
+  const video = document.getElementById('v3xVideo');
+  const streams = [activeCameraStream];
+  if (video && video.srcObject && video.srcObject !== activeCameraStream) {
+    streams.push(video.srcObject);
+  }
+  const uniqueStreams = streams.filter(Boolean).filter((s, i, arr) => arr.indexOf(s) === i);
+
+  let stopped = 0;
+  for (const stream of uniqueStreams) {
+    try {
+      const tracks = stream.getTracks ? stream.getTracks() : [];
+      for (const track of tracks) {
+        try { track.stop(); stopped++; } catch (e) { /* swallow */ }
+      }
+    } catch (e) { /* swallow */ }
+  }
+
+  // 3. 清空 video 元素
+  if (video) {
+    try { video.pause(); } catch (e) {}
+    try { video.srcObject = null; } catch (e) {}
+  }
+
+  // 4. 清空模块状态
+  activeCameraStream = null;
+  cameraStream = null;
+  _cameraOpened = false;
+
+  console.log(
+    '[CAMERA_RELEASE]',
+    reason,
+    '· invalidatePending=',
+    invalidatePending,
+    '· gen=',
+    cameraStartGeneration,
+    '· stopped tracks=',
+    stopped
+  );
+
+  // 5. 等设备真正释放（Windows Camera Frame Server 需要）
+  await new Promise((r) => setTimeout(r, 300));
+}
+
+// ============================================
 // 独立检测 canvas（160×120 低分辨率）
 // ============================================
 const detectCanvas = document.createElement('canvas');
@@ -120,7 +191,7 @@ function boot() {
   }, 1000);
 
   // ★ 尝试立刻拉摄像头（fire-and-forget · 不 await 避免 boot 阻塞）
-  ensureCameraRunning().catch(e => console.warn('[v3x] ensureCameraRunning err', e));
+  ensureCameraRunning('boot').catch(e => console.warn('[v3x] ensureCameraRunning err', e));
 
   // ★ 全局键盘 · 一次性绑定
   document.addEventListener('keydown', (e) => {
@@ -167,22 +238,52 @@ function boot() {
 }
 
 // ★★ 保证摄像头在跑 · 但不重复 getUserMedia
-async function ensureCameraRunning() {
+//   - 单例锁：cameraStartPromise 在飞时 → 复用同一个 Promise
+//   - 复用：activeCameraStream 已有 live track → 直接 return
+//   - source: 调用来源标签（'boot' / 'return to camera' / 'retry' / 're-analyze' / 'unknown'）
+async function ensureCameraRunning(source) {
+  source = source || 'unknown';
   const video = document.getElementById('v3xVideo');
   if (!video) {
     console.warn('[CAMERA] #v3xVideo not found');
-    return;
+    return null;
   }
-  if (video.srcObject) {
-    const tracks = video.srcObject.getVideoTracks();
-    const live = tracks.some(t => t.readyState === 'live');
-    if (live) {
-      console.log('[CAMERA] reuse existing stream · tracks =', tracks.length);
-      return;
+
+  // 1. 已经有 live track · 直接复用
+  if (activeCameraStream) {
+    const liveTrack = activeCameraStream.getVideoTracks().find(t => t.readyState === 'live');
+    if (liveTrack) {
+      console.log('[CAMERA] reuse live stream · source =', source, '· track.label =', liveTrack.label, '· readyState =', liveTrack.readyState);
+      return activeCameraStream;
     }
   }
-  console.log('[CAMERA] start new stream');
-  await openCamera();
+
+  // 2. video 元素上还有 srcObject 但不是 activeCameraStream（边缘情况）· 也复用
+  if (video.srcObject) {
+    const liveTrack = (video.srcObject.getVideoTracks() || []).find(t => t.readyState === 'live');
+    if (liveTrack) {
+      activeCameraStream = video.srcObject;
+      cameraStream = video.srcObject;
+      _cameraOpened = true;
+      console.log('[CAMERA] reuse video.srcObject stream · source =', source, '· track.label =', liveTrack.label);
+      return video.srcObject;
+    }
+  }
+
+  // 3. 已有在飞 Promise · 复用 · 不允许并发
+  if (cameraStartPromise) {
+    console.log('[CAMERA] join pending request · source =', source, '· existing source =', lastCameraStartSource);
+    return cameraStartPromise;
+  }
+
+  // 4. 启动新 Promise · finally 清空（保证下次可以再启）
+  lastCameraStartSource = source;
+  console.log('[CAMERA_START] source =', source, '· time =', Date.now(), '· gen =', cameraStartGeneration);
+  cameraStartPromise = openCameraInternal(source).finally(() => {
+    cameraStartPromise = null;
+  });
+
+  return cameraStartPromise;
 }
 
 function pad(n) { return n < 10 ? '0' + n : '' + n; }
@@ -200,79 +301,132 @@ function log(text, kind) {
 // ============================================
 // 摄像头 · 启动一次 · 永远复用
 // ============================================
-let _cameraOpening = false;
-let _cameraOpened = false;
 
-async function openCamera() {
+// ★★★ 摄像头真正启动逻辑 · 内部函数（被 ensureCameraRunning 调用）
+//   特点：
+//   - 严格串行 fallback：前一次 await 完全失败才尝试下一个
+//   - generation 只在进入函数时 ++ 一次 · 整轮（包括 NotReadableError 内部恢复）共享同一 myGen
+//   - NotReadableError：先 release(invalidatePending:false) + 等 800ms + 只用最宽松配置重试 1 次
+//   - 重试过程中再次检查 generation · 若被外部作废 → 立即 stop 新流
+async function openCameraInternal(source) {
+  source = source || 'unknown';
   const video = $('v3xVideo');
   if (!video) {
     console.error('[v3x] #v3xVideo 元素不存在 · 检查 HTML');
-    return;
+    return null;
   }
 
-  // ★ 防重复：已经在打开中 或 已经成功过
-  if (_cameraOpening) {
-    console.log('[CAMERA] openCamera already in progress · skip');
-    return;
-  }
-  if (_cameraOpened && video.srcObject) {
-    const tracks = video.srcObject.getVideoTracks();
-    const live = tracks.some(t => t.readyState === 'live');
-    if (live) {
-      console.log('[CAMERA] reuse existing stream · tracks =', tracks.length);
-      return;
-    }
-    console.log('[CAMERA] existing stream is dead · re-open');
-  }
+  // 1. generation token · 启动时取自己的 gen（整轮共享，不重复 ++）
+  const myGen = ++cameraStartGeneration;
+  console.log('[CAMERA_START]', 'source=', source, '· myGen=', myGen);
 
-  _cameraOpening = true;
+  // 2. 准备串行 fallback 配置（按从宽松到严格顺序）
+  const constraintCandidates = [
+    { video: true, audio: false },                                                              // 1. 最宽松
+    { video: { facingMode: 'user' }, audio: false },                                             // 2. 前置
+    { video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: false }                   // 3. 指定分辨率
+  ];
+
   setState('waiting');
   log('摄像头权限请求中…', '');
 
-  // ★ 简化约束：先 video: true 走通 · 不要写 ideal
   let stream = null;
   let lastErr = null;
-  // 尝试 1：最宽松
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-    console.log('[v3x] ★ 摄像头已接入（最宽松配置）:', stream);
-  } catch (e1) {
-    console.warn('[v3x] 最宽松配置失败：', e1.name, e1.message);
-    lastErr = e1;
-    // 尝试 2：基本配置
+  let didInternalRetry = false;   // 同一启动任务内只允许一次内部恢复
+
+  for (let i = 0; i < constraintCandidates.length; i++) {
+    // generation 已被外部作废 · 放弃本轮
+    if (myGen !== cameraStartGeneration) {
+      console.warn('[CAMERA_START] generation changed · abort · myGen=', myGen, '· currentGen=', cameraStartGeneration);
+      return null;
+    }
+    const c = constraintCandidates[i];
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false
-      });
-      console.log('[v3x] ★ 摄像头已接入（640×480）:', stream);
-    } catch (e2) {
-      console.warn('[v3x] 640×480 也失败：', e2.name, e2.message);
-      lastErr = e2;
-      // 尝试 3：仅 facingMode user
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user' },
-          audio: false
-        });
-        console.log('[v3x] ★ 摄像头已接入（facingMode:user）:', stream);
-      } catch (e3) {
-        console.error('[v3x] ✗ 全部配置都失败：', e3);
-        lastErr = e3;
+      console.log('[getUserMedia] attempt', i + 1, '/', constraintCandidates.length, '· source=', source, '· constraints=', JSON.stringify(c));
+      stream = await navigator.mediaDevices.getUserMedia(c);
+      console.log('[getUserMedia] ★ 摄像头已接入 · attempt', i + 1, '· source=', source, '· stream=', stream);
+      break;  // 成功立即 break
+    } catch (e) {
+      console.warn('[getUserMedia] attempt', i + 1, 'failed · source=', source, '·', e?.name, e?.message);
+      lastErr = e;
+
+      // ★ NotReadableError 内部恢复（不 invalidate 自己）
+      if (e && (e.name === 'NotReadableError' || e.name === 'TrackStartError') && !didInternalRetry) {
+        didInternalRetry = true;
+        console.log('[CAMERA_RETRY] NotReadableError detected · release(invalidatePending:false) + 800ms wait · myGen=', myGen);
+        try {
+          // ★ 关键：invalidatePending:false · 不动 generation · 让自己后续检查能通过
+          await releaseCameraStream('not-readable-retry-prep', { invalidatePending: false });
+        } catch (e2) { /* swallow */ }
+        console.log('[CAMERA_RETRY] waiting 800ms');
+        await new Promise((r) => setTimeout(r, 800));
+
+        // generation 已被外部作废 → 放弃
+        if (myGen !== cameraStartGeneration) {
+          console.warn('[CAMERA_RETRY] generation changed during wait · abort · myGen=', myGen, '· currentGen=', cameraStartGeneration);
+          return null;
+        }
+
+        // 单次真正宽松重试
+        console.log('[CAMERA_RETRY] start · myGen=', myGen, '· currentGen=', cameraStartGeneration);
+        let retryStream = null;
+        try {
+          retryStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+        } catch (eRetry) {
+          console.error('[CAMERA_RETRY] failed · 不再继续', eRetry);
+          lastErr = eRetry;
+          stream = null;
+          break;
+        }
+
+        // 再次检查 generation · 已被外部作废 → 立即 stop 这次结果
+        if (myGen !== cameraStartGeneration) {
+          console.warn('[CAMERA_RETRY] stale result discarded · myGen=', myGen, '· currentGen=', cameraStartGeneration);
+          try { retryStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); } catch (e3) {}
+          return null;
+        }
+
+        const retryTrack = (retryStream.getVideoTracks() || [])[0];
+        console.log('[CAMERA_RETRY] success · track label=', retryTrack?.label, '· readyState=', retryTrack?.readyState);
+        stream = retryStream;
+        break;
       }
+
+      // 权限/未找到设备 → 直接终止，不再尝试
+      if (e && (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError' || e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError')) {
+        break;
+      }
+      // 其它可重试错误 → 继续下一个配置
     }
   }
 
   if (!stream) {
-    handleCameraError(lastErr);
-    return;
+    console.error('[v3x] ✗ 全部配置都失败 · source=', source, '· lastErr=', lastErr);
+    handleCameraError(lastErr, source);
+    return null;
   }
 
+  // 3. 绑定前再检查 generation
+  if (myGen !== cameraStartGeneration) {
+    console.warn('[CAMERA_START] generation changed after success · stop this stream · myGen=', myGen, '· currentGen=', cameraStartGeneration);
+    try { stream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); } catch (e) {}
+    return null;
+  }
+
+  // 4. 绑定到 video 元素
   cameraStream = stream;
-  video.srcObject = cameraStream;
+  activeCameraStream = stream;
+  video.srcObject = stream;
   video.muted = true;
   video.playsInline = true;
   video.autoplay = true;
+
+  // 打印 live track 状态
+  try {
+    stream.getVideoTracks().forEach(t => {
+      console.log('[CAMERA] track bound · source=', source, '· label=', t.label, '· readyState=', t.readyState, '· enabled=', t.enabled, '· muted=', t.muted);
+    });
+  } catch (e) { /* swallow */ }
 
   // ★ 等 metadata + 真正开始播放
   const waitForReady = new Promise((resolve) => {
@@ -281,7 +435,7 @@ async function openCamera() {
       if (resolved) return; resolved = true;
       video.removeEventListener('loadedmetadata', onMeta);
       video.play().then(() => {
-        console.log('[v3x] ★ video.play() 成功');
+        console.log('[v3x] ★ video.play() 成功 · source=', source);
         console.log('[v3x] ★ video size =', video.videoWidth, '×', video.videoHeight);
         resolve();
       }).catch((err) => {
@@ -290,7 +444,6 @@ async function openCamera() {
       });
     };
     video.addEventListener('loadedmetadata', onMeta);
-    // 兜底：3 秒后强制继续（即使 metadata 没来）
     setTimeout(() => {
       if (!resolved) {
         resolved = true;
@@ -304,6 +457,16 @@ async function openCamera() {
 
   await waitForReady;
 
+  // 再次检查 generation
+  if (myGen !== cameraStartGeneration) {
+    console.warn('[CAMERA_START] generation changed during play · release this stream · myGen=', myGen);
+    try {
+      stream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+      video.srcObject = null;
+    } catch (e) { /* swallow */ }
+    return null;
+  }
+
   // 等一帧
   await new Promise((r) => requestAnimationFrame(r));
 
@@ -316,12 +479,15 @@ async function openCamera() {
   detectCanvas.width = 160;
   detectCanvas.height = 120;
   startDetectLoop();
-  // ★ 启动摄像头画面上的 face scan overlay 点阵动画
   startFaceScanOverlay();
-  // ★ 标记已成功打开（防重复 getUserMedia）
   _cameraOpened = true;
-  _cameraOpening = false;
-  console.log('[CAMERA] openCamera complete · stream is live');
+  console.log('[CAMERA] openCameraInternal complete · source=', source, '· myGen=', myGen, '· stream is live');
+  return stream;
+}
+
+// ★ 保留旧 openCamera 名字作为兼容 · 直接转调 ensureCameraRunning
+async function openCamera() {
+  return ensureCameraRunning('legacy-openCamera');
 }
 
 // ★★★ Face Scan Overlay · 基于 MediaPipe Face Landmarker 真实关键点（稳定化版）
@@ -778,18 +944,19 @@ function stopFaceScanOverlay() {
   _detectionStreak = 0;
 }
 
-function handleCameraError(err) {
-  console.error('[v3x] 摄像头请求失败:', err.name, err.message, err);
-  // ★ 重置标志允许重试
-  _cameraOpening = false;
+function handleCameraError(err, source) {
+  source = source || 'unknown';
+  console.error('[v3x] 摄像头请求失败 · source =', source, '·', err?.name, err?.message, err);
   const errName = err?.name || 'Error';
+  const errMsg = err?.message || '(no message)';
   let userMsg = '';
   if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
     userMsg = '摄像头权限被拒绝。请在浏览器地址栏左侧的小锁/相机图标里允许摄像头。';
   } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
     userMsg = '未找到摄像头设备。请检查摄像头是否连接。';
   } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
-    userMsg = '摄像头被其他程序占用（如微信、腾讯会议、OBS、剪映、其他浏览器）。请关闭后刷新。';
+    // ★ 不再写"被其他程序占用"这种绝对结论
+    userMsg = '摄像头暂时不可用。设备可能仍被浏览器中的旧视频流占用，或正被其他应用使用。请关闭其他摄像头页面后重新尝试。';
   } else if (errName === 'OverconstrainedError') {
     userMsg = '摄像头不支持请求的分辨率。';
   } else if (errName === 'NotSupportedError' || errName === 'TypeError') {
@@ -797,14 +964,21 @@ function handleCameraError(err) {
   } else if (errName === 'SecurityError') {
     userMsg = '安全限制。请用 http://localhost 打开，不要用 file:// 或 127.0.0.1。';
   } else {
-    userMsg = (err?.message || '未知错误') + '（' + errName + '）';
+    userMsg = (errMsg) + '（' + errName + '）';
   }
-  log('摄像头错误：' + errName, 'alert');
+  log('摄像头错误：' + errName + ' · ' + errMsg, 'alert');
   setStatus('错误 · ' + errName, userMsg, 'error');
-  showCamError(userMsg);
+  // ★ 把真实错误代码传进 UI
+  showCamError(userMsg, errName, errMsg, source);
 }
 
-function showCamError(msg) {
+// ★ 摄像头错误覆盖层
+//   - 显示真实错误代码（如 NotReadableError · Device in use）
+//   - 「重新尝试」按钮点击后立即 disabled，直到本轮请求结束才能再次点击
+function showCamError(msg, errName, errMsg, source) {
+  errName = errName || 'UnknownError';
+  errMsg = errMsg || msg;
+  source = source || 'unknown';
   // ★ fallback demo：摄像头不可用时，仍启动 face scan overlay 在原本 video 区域演示
   try { startFaceScanOverlay(); } catch (e) { console.warn('[v3x] scan overlay fallback fail:', e); }
   const hud = document.getElementById('v3xScanHud');
@@ -818,14 +992,57 @@ function showCamError(msg) {
     el.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:40px;text-align:center;font-family:monospace;pointer-events:auto;';
     document.body.appendChild(el);
   }
+  // 唯一按钮 id · 用于禁用 / 恢复
+  const btnId = 'v3xCamErrRetryBtn';
   el.innerHTML =
-    '<div style="max-width:540px;background:#1a1a1a;border:3px solid #d60000;box-shadow:8px 8px 0 #d60000;padding:30px;">' +
-    '<div style="font-size:14px;letter-spacing:3px;color:#d60000;font-weight:900;margin-bottom:12px;">★ 摄像头不可用 · DEMO MODE</div>' +
+    '<div style="max-width:560px;background:#1a1a1a;border:3px solid #d60000;box-shadow:8px 8px 0 #d60000;padding:30px;">' +
+    '<div style="font-size:14px;letter-spacing:3px;color:#d60000;font-weight:900;margin-bottom:12px;">★ 摄像头暂时不可用 · DEMO MODE</div>' +
     '<div style="font-size:13px;line-height:1.7;color:#fff;font-weight:700;letter-spacing:1px;">' + msg + '</div>' +
-    '<div style="margin-top:14px;font-size:11px;color:#f5d400;letter-spacing:2px;">▌ 当前为视觉预览模式 · face scan overlay 仍在演示中</div>' +
-    '<div style="margin-top:14px;font-size:11px;color:#888;letter-spacing:1px;">详情见浏览器 Console (F12) · 按 Q 或点下方按钮退出</div>' +
-    '<button onclick="document.body.removeChild(document.getElementById(\'v3xCamErr\'));location.reload();" style="margin-top:18px;background:#f5d400;color:#1a1a1a;border:2px solid #1a1a1a;box-shadow:3px 3px 0 #d60000;padding:10px 20px;font-family:monospace;font-weight:900;letter-spacing:2px;cursor:pointer;">↻ 重新尝试</button>' +
+    '<div style="margin-top:14px;font-size:11px;color:#f5d400;letter-spacing:2px;line-height:1.8;">▌ 错误代码：<span style="color:#fff;background:rgba(214,0,0,0.4);padding:2px 6px;">' + errName + '</span> · ' + errMsg + '</div>' +
+    '<div style="margin-top:8px;font-size:11px;color:#888;letter-spacing:1px;">▌ 来源：' + source + ' · 详情见浏览器 Console (F12) · 按 Q 或点下方按钮退出</div>' +
+    '<div style="margin-top:14px;font-size:11px;color:#d8d8d8;letter-spacing:1px;">▌ 当前为视觉预览模式 · face scan overlay 仍在演示中</div>' +
+    '<button id="' + btnId + '" type="button" style="margin-top:18px;background:#f5d400;color:#1a1a1a;border:2px solid #1a1a1a;box-shadow:3px 3px 0 #d60000;padding:10px 20px;font-family:monospace;font-weight:900;letter-spacing:2px;cursor:pointer;">↻ 重新尝试</button>' +
     '</div>';
+
+  // ★ 重新尝试按钮：点击后立即 disabled · 不允许并发重试
+  const btn = el.querySelector('#' + btnId);
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = '↻ 重新尝试';
+    btn.onclick = async function () {
+      if (btn.disabled) {
+        console.log('[CAMERA_RETRY] button already disabled · ignore click');
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = '⏳ 重新申请中…';
+      btn.style.opacity = '0.5';
+      btn.style.cursor = 'wait';
+      console.log('[CAMERA_RETRY] click · source =', source);
+      try {
+        // ★ 先彻底释放旧流（如果还有残留）
+        try { await releaseCameraStream('retry-button'); } catch (e) { /* swallow */ }
+        // ★ 单次重启
+        const newStream = await ensureCameraRunning('retry');
+        if (newStream) {
+          console.log('[CAMERA_RETRY] success · close error overlay');
+          try { el.parentNode && el.parentNode.removeChild(el); } catch (e) {}
+        } else {
+          console.warn('[CAMERA_RETRY] still failed · restore button');
+          btn.disabled = false;
+          btn.textContent = '↻ 重新尝试';
+          btn.style.opacity = '1';
+          btn.style.cursor = 'pointer';
+        }
+      } catch (e) {
+        console.error('[CAMERA_RETRY] err', e);
+        btn.disabled = false;
+        btn.textContent = '↻ 重新尝试';
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+      }
+    };
+  }
 }
 
 function startDetectLoop() {
@@ -1019,8 +1236,8 @@ function resetToCamera() {
     }
     // ★ 切状态到 waiting（detectTick 几秒后会自动升到 ready）
     setState('waiting');
-    // ★ 复用现有摄像头流（绝不重开 getUserMedia）
-    try { ensureCameraRunning(); } catch (e) { console.warn('[FLOW] ensureCameraRunning failed', e); }
+    // ★ 复用现有摄像头流（绝不重开 getUserMedia · 除非真的没有 live track）
+    try { ensureCameraRunning('return to camera'); } catch (e) { console.warn('[FLOW] ensureCameraRunning failed', e); }
     // ★ 清空 ancient iframe 内的归类融合像状态（避免上一轮的图残留）
     try {
       if (typeof window.resetAncientFusionInIframe === 'function') {
@@ -1321,7 +1538,7 @@ function readCapturedFrame() {
 // - 调用后：video.srcObject 已被 stop，requestAnimationFrame 循环被取消
 // - window.__lockedSnapshot 永远保存当前帧
 // - 后续 AI / pathSelect / 结果页只读 __lockedSnapshot，不再访问实时摄像头
-function lockSnapshotAndStopCamera(sample) {
+async function lockSnapshotAndStopCamera(sample) {
   console.log('[CAPTURE] snapshot locking · bytes =', (sample && sample.dataUrl || '').length);
   // ★ 1. 先冻结当前人脸状态（在停止 FaceDetection 之前）
   var faceState = window.currentFaceState || {};
@@ -1352,18 +1569,10 @@ function lockSnapshotAndStopCamera(sample) {
     if (typeof _scanRaf !== 'undefined' && _scanRaf) { cancelAnimationFrame(_scanRaf); _scanRaf = null; }
     console.log('[FACE_DETECTION] loop stopped');
   } catch (e) { console.warn('[FACE_DETECTION] stop err', e); }
-  // 4. 停摄像头 stream（最后才停）
+  // 4. 停摄像头 stream（用统一入口 · generation +1 防止旧 Promise 晚到覆盖）
   try {
-    const video = document.getElementById('v3xVideo') || document.querySelector('video');
-    if (video && video.srcObject) {
-      const stream = video.srcObject;
-      stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
-      video.srcObject = null;
-      console.log('[CAMERA] tracks stopped');
-    } else {
-      console.log('[CAMERA] no stream to stop');
-    }
-  } catch (e) { console.warn('[CAMERA] stop err', e); }
+    await releaseCameraStream('snapshot locked');
+  } catch (e) { console.warn('[CAMERA] release err', e); }
 }
 
 // 保存"待跳转结果"参数（sessionStorage 防止跨页 size 限制）
@@ -1560,7 +1769,7 @@ async function useCurrentFrameAndAnalyze() {
   console.log('[FLOW] capture success · dataUrl prefix =', (sample.dataUrl || '').slice(0, 30));
 
   // ★ 立刻冻结画面 + 停摄像头 + 停人脸检测 · AI 阶段不再读实时摄像头
-  try { lockSnapshotAndStopCamera(sample); } catch (e) { console.warn('[FLOW] lockSnapshot failed', e); }
+  try { await lockSnapshotAndStopCamera(sample); } catch (e) { console.warn('[FLOW] lockSnapshot failed', e); }
 
   // ★ 立刻显示 pathSelect overlay（不调 AI / 不进结果页 / 不卡 loading）· currentView 保持 'camera'
   // 把 sample 存到 sessionStorage，方便 pathSelect 拿
@@ -2013,5 +2222,36 @@ function quitExhibit() {
 function stopDetectLoop() {
   if (cameraDetectTimer) { clearInterval(cameraDetectTimer); cameraDetectTimer = null; }
 }
+
+// ============================================
+// ★ 页面卸载时停掉所有摄像头 track（避免浏览器持有设备）
+// ============================================
+function _stopAllTracksOnUnload(reason) {
+  try {
+    const video = document.getElementById('v3xVideo');
+    const streams = [activeCameraStream];
+    if (video && video.srcObject && video.srcObject !== activeCameraStream) {
+      streams.push(video.srcObject);
+    }
+    let n = 0;
+    for (const s of streams) {
+      if (!s) continue;
+      try {
+        for (const t of (s.getTracks ? s.getTracks() : [])) {
+          try { t.stop(); n++; } catch (e) {}
+        }
+      } catch (e) {}
+    }
+    if (video) {
+      try { video.pause(); } catch (e) {}
+      try { video.srcObject = null; } catch (e) {}
+    }
+    activeCameraStream = null;
+    cameraStream = null;
+    console.log('[CAMERA] unload stop · reason =', reason, '· stopped tracks =', n);
+  } catch (e) { /* swallow */ }
+}
+window.addEventListener('pagehide', function () { _stopAllTracksOnUnload('pagehide'); });
+window.addEventListener('beforeunload', function () { _stopAllTracksOnUnload('beforeunload'); });
 
 boot();

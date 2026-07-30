@@ -19,8 +19,10 @@ function _isLegacyAIUrl(url) {
   return s.indexOf("xapi.yhcj.com") >= 0 ||
          s.indexOf("xapi.yhchj.com") >= 0 ||
          s.indexOf("xapi.legaldaily.com.cn") >= 0 ||
+         s.indexOf("xapi.legaldaily.com") >= 0 ||
          s.indexOf("/version?") >= 0 ||
-         /\/version(\s|$)/.test(s);
+         /\bxapi\./i.test(s) ||
+         /\/version(\s|$|\?)/.test(s);
 }
 
 function _fakeDisabledResponse(url) {
@@ -129,8 +131,123 @@ if (typeof window.HTMLImageElement !== "undefined" && !window.__legacyImgPatched
   window.__legacyImgPatched = true;
 }
 
+// ★ 拦截 setAttribute('href'|'src') 写 link / script 标签（绕过 .src setter）
+if (typeof window.Element !== "undefined" && !window.__legacySetAttrPatched) {
+  var _origSetAttr = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function (name, value) {
+    try {
+      if ((name === 'href' || name === 'src') && _isLegacyAIUrl(value)) {
+        _logBlockOnce("setAttribute." + name, String(value));
+        return;
+      }
+      // ★ 拦截 <link rel="dns-prefetch"|"preconnect"|"preload"> · 这种写法会触发 DNS 解析
+      if (name === 'rel' && typeof value === 'string' && /\b(dns-prefetch|preconnect|preload)\b/i.test(value)) {
+        var href = this.getAttribute('href');
+        if (_isLegacyAIUrl(href)) {
+          _logBlockOnce("link.rel", href);
+          return;
+        }
+      }
+    } catch (e) { /* swallow */ }
+    return _origSetAttr.apply(this, arguments);
+  };
+  window.__legacySetAttrPatched = true;
+}
+
+// ★ 拦截 navigator.sendBeacon（常用作健康检查 / 探活）
+if (typeof navigator !== "undefined" && navigator.sendBeacon && !window.__legacyBeaconPatched) {
+  var _origBeacon = navigator.sendBeacon.bind(navigator);
+  navigator.sendBeacon = function (url, data) {
+    if (_isLegacyAIUrl(url)) {
+      _logBlockOnce("sendBeacon", String(url));
+      return true;  // 假装成功 · 不抛
+    }
+    return _origBeacon(url, data);
+  };
+  window.__legacyBeaconPatched = true;
+}
+
+// ★ 拦截 WebSocket · 旧版健康检查可能用 WS 探测
+if (typeof window.WebSocket === "function" && !window.__legacyWSPatched) {
+  var _OrigWS = window.WebSocket;
+  var _WSProxy = function (url, protocols) {
+    if (_isLegacyAIUrl(url)) {
+      _logBlockOnce("WebSocket", String(url));
+      // 构造一个 fake 对象 · 立即关闭
+      try {
+        var fake = {
+          readyState: 3, CLOSED: 3, CLOSING: 2, CONNECTING: 0, OPEN: 1,
+          onopen: null, onclose: null, onerror: null, onmessage: null,
+          send: function () {},
+          close: function () {},
+          addEventListener: function (ev, cb) { if (ev === 'close' || ev === 'error') { try { setTimeout(function(){cb && cb({});}, 0); } catch(e){} } },
+          removeEventListener: function () {}
+        };
+        return fake;
+      } catch (e) {}
+    }
+    return new _OrigWS(url, protocols);
+  };
+  _WSProxy.prototype = _OrigWS.prototype;
+  try {
+    window.WebSocket = _WSProxy;
+  } catch (e) { /* 部分浏览器不允许 */ }
+  window.__legacyWSPatched = true;
+}
+
+// ★ 拦截 EventSource (SSE)
+if (typeof window.EventSource === "function" && !window.__legacyESEPatched) {
+  var _OrigES = window.EventSource;
+  var _ESProxy = function (url, config) {
+    if (_isLegacyAIUrl(url)) {
+      _logBlockOnce("EventSource", String(url));
+      try {
+        return { readyState: 2, CLOSED: 2, CONNECTING: 0, OPEN: 1,
+          onopen: null, onmessage: null, onerror: null,
+          close: function () {}, addEventListener: function() {}, removeEventListener: function() {} };
+      } catch (e) {}
+    }
+    return new _OrigES(url, config);
+  };
+  try { window.EventSource = _ESProxy; } catch (e) {}
+  window.__legacyESEPatched = true;
+}
+
+// ★ 移除已存在的 dns-prefetch / preconnect link 标签
+try {
+  document.querySelectorAll('link[rel="dns-prefetch"], link[rel="preconnect"], link[rel="preload"]').forEach(function (el) {
+    var href = el.getAttribute('href');
+    if (_isLegacyAIUrl(href)) {
+      _logBlockOnce("existing-link", href);
+      try { el.parentNode && el.parentNode.removeChild(el); } catch (e) {}
+    }
+  });
+} catch (e) { /* DOM 还没 ready */ }
+
+// ★ MutationObserver 持续清理动态插入的 link
+if (typeof window.MutationObserver === "function" && !window.__legacyMOPatched) {
+  try {
+    var mo = new MutationObserver(function (mutations) {
+      mutations.forEach(function (m) {
+        m.addedNodes.forEach(function (n) {
+          if (n && n.nodeType === 1 && n.tagName === 'LINK') {
+            var href = n.getAttribute && n.getAttribute('href');
+            var rel = n.getAttribute && n.getAttribute('rel');
+            if (rel && /\b(dns-prefetch|preconnect|preload)\b/i.test(rel) && _isLegacyAIUrl(href)) {
+              _logBlockOnce("mutation-link", href);
+              try { n.parentNode && n.parentNode.removeChild(n); } catch (e) {}
+            }
+          }
+        });
+      });
+    });
+    mo.observe(document.documentElement || document, { childList: true, subtree: true });
+    window.__legacyMOPatched = true;
+  } catch (e) { /* noop */ }
+}
+
 if (window.DISABLE_LEGACY_AI_HEALTH_CHECK) {
-  console.log("[LEGACY_AI] all legacy AI traffic is blocked (fetch + XHR + img.src) · returns fake 200 JSON");
+  console.log("[LEGACY_AI] all legacy AI traffic is blocked (fetch + XHR + img.src + setAttribute + sendBeacon + WebSocket + EventSource + link rel) · returns fake 200 JSON");
 } else {
   console.log("[LEGACY_AI] WARNING · DISABLE_LEGACY_AI_HEALTH_CHECK=false · legacy traffic ALLOWED");
 }

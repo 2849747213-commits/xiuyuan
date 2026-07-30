@@ -28,3 +28,12 @@ Thumbs.db
 *.swp
 
 .vercel
+
+# 测试 / 调试产物 · 不进线上仓库
+test-*.js
+test-*.json
+test-*.jpg
+test-*.ps1
+verify-*.js
+verify-*.jpg
+_run-mock-test.ps1

@@ -758,8 +758,8 @@
       "mappedFields": {
         "cranial_verdict": "颅骨地图化"
       },
-      "mainImage": "assets/sample-library/western/W05_19_phrenology_main.jpg",
-      "altImage": "assets/sample-library/western/W05_19_phrenology_alt.jpg",
+      "mainImage": "assets/sample-library/western/normalized/W05/W05_sample_main.jpg",
+      "altImage": "assets/sample-library/western/normalized/W05/W05_sample_alt.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:WLA_nyhistorical_Lorenzo_Niles_Fowler_Phrenology_head.jpg",
       "sourceNote": "CC BY 2.5",
       "visualKeywords": [],

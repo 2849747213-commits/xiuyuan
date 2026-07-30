@@ -1318,9 +1318,36 @@
         '<div class="result-modal-content ancient-loading">' +
           '<div class="ancient-loading__inner ancient-loading__failed">' +
             '<div class="ancient-loading__kicker">▌ REAL AI FAILED</div>' +
-            '<div class="ancient-loading__title">真实 AI 分析失败</div>' +
-            '<div class="ancient-loading__subtitle">' + (reason || '请检查服务端日志 [ANCIENT_API]') + '</div>' +
+            '<div class="ancient-loading__title">AI 返回格式异常，系统未能完成档案整理</div>' +
+            '<div class="ancient-loading__subtitle">请重新分析</div>' +
             '<div class="ancient-loading__note">按上方按钮返回摄像头重新采集</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    root.style.display = "block";
+    root.classList.add("is-active");
+    document.body.classList.add("v3x-view-active");
+    var bc = root.querySelector(".result-back-camera-btn");
+    if (bc) bc.onclick = function () { if (window.resetToCamera) try { window.resetToCamera(); } catch (e) {} };
+  }
+
+  // ★ 修复中 overlay · 当服务端走公共修复流水线时显示
+  // ★ 不再整页崩，告诉用户"系统正在整理判定档案……"
+  function showAncientRepairingOverlay() {
+    var root = document.getElementById("result-layer");
+    if (!root) return;
+    root.innerHTML =
+      '<div class="result-modal-shell" data-result-view="ancient">' +
+        '<div class="result-modal-toolbar">' +
+          '<button class="result-back-camera-btn" type="button">← 摄像头</button>' +
+        '</div>' +
+        '<div class="result-modal-content ancient-loading">' +
+          '<div class="ancient-loading__inner">' +
+            '<div class="ancient-loading__bar"><span></span><span></span><span></span></div>' +
+            '<div class="ancient-loading__kicker">▌ ARCHIVE REPAIRING</div>' +
+            '<div class="ancient-loading__title">系统正在整理判定档案……</div>' +
+            '<div class="ancient-loading__subtitle">模型首次返回格式异常，正在补全判定理由</div>' +
+            '<div class="ancient-loading__note">请稍候 · 不需要重新拍摄</div>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -1512,9 +1539,8 @@
     return true;
   }
 
-  // ★ 真 AI 调用：直接打 /api/classify（用我们自己的 prompt + 任务）
-  // - 与现有 AIClient.callAI 走同一 endpoint
-  // - 但 prompt 改成 "ancient 固定样本选择器"，期望 AI 返回 sampleId
+  // ★ 真 AI 调用：直接打 /api/classify/ancient
+  // - 接收统一结构：{ ok, source, system, sampleId, confidence, shortReason, matchedFeatures, visionCheck, dimensionReasons, reasonSource, upstreamStatus }
   // - 任何网络错误 / 解析失败 → 返回 null（外层 fallback local）
   async function callExistingAIClientForAncient(payload) {
     var endpoint = (window.location.origin || "") + "/api/classify/ancient";
@@ -1530,7 +1556,7 @@
     console.log("[ANCIENT_AI] request payload", payload);
 
     var ctrl = (typeof AbortController === "function") ? new AbortController() : null;
-    var timer = ctrl ? setTimeout(function(){ try{ ctrl.abort(); }catch(e){} }, 12000) : null;
+    var timer = ctrl ? setTimeout(function(){ try{ ctrl.abort(); }catch(e){} }, 60000) : null;
     try {
       var resp = await fetch(endpoint, {
         method: "POST",
@@ -1543,18 +1569,28 @@
       console.log("[ANCIENT_AI] response ok", resp.ok);
       console.log("[ANCIENT_AI] response content-type", resp.headers.get("content-type"));
       var text = await resp.text();
-      console.log("[ANCIENT_AI] response text", text);
+      // ★ 截断打印：禁止输出完整 base64 / API Key
+      console.log("[ANCIENT_AI] response text", text.length > 2000 ? text.slice(0, 2000) + '...[truncated]' : text);
       if (!resp.ok) {
         console.error("[ANCIENT_AI] REAL AI FAILED · HTTP " + resp.status);
-        return null;
+        return { __failed: true, httpStatus: resp.status };
       }
       var data; try { data = JSON.parse(text); } catch (e) {
         console.error("[ANCIENT_AI] REAL AI FAILED · response not JSON:", e && e.message);
         return null;
       }
-      if (data && data.ok === true && data.source === "ai" && data.result && ANCIENT_AI_ALLOWED.indexOf(data.result.sampleId) >= 0) {
-        console.log("[ANCIENT_AI] parsed", data.result);
-        return data.result;
+      // ★ 兼容旧结构（result 在 data.result 内）和新统一结构（sampleId 在顶层）
+      var r = null;
+      if (data && data.ok === true && data.source === "ai" && ANCIENT_AI_ALLOWED.indexOf(data.sampleId) >= 0) {
+        r = data;
+        console.log("[ANCIENT_AI] new unified structure · sampleId=" + r.sampleId + " · reasonSource=" + r.reasonSource);
+      } else if (data && data.ok === true && data.source === "ai" && data.result && ANCIENT_AI_ALLOWED.indexOf(data.result.sampleId) >= 0) {
+        r = data.result;
+        console.log("[ANCIENT_AI] legacy result-nested structure · sampleId=" + r.sampleId);
+      }
+      if (r) {
+        console.log("[ANCIENT_AI] parsed", r);
+        return r;
       }
       console.error("[ANCIENT_AI] REAL AI FAILED · server returned ok=" + (data && data.ok) + ", source=" + (data && data.source) + ", error=" + (data && data.error));
       return null;
@@ -1812,21 +1848,28 @@
     } catch (e) {
       console.error("[ANCIENT_AI] request failed", e && e.message);
     }
+    // ★ 网络层失败 / 解析失败 → 友好失败页
+    if (aiResult && aiResult.__failed) {
+      showAncientAIFailedOverlay("AI 服务异常 · HTTP " + aiResult.httpStatus);
+      enablePathSelectButtons();
+      return { ok: false, source: 'error', error: 'http-' + aiResult.httpStatus };
+    }
     if (!aiResult || !isValidAncientAIResult(aiResult)) {
       console.error("[ANCIENT_AI] request failed · no valid ancient schema returned");
-      showAncientAIFailedOverlay("真实 AI 未返回合法 ancient JSON");
+      showAncientAIFailedOverlay("AI 返回格式异常，系统未能完成档案整理");
       enablePathSelectButtons();
       return { ok: false, source: "error", error: "ai-invalid-result" };
     }
 
     finalSampleId = aiResult.sampleId;
+    var reasonSource = aiResult.reasonSource || 'ai-personalized';
     meta = {
       source: "ai",
       confidence: aiResult.confidence,
       shortReason: aiResult.shortReason,
       matchedFeatures: aiResult.matchedFeatures || []
     };
-    console.log("[ANCIENT_AI] selected sample", finalSampleId);
+    console.log("[ANCIENT_AI] selected sample", finalSampleId, '· reasonSource =', reasonSource);
 
     // ★ 4. 构造 result（直接用 AI 选的 sample）
     var result = buildAncientResultFromSampleIdV2(finalSampleId, meta);
@@ -1838,8 +1881,24 @@
     }
     result.engine = "AI ARCHIVE";
     result.engineNote = "本次归档由真实 AI 调用 /api/classify/ancient 选择样本";
+    // ★ 把 reasonSource / dimensionReasons 写入 result（给结果页 / 测试用）
+    result.reasonSource = reasonSource;
+    if (aiResult.dimensionReasons && typeof aiResult.dimensionReasons === 'object') {
+      result.dimensionReasons = aiResult.dimensionReasons;
+    }
+    if (aiResult.visionCheck) result.visionCheck = aiResult.visionCheck;
 
-    console.log("[ANCIENT_FLOW] open result", result.sampleId, result.sampleName, meta.source);
+    // ★ 输出结果页 reasonSource 日志（与 modern / western 一致）
+    var aiDimCount = 0;
+    if (aiResult.dimensionReasons && typeof aiResult.dimensionReasons === 'object') {
+      for (var drk in aiResult.dimensionReasons) {
+        var drv = aiResult.dimensionReasons[drk];
+        if (typeof drv === 'string' && drv.trim().length >= 4) aiDimCount++;
+      }
+    }
+    console.log('[ANCIENT_REASON_RENDER] source=' + reasonSource + ' · count=' + aiDimCount + '/6');
+
+    console.log("[ANCIENT_FLOW] open result", result.sampleId, result.sampleName, meta.source, '· reasonSource =', reasonSource);
     window.pendingAncientResult = result;
 
     // ★ 5. 打开结果 iframe
