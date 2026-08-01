@@ -1310,6 +1310,13 @@
   function showAncientAIFailedOverlay(reason) {
     var root = document.getElementById("result-layer");
     if (!root) return;
+    // ★ 支持 "title\nsubtitle" 形式 · 拆分渲染
+    var s = String(reason || '');
+    var nl = s.indexOf('\n');
+    var titleText = nl >= 0 ? s.slice(0, nl) : s;
+    var subText = nl >= 0 ? s.slice(nl + 1) : '';
+    if (!titleText) titleText = 'AI 返回格式异常，系统未能完成档案整理';
+    if (!subText) subText = '请重新选择 ancient 再试';
     root.innerHTML =
       '<div class="result-modal-shell" data-result-view="ancient">' +
         '<div class="result-modal-toolbar">' +
@@ -1318,8 +1325,8 @@
         '<div class="result-modal-content ancient-loading">' +
           '<div class="ancient-loading__inner ancient-loading__failed">' +
             '<div class="ancient-loading__kicker">▌ REAL AI FAILED</div>' +
-            '<div class="ancient-loading__title">AI 返回格式异常，系统未能完成档案整理</div>' +
-            '<div class="ancient-loading__subtitle">请重新分析</div>' +
+            '<div class="ancient-loading__title">' + escapeHtml(titleText) + '</div>' +
+            '<div class="ancient-loading__subtitle">' + escapeHtml(subText) + '</div>' +
             '<div class="ancient-loading__note">按上方按钮返回摄像头重新采集</div>' +
           '</div>' +
         '</div>' +
@@ -1329,6 +1336,14 @@
     document.body.classList.add("v3x-view-active");
     var bc = root.querySelector(".result-back-camera-btn");
     if (bc) bc.onclick = function () { if (window.resetToCamera) try { window.resetToCamera(); } catch (e) {} };
+  }
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   // ★ 修复中 overlay · 当服务端走公共修复流水线时显示
@@ -1477,6 +1492,10 @@
       note: "This is a fictional artistic classification system. Do not infer real identity, real personality, real fate, health, ethnicity, gender, or any protected attribute. Only choose one archive sample from the fixed list.",
       imageDataUrl: frameDataUrl || null,
       features: features || {},
+      // ★ 顶层透传本地人脸信息（服务端优先读顶层，features 兼容）
+      localFaceDetected: !!(features && features.localFaceDetected),
+      localLandmarkCount: (features && Number(features.landmarkCount)) || 0,
+      faceCropDataUrl: (features && typeof features.faceCropDataUrl === 'string') ? features.faceCropDataUrl : null,
       localCandidate: localMatch ? {
         sampleId: localMatch.sampleId,
         sampleName: localMatch.sampleName,
@@ -1573,7 +1592,14 @@
       console.log("[ANCIENT_AI] response text", text.length > 2000 ? text.slice(0, 2000) + '...[truncated]' : text);
       if (!resp.ok) {
         console.error("[ANCIENT_AI] REAL AI FAILED · HTTP " + resp.status);
-        return { __failed: true, httpStatus: resp.status };
+        // ★ 试图解析错误体 · 保留 error code / upstreamMessage 给前端文案用
+        var errBody = null; try { errBody = JSON.parse(text); } catch (e) {}
+        return {
+          __failed: true,
+          httpStatus: resp.status,
+          error: (errBody && errBody.error) || ('http-' + resp.status),
+          upstreamMessage: (errBody && errBody.upstreamMessage) || text.slice(0, 200)
+        };
       }
       var data; try { data = JSON.parse(text); } catch (e) {
         console.error("[ANCIENT_AI] REAL AI FAILED · response not JSON:", e && e.message);
@@ -1592,13 +1618,27 @@
         console.log("[ANCIENT_AI] parsed", r);
         return r;
       }
+      // ★ 失败路径：把 error 透传 · 给前端文案映射用
       console.error("[ANCIENT_AI] REAL AI FAILED · server returned ok=" + (data && data.ok) + ", source=" + (data && data.source) + ", error=" + (data && data.error));
-      return null;
+      // ★ 关键：no-face-detected / model-output-not-json / upstream-* 必须透传给上层
+      var failInfo = {
+        __failed: true,
+        httpStatus: 200,
+        ok: false,
+        source: (data && data.source) || 'unknown',
+        error: (data && data.error) || 'unknown',
+        upstreamMessage: (data && data.upstreamMessage) || '',
+        visionCheck: (data && data.visionCheck) || null
+      };
+      return failInfo;
     } catch (e) {
       if (timer) clearTimeout(timer);
       console.error("[ANCIENT_AI] REAL AI FAILED · " + (e && e.message || e));
-      if (e && e.name === "AbortError") console.error("[ANCIENT_AI] timeout, fallback to local");
-      return null;
+      if (e && e.name === "AbortError") {
+        // ★ 前端 abort（60s）也要归类到 timeout
+        return { __failed: true, httpStatus: 0, error: 'aborted', upstreamMessage: (e && e.message) || '' };
+      }
+      return { __failed: true, httpStatus: 0, error: 'fetch-exception', upstreamMessage: (e && e.message) || '' };
     }
   }
 
@@ -1829,8 +1869,18 @@
     // ★ 2. 读锁定帧（不再读实时摄像头）
     var snap = window.__lockedSnapshot || null;
     var dataUrl = snap && snap.dataUrl || null;
+    // ★ 同时读本地 MediaPipe 人脸信息 + 裁切图（避免上游 AI 误判 no-face）
+    var localFaceDetected = !!(snap && snap.faceDetected === true);
+    var localLandmarkCount = (snap && typeof snap.landmarkCount === 'number') ? snap.landmarkCount : 0;
+    // 兼容已有的 SPA 暂存的 face crop
+    var faceCropDataUrl =
+      (snap && snap.faceCropDataUrl) ||
+      window.capturedFaceCropDataUrl ||
+      (typeof window.__lastLockedFaceCrop === 'string' ? window.__lastLockedFaceCrop : null) ||
+      null;
     console.log("[ANCIENT_AI] mode real");
     console.log("[ANCIENT_AI] sampleId before request", null);
+    console.log("[ANCIENT_CAPTURE] localFaceDetected=" + localFaceDetected + " · landmarkCount=" + localLandmarkCount + " · faceCrop attached=" + !!faceCropDataUrl + " · faceCrop bytes=" + (faceCropDataUrl ? faceCropDataUrl.length : 0));
 
     if (!dataUrl) {
       console.error("[ANCIENT_AI] no locked snapshot · abort");
@@ -1844,21 +1894,49 @@
     var meta = { source: "ai", confidence: null, shortReason: "", matchedFeatures: [] };
     var aiResult = null;
     try {
-      aiResult = await analyzeAncientSampleWithAI(dataUrl, {}, null);
+      aiResult = await analyzeAncientSampleWithAI(dataUrl, {
+        localFaceDetected: localFaceDetected,
+        landmarkCount: localLandmarkCount,
+        faceCropDataUrl: faceCropDataUrl
+      }, null);
     } catch (e) {
       console.error("[ANCIENT_AI] request failed", e && e.message);
     }
-    // ★ 网络层失败 / 解析失败 → 友好失败页
+    // ★ 网络层失败 / 解析失败 → 友好失败页（不同 error 区分文案）
     if (aiResult && aiResult.__failed) {
-      showAncientAIFailedOverlay("AI 服务异常 · HTTP " + aiResult.httpStatus);
+      var failedTitle = 'AI 服务异常';
+      var failedSub = '请稍后重试';
+      var httpStatus = aiResult.httpStatus || 0;
+      var upstreamErr = aiResult.upstreamError || '';
+      if (httpStatus === 504 || aiResult.error === 'ancient-upstream-timeout' || (aiResult.upstreamMessage && /timeout/i.test(aiResult.upstreamMessage))) {
+        failedTitle = '古代档案请求等待时间过长';
+        failedSub = '上游响应超过 45 秒 · 服务器已主动终止并返回 504';
+      } else if (httpStatus === 0 || aiResult.error === 'fetch-exception' || aiResult.error === 'network-error') {
+        failedTitle = '当前网络未能连接档案服务';
+        failedSub = '请检查网络连接后重试';
+      } else if (httpStatus === 422 || aiResult.error === 'upstream-image-rejected') {
+        failedTitle = '上游拒绝当前画面';
+        failedSub = '上游对图像敏感度拦截（HTTP 422）';
+      } else if (httpStatus >= 500) {
+        failedTitle = '档案服务暂时不可用';
+        failedSub = '上游 HTTP ' + httpStatus;
+      }
+      console.error('[ANCIENT_AI] REAL AI FAILED · httpStatus=' + httpStatus + ' · error=' + aiResult.error + ' · showing: ' + failedTitle);
+      showAncientAIFailedOverlay(failedTitle + '\n' + failedSub);
       enablePathSelectButtons();
-      return { ok: false, source: 'error', error: 'http-' + aiResult.httpStatus };
+      return { ok: false, source: 'error', error: aiResult.error || ('http-' + httpStatus), httpStatus: httpStatus };
     }
     if (!aiResult || !isValidAncientAIResult(aiResult)) {
       console.error("[ANCIENT_AI] request failed · no valid ancient schema returned");
-      showAncientAIFailedOverlay("AI 返回格式异常，系统未能完成档案整理");
+      // ★ 区分 model-output-not-json vs no-face-detected
+      var aiErr = (aiResult && aiResult.error) || 'ai-invalid-result';
+      if (aiErr === 'no-face-detected') {
+        showAncientAIFailedOverlay('系统未能从当前裁切画面中确认面孔\n请保持人脸在镜头前，重新选择 ancient');
+      } else {
+        showAncientAIFailedOverlay('AI 返回格式异常，系统未能完成档案整理\n请重新选择 ancient 再试');
+      }
       enablePathSelectButtons();
-      return { ok: false, source: "error", error: "ai-invalid-result" };
+      return { ok: false, source: "error", error: aiErr };
     }
 
     finalSampleId = aiResult.sampleId;

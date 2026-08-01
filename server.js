@@ -543,20 +543,28 @@ const server = http.createServer(async (req, res) => {
   // ★ /api/classify/ancient · 独立 ancient 专用路由 · 视觉版
   // - 多模态 image_url 把摄像头帧发给 vision 模型
   // - 返回 visionCheck（非敏感视觉事实）+ sampleId
-  // - 图片无效或无人脸 → 硬返回错误，不强行选样本
+  // - 本地 MediaPipe 已确认人脸 → 不再让模型 visionCheck.hasFace=false 主导失败
+  // - 流程：
+  //   1) 优先用 faceCrop（如果有效）· 否则 full frame
+  //   2) 第一次请求 + 本地 faceConfirmed → 模型 hasFace=false 时只记日志，不立即失败
+  //   3) 若模型 hasFace=false 且本地确认 → 强制用 faceCrop 再请求一次（最多 1 次）
+  //   4) 最终仍 no-face 才返回 no-face-detected
   // ============================================
   const isAncientApi = (req.url.split('?')[0] === '/api/classify/ancient' ||
                         req.url.split('?')[0] === '/exhibition-camera/api/classify/ancient');
   if (req.method === 'POST' && isAncientApi) {
     let body = '';
     req.on('data', c => body += c);
+    const ancientStart = Date.now();
+    const ancientReqId = 'anc_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+    console.log('[ANCIENT_API] [' + ancientReqId + '] request received');
     req.on('end', async () => {
-      console.log('[ANCIENT_API] POST /api/classify/ancient · body bytes =', body.length);
+      console.log('[ANCIENT_API] [' + ancientReqId + '] body parsed · bytes=' + body.length + ' · elapsedMs=' + (Date.now() - ancientStart));
       let input;
       try { input = JSON.parse(body); } catch (e) {
         res.statusCode = 400;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-json', message: e.message }));
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-json', message: e.message, requestId: ancientReqId }));
       }
 
       const image = input && input.image;
@@ -565,72 +573,106 @@ const server = http.createServer(async (req, res) => {
         : ANCIENT_CHOOSE_ALLOWED;
       const glossary = (input && Array.isArray(input.sampleGlossary)) ? input.sampleGlossary : [];
 
-      // ★ 1. 验证图片格式 + 体积
+      // ★ 本地 MediaPipe 人脸信息（兼容顶层 / features.*）
+      const features = (input && input.features && typeof input.features === 'object') ? input.features : {};
+      const localFaceDetected =
+        (input && input.localFaceDetected === true) ||
+        (features && features.localFaceDetected === true) ||
+        (input && input.localLandmarkCount && Number(input.localLandmarkCount) >= 100);
+      const localLandmarkCount = Number(
+        (input && input.localLandmarkCount) ||
+        (features && features.landmarkCount) ||
+        0
+      );
+      const faceCropDataUrl = (input && typeof input.faceCropDataUrl === 'string')
+        ? input.faceCropDataUrl
+        : (features && typeof features.faceCropDataUrl === 'string' ? features.faceCropDataUrl : null);
+      const localFaceConfirmed = localFaceDetected === true && localLandmarkCount >= 100;
+
+      console.log('[ANCIENT_CAPTURE] [' + ancientReqId + '] fullFrame bytes=' + (image ? image.length : 0) + ' · faceCrop bytes=' + (faceCropDataUrl ? faceCropDataUrl.length : 0) + ' · landmarkCount=' + localLandmarkCount + ' · localFaceConfirmed=' + localFaceConfirmed);
+
+      // ★ 1. 验证 fullFrame 图片格式 + 体积
       let mime = null, base64 = null;
       if (typeof image === 'string') {
         const m = image.match(/^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/i);
         if (m) { mime = 'image/' + (m[1] === 'jpg' ? 'jpeg' : m[1].toLowerCase()); base64 = m[2]; }
       }
-      console.log('[ANCIENT_VISION] image mime:', mime);
-      console.log('[ANCIENT_VISION] image bytes:', base64 ? base64.length : 0);
       if (!mime || !base64) {
         res.statusCode = 400;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-camera-image', message: 'image 必须是 data:image/(png|jpeg|webp);base64,…' }));
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-camera-image', message: 'image 必须是 data:image/(png|jpeg|webp);base64,…', requestId: ancientReqId }));
       }
       if (base64.length < 4096) {
         res.statusCode = 400;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-camera-image', message: 'base64 太短 · 拒绝 1×1 / 占位图' }));
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-camera-image', message: 'base64 太短 · 拒绝 1×1 / 占位图', requestId: ancientReqId }));
       }
 
-      // ★ 2. 解码 base64 验证宽高
       let imgW = 0, imgH = 0;
       try {
         const buf = Buffer.from(base64, 'base64');
-        // PNG: IHDR at byte 16-23
         if (buf[0] === 0x89 && buf[1] === 0x50) {
           imgW = buf.readUInt32BE(16); imgH = buf.readUInt32BE(20);
-        }
-        // JPEG: SOF marker scan · robust against Exif orientation
-        else if (buf[0] === 0xFF && buf[1] === 0xD8) {
+        } else if (buf[0] === 0xFF && buf[1] === 0xD8) {
           let i = 2;
           while (i < buf.length - 1) {
             while (i < buf.length && buf[i] !== 0xFF) i++;
             if (i >= buf.length - 1) break;
-            // skip fill bytes (0xFF 0xFF ...)
             while (i < buf.length - 1 && buf[i + 1] === 0xFF) i++;
             const marker = buf[i + 1];
             if (marker >= 0xC0 && marker <= 0xCF && marker !== 0xC4 && marker !== 0xC8 && marker !== 0xCC) {
-              // SOF: length(2) precision(1) height(2) width(2) ...
-              if (i + 7 < buf.length) {
-                imgH = buf.readUInt16BE(i + 3);
-                imgW = buf.readUInt16BE(i + 5);
-              }
+              if (i + 7 < buf.length) { imgH = buf.readUInt16BE(i + 3); imgW = buf.readUInt16BE(i + 5); }
               break;
             }
-            // step to next marker
             const segLen = buf.readUInt16BE(i + 2);
             i += 2 + segLen;
           }
         }
       } catch (e) { console.warn('[ANCIENT_VISION] decode err', e.message); }
-      console.log('[ANCIENT_VISION] image width:', imgW);
-      console.log('[ANCIENT_VISION] image height:', imgH);
-      // ★ 短边必须 ≥ 256
+      console.log('[ANCIENT_VISION] [' + ancientReqId + '] image width:', imgW, '· height:', imgH);
       if (!imgW || !imgH || Math.min(imgW, imgH) < 256) {
         res.statusCode = 400;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-camera-image', message: '图像短边 < 256 · 拒绝', width: imgW, height: imgH }));
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-camera-image', message: '图像短边 < 256 · 拒绝', width: imgW, height: imgH, requestId: ancientReqId }));
       }
+
+      // ★ 解析 faceCrop 验证（解码宽高）
+      let cropMime = null, cropBase64 = null, cropW = 0, cropH = 0;
+      if (typeof faceCropDataUrl === 'string') {
+        const cm = faceCropDataUrl.match(/^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/i);
+        if (cm) {
+          cropMime = 'image/' + (cm[1] === 'jpg' ? 'jpeg' : cm[1].toLowerCase());
+          cropBase64 = cm[2];
+          try {
+            const cbuf = Buffer.from(cropBase64, 'base64');
+            if (cbuf[0] === 0x89 && cbuf[1] === 0x50) {
+              cropW = cbuf.readUInt32BE(16); cropH = cbuf.readUInt32BE(20);
+            } else if (cbuf[0] === 0xFF && cbuf[1] === 0xD8) {
+              let j = 2;
+              while (j < cbuf.length - 1) {
+                while (j < cbuf.length && cbuf[j] !== 0xFF) j++;
+                if (j >= cbuf.length - 1) break;
+                while (j < cbuf.length - 1 && cbuf[j + 1] === 0xFF) j++;
+                const mk = cbuf[j + 1];
+                if (mk >= 0xC0 && mk <= 0xCF && mk !== 0xC4 && mk !== 0xC8 && mk !== 0xCC) {
+                  if (j + 7 < cbuf.length) { cropH = cbuf.readUInt16BE(j + 3); cropW = cbuf.readUInt16BE(j + 5); }
+                  break;
+                }
+                j += 2 + cbuf.readUInt16BE(j + 2);
+              }
+            }
+          } catch (e) {}
+        }
+      }
+      console.log('[ANCIENT_CAPTURE] [' + ancientReqId + '] crop width=' + cropW + ' · crop height=' + cropH + ' · faceCrop valid=' + (!!cropMime && !!cropBase64 && Math.min(cropW || 0, cropH || 0) >= 64));
 
       if (!AI_API_KEY) {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'missing-api-key' }));
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'missing-api-key', requestId: ancientReqId }));
       }
 
-      // ★ 3. 短硬约束 prompt（不再长篇罗列，逐步分析诱导已删除）
+      // ★ 3. system prompt（精简硬约束 · 不诱导逐步分析）
       const systemPrompt =
         SYSTEM_PROMPTS.ancient +
         '\n允许的 sampleId 列表：' + allowed.join(',') + '\n';
@@ -641,20 +683,31 @@ const server = http.createServer(async (req, res) => {
         sampleGlossary: glossary.map(function (g) { return { sampleId: g.sampleId, sampleName: g.sampleName }; })
       });
 
-      console.log('[ANCIENT_VISION] vision model:', AI_MODEL);
-      console.log('[ANCIENT_VISION] image attached to multimodal request: true');
+      // ★ 关键：构造一次 AI 请求的图片内容数组
+      //   - 优先用 faceCrop 作为 content[1]（主要分析图）
+      //   - full frame 作辅助（content[2]）
+      //   - localFaceConfirmed 时强制把 faceCrop 放第一张
+      function buildAncientContent(primaryMime, primaryBase64) {
+        const arr = [{ type: 'text', text: userText }];
+        if (primaryBase64 && primaryMime) {
+          arr.push({ type: 'text', text: '主要分析图（人脸裁切 ' + (cropW || '?') + '×' + (cropH || '?') + ' · 已确认 ' + localLandmarkCount + ' landmarks）' });
+          arr.push({ type: 'image_url', image_url: { url: 'data:' + primaryMime + ';base64,' + primaryBase64 } });
+          if (mime && base64) {
+            arr.push({ type: 'text', text: '完整帧（' + imgW + '×' + imgH + ' · 作为辅助语境）' });
+            arr.push({ type: 'image_url', image_url: { url: 'data:' + mime + ';base64,' + base64 } });
+          }
+        } else {
+          arr.push({ type: 'text', text: '当前摄像头截帧（' + imgW + '×' + imgH + '）' });
+          arr.push({ type: 'image_url', image_url: { url: 'data:' + mime + ';base64,' + base64 } });
+        }
+        return arr;
+      }
 
       const aiReq = {
         model: AI_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: userText },
-              { type: 'image_url', image_url: { url: 'data:' + mime + ';base64,' + base64 } }
-            ]
-          }
+          { role: 'user', content: buildAncientContent(cropMime, cropBase64) }
         ],
         temperature: 0.2,
         max_tokens: 3000,
@@ -703,104 +756,371 @@ const server = http.createServer(async (req, res) => {
         }
       };
 
-      try {
-        const upstream = await proxyAI(JSON.stringify(aiReq));
-        console.log('[ANCIENT_API] upstream status', upstream.status);
-        console.log('[ANCIENT_API] upstream raw text', (upstream.raw || '').slice(0, 800));
+      console.log('[ANCIENT_VISION] [' + ancientReqId + '] vision model:', AI_MODEL);
+      console.log('[ANCIENT_VISION] [' + ancientReqId + '] using faceCrop as primary=' + (!!(cropMime && cropBase64)));
 
-        const txt = extractModelText(upstream.body);
-        const parsed = parseModelJson(txt);
-        console.log('[ANCIENT_API] parsed', parsed);
-
-        // ★ hasFace=false 直接返回 · 不进入分类（保留原有逻辑）
-        // ★ 校验 visionCheck · 至少 5 个核心字段存在 · 缺则用默认值
-        let vc = parsed ? (parsed.visionCheck || {}) : {};
-        // 强制规范化 5 个核心字段 · 允许模型使用同义词（比如 pose → headPose）
-        if (typeof vc !== 'object' || vc === null) vc = {};
-        // hasFace
-        if (typeof vc.hasFace !== 'boolean') {
-          if (typeof vc.faceCount === 'number') vc.hasFace = vc.faceCount > 0;
-          else if (typeof vc.hasFace === 'string') vc.hasFace = /true|yes|present|found/i.test(vc.hasFace);
-          else vc.hasFace = false;
+      // ★ 一次 upstream 调用（带 45 秒超时）
+      const UPSTREAM_TIMEOUT_MS = 45 * 1000;
+      async function callAncientUpstream(reqBody, label) {
+        const t0 = Date.now();
+        console.log('[ANCIENT_API] [' + ancientReqId + '] upstream request ' + label + ' · timeoutMs=' + UPSTREAM_TIMEOUT_MS);
+        let to = false;
+        try {
+          const r = await Promise.race([
+            proxyAI(JSON.stringify(reqBody)),
+            new Promise(function (_, rej) {
+              setTimeout(function () { to = true; rej(new Error('ancient-upstream-timeout')); }, UPSTREAM_TIMEOUT_MS);
+            })
+          ]);
+          console.log('[ANCIENT_API] [' + ancientReqId + '] upstream response ' + label + ' · status=' + r.status + ' · elapsedMs=' + (Date.now() - t0));
+          return { ok: true, upstream: r };
+        } catch (e) {
+          const el = Date.now() - t0;
+          if (to) {
+            console.error('[ANCIENT_API] [' + ancientReqId + '] UPSTREAM TIMEOUT ' + label + ' · elapsedMs=' + el);
+            return { ok: false, timeout: true, elapsedMs: el };
+          }
+          console.error('[ANCIENT_API] [' + ancientReqId + '] upstream network exception ' + label + ' · ' + (e && e.message));
+          return { ok: false, exception: true, error: e && e.message, elapsedMs: el };
         }
+      }
+
+      // ★ visionCheck 净化：保留 null（不再强制补 false）
+      function normalizeVisionCheck(raw) {
+        const vc = (raw && typeof raw === 'object') ? raw : {};
+        const out = { hasFace: null, faceCount: null, wearingGlasses: null, headPose: null, framing: null, brightness: null, expression: null };
+        // hasFace：保留原值（null / true / false / string）
+        if (typeof vc.hasFace === 'boolean') out.hasFace = vc.hasFace;
+        else if (typeof vc.faceCount === 'number') out.hasFace = vc.faceCount > 0;
+        else if (typeof vc.hasFace === 'string') out.hasFace = /true|yes|present|found/i.test(vc.hasFace);
+        // faceCount
+        if (typeof vc.faceCount === 'number') out.faceCount = vc.faceCount;
         // wearingGlasses
-        if (typeof vc.wearingGlasses !== 'boolean') {
-          if (typeof vc.glasses === 'boolean') vc.wearingGlasses = vc.glasses;
-          else vc.wearingGlasses = false;
-        }
-        // headPose (front/left/right/up/down/unclear)
-        if (typeof vc.headPose !== 'string' || !['front','left','right','up','down','unclear'].includes(vc.headPose)) {
+        if (typeof vc.wearingGlasses === 'boolean') out.wearingGlasses = vc.wearingGlasses;
+        else if (typeof vc.glasses === 'boolean') out.wearingGlasses = vc.glasses;
+        // headPose
+        if (typeof vc.headPose === 'string' && ['front','left','right','up','down','unclear'].includes(vc.headPose)) {
+          out.headPose = vc.headPose;
+        } else {
           const p = (vc.pose || vc.headPose || vc.headPoseRaw || '').toString().toLowerCase();
-          if (/front|center|frontal/.test(p)) vc.headPose = 'front';
-          else if (/left/.test(p)) vc.headPose = 'left';
-          else if (/right/.test(p)) vc.headPose = 'right';
-          else if (/up|tilted up/.test(p)) vc.headPose = 'up';
-          else if (/down|bowed/.test(p)) vc.headPose = 'down';
-          else vc.headPose = 'unclear';
+          if (/front|center|frontal/.test(p)) out.headPose = 'front';
+          else if (/left/.test(p)) out.headPose = 'left';
+          else if (/right/.test(p)) out.headPose = 'right';
+          else if (/up|tilted up/.test(p)) out.headPose = 'up';
+          else if (/down|bowed/.test(p)) out.headPose = 'down';
         }
         // framing
-        if (typeof vc.framing !== 'string' || !['face-closeup','head-and-shoulders','upper-body','distant','unclear'].includes(vc.framing)) {
+        if (typeof vc.framing === 'string' && ['face-closeup','head-and-shoulders','upper-body','distant','unclear'].includes(vc.framing)) {
+          out.framing = vc.framing;
+        } else {
           const f = (vc.framing || vc.composition || '').toString().toLowerCase();
-          if (/close|tight/.test(f)) vc.framing = 'face-closeup';
-          else if (/shoulder|head-?and-?shoulders|portrait/.test(f)) vc.framing = 'head-and-shoulders';
-          else if (/upper|half/.test(f)) vc.framing = 'upper-body';
-          else if (/distant|far|wide|full/.test(f)) vc.framing = 'distant';
-          else vc.framing = 'unclear';
+          if (/close|tight/.test(f)) out.framing = 'face-closeup';
+          else if (/shoulder|head-?and-?shoulders|portrait/.test(f)) out.framing = 'head-and-shoulders';
+          else if (/upper|half/.test(f)) out.framing = 'upper-body';
+          else if (/distant|far|wide|full/.test(f)) out.framing = 'distant';
         }
         // brightness
-        if (typeof vc.brightness !== 'string' || !['dark','medium','bright','unclear'].includes(vc.brightness)) {
+        if (typeof vc.brightness === 'string' && ['dark','medium','bright','unclear'].includes(vc.brightness)) {
+          out.brightness = vc.brightness;
+        } else {
           const b = (vc.brightness || vc.light || vc.lighting || '').toString().toLowerCase();
-          if (/dark|dim|shadow|low.light/.test(b)) vc.brightness = 'dark';
-          else if (/bright|overexposed|high.light|well.lit/.test(b)) vc.brightness = 'bright';
-          else if (/medium|normal|mid/.test(b)) vc.brightness = 'medium';
-          else vc.brightness = 'unclear';
+          if (/dark|dim|shadow|low.light/.test(b)) out.brightness = 'dark';
+          else if (/bright|overexposed|high.light|well.lit/.test(b)) out.brightness = 'bright';
+          else if (/medium|normal|mid/.test(b)) out.brightness = 'medium';
         }
+        if (typeof vc.expression === 'string') out.expression = vc.expression;
+        return out;
+      }
 
-        // ★ hasFace=false → 不强行选样本
-        if (vc.hasFace === false) {
+      // ★ 处理一次成功的 upstream：返回 { parsed, vc, upstreamStatus, raw, timedOut }
+      function extractFromUpstream(upstream) {
+        const txt = extractModelText(upstream.body);
+        const parsed = parseModelJson(txt);
+        return { txt: txt, parsed: parsed, upstreamStatus: upstream.status, raw: upstream.raw };
+      }
+
+      // ★ unified response builder（用于 isCompleteParsed 成功路径）
+      function buildUnifiedSuccess(parsed, vc, upstreamStatus) {
+        // 补齐 shortReason 同义词
+        if (typeof parsed.shortReason !== 'string' || parsed.shortReason.length === 0) {
+          if (typeof parsed.reason === 'string') parsed.shortReason = parsed.reason;
+          else if (typeof parsed.why === 'string') parsed.shortReason = parsed.why;
+          else if (typeof parsed.explanation === 'string') parsed.shortReason = parsed.explanation;
+          else if (parsed.visionCheck && typeof parsed.visionCheck.reason === 'string') parsed.shortReason = parsed.visionCheck.reason;
+          else if (parsed.visionCheck && typeof parsed.visionCheck.notes === 'string') parsed.shortReason = parsed.visionCheck.notes;
+          else if (parsed.visionCheck && typeof parsed.visionCheck.description === 'string') parsed.shortReason = parsed.visionCheck.description;
+          else if (parsed.sampleId) parsed.shortReason = 'AI 根据面部构图与气质选择样本 ' + parsed.sampleId;
+        }
+        if (!['low','medium','high'].includes(parsed.confidence)) {
+          const c = (parsed.confidence || '').toString().toLowerCase();
+          if (/high|strong|very|明显|高/.test(c)) parsed.confidence = 'high';
+          else if (/low|weak|slight|轻微|低/.test(c)) parsed.confidence = 'low';
+          else parsed.confidence = 'medium';
+        }
+        if (!Array.isArray(parsed.matchedFeatures) || parsed.matchedFeatures.length < 2) {
+          if (Array.isArray(parsed.features)) parsed.matchedFeatures = parsed.features;
+          else if (Array.isArray(parsed.tags)) parsed.matchedFeatures = parsed.tags;
+          else if (parsed.visionCheck && Array.isArray(parsed.visionCheck.matchedFeatures)) parsed.matchedFeatures = parsed.visionCheck.matchedFeatures;
+          else if (typeof parsed.shortReason === 'string') {
+            const segs = parsed.shortReason.split(/[，。,；;]+/).filter(Boolean);
+            if (segs.length >= 2) parsed.matchedFeatures = segs.slice(0, 4);
+            else parsed.matchedFeatures = ['面部构图匹配', 'AI 选样本 ' + (parsed.sampleId || '')];
+          }
+        }
+        const unified = classifyPipeline.buildUnifiedResult(parsed, 'ancient', { reasonSource: 'ai-personalized', upstreamStatus: upstreamStatus });
+        unified.visionCheck = vc;
+        unified.matchedFeatures = Array.isArray(unified.matchedFeatures) ? unified.matchedFeatures.slice(0, 4) : [];
+        return unified;
+      }
+
+      try {
+        // ===== 第一次请求 =====
+        const r1 = await callAncientUpstream(aiReq, '#1');
+        if (!r1.ok) {
+          // 超时 / 网络异常
+          if (r1.timeout) {
+            res.statusCode = 504;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            return res.end(JSON.stringify({ ok: false, source: 'error', error: 'ancient-upstream-timeout', message: '古代档案上游响应超过 ' + UPSTREAM_TIMEOUT_MS + 'ms', elapsedMs: r1.elapsedMs, requestId: ancientReqId }));
+          }
           res.statusCode = 200;
           res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          return res.end(JSON.stringify({
-            ok: false,
-            source: 'no-face',
-            error: 'no-face-detected',
-            visionCheck: vc
-          }));
+          return res.end(JSON.stringify({ ok: false, source: 'error', error: 'network-error', message: r1.error || 'upstream fetch failed', elapsedMs: r1.elapsedMs, requestId: ancientReqId }));
+        }
+        const upstream1 = r1.upstream;
+        console.log('[ANCIENT_API] [' + ancientReqId + '] upstream raw text (head 400):', (upstream1.raw || '').slice(0, 400));
+
+        // ★ 上游 4xx/5xx → 透传
+        if (upstream1.status >= 400) {
+          let upstreamMessage = (upstream1.raw || '').slice(0, 500);
+          let failedImageSlot = '';
+          let parsedBody = upstream1.body;
+          try {
+            if (typeof parsedBody === 'string') parsedBody = JSON.parse(parsedBody);
+            if (parsedBody && parsedBody.error && parsedBody.error.message) upstreamMessage = parsedBody.error.message;
+            const m = upstreamMessage.match(/content\[(\d+)\][^\[]*?(\w+)?\s*is\s*sensitive/i);
+            if (m) failedImageSlot = 'content[' + m[1] + ']';
+          } catch (e) {}
+          const errCode = upstream1.status === 422 ? 'upstream-image-rejected' : ('upstream-' + upstream1.status);
+          console.error('[ANCIENT_API] [' + ancientReqId + '] upstream rejected · status=' + upstream1.status + ' · slot=' + failedImageSlot);
+          res.statusCode = upstream1.status;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          return res.end(JSON.stringify({ ok: false, source: 'error', error: errCode, upstreamStatus: upstream1.status, failedImageSlot, upstreamMessage, requestId: ancientReqId }));
         }
 
-        // ★ 1. 优先使用模型直接返回的完整 JSON
-        if (parsed && classifyPipeline.isCompleteParsed(parsed, 'ancient')) {
-          console.log('[ANCIENT_API] first parse complete · sampleId =', parsed.sampleId);
-          // ★ 把模型同义词补齐（shortReason / matchedFeatures / sampleId）
-          if (typeof parsed.shortReason !== 'string' || parsed.shortReason.length === 0) {
-            if (typeof parsed.reason === 'string') parsed.shortReason = parsed.reason;
-            else if (typeof parsed.why === 'string') parsed.shortReason = parsed.why;
-            else if (typeof parsed.explanation === 'string') parsed.shortReason = parsed.explanation;
-            else if (parsed.visionCheck && typeof parsed.visionCheck.reason === 'string') parsed.shortReason = parsed.visionCheck.reason;
-            else if (parsed.visionCheck && typeof parsed.visionCheck.notes === 'string') parsed.shortReason = parsed.visionCheck.notes;
-            else if (parsed.visionCheck && typeof parsed.visionCheck.description === 'string') parsed.shortReason = parsed.visionCheck.description;
-            else if (parsed.sampleId) parsed.shortReason = 'AI 根据面部构图与气质选择样本 ' + parsed.sampleId;
-          }
-          if (!['low','medium','high'].includes(parsed.confidence)) {
-            const c = (parsed.confidence || '').toString().toLowerCase();
-            if (/high|strong|very|明显|高/.test(c)) parsed.confidence = 'high';
-            else if (/low|weak|slight|轻微|低/.test(c)) parsed.confidence = 'low';
-            else parsed.confidence = 'medium';
-          }
-          if (!Array.isArray(parsed.matchedFeatures) || parsed.matchedFeatures.length < 2) {
-            if (Array.isArray(parsed.features)) parsed.matchedFeatures = parsed.features;
-            else if (Array.isArray(parsed.tags)) parsed.matchedFeatures = parsed.tags;
-            else if (parsed.visionCheck && Array.isArray(parsed.visionCheck.matchedFeatures)) parsed.matchedFeatures = parsed.visionCheck.matchedFeatures;
-            else if (typeof parsed.shortReason === 'string') {
-              const segs = parsed.shortReason.split(/[，。,；;]+/).filter(Boolean);
-              if (segs.length >= 2) parsed.matchedFeatures = segs.slice(0, 4);
-              else parsed.matchedFeatures = ['面部构图匹配', 'AI 选样本 ' + (parsed.sampleId || '')];
+        const e1 = extractFromUpstream(upstream1);
+        let vc1 = normalizeVisionCheck(e1.parsed && e1.parsed.visionCheck);
+        console.log('[ANCIENT_VISION] [' + ancientReqId + '] #1 parsed hasFace=' + JSON.stringify(vc1.hasFace) + ' · faceCount=' + JSON.stringify(vc1.faceCount));
+
+        // ★ 本地 MediaPipe 已确认 → 即使模型 hasFace=false，也仅记录（不立即失败）
+        if (vc1.hasFace === false) {
+          if (localFaceConfirmed) {
+            console.warn('[ANCIENT_VISION] [' + ancientReqId + '] #1 model hasFace=false but local face confirmed (' + localLandmarkCount + ' landmarks) · NOT failing yet');
+
+            // ★ faceCrop retry：仅当 faceCrop 有效时才重试
+            if (cropMime && cropBase64 && Math.min(cropW || 0, cropH || 0) >= 64) {
+              const cropReq = JSON.parse(JSON.stringify(aiReq));
+              cropReq.messages = [
+                { role: 'system', content: systemPrompt },
+                {
+                  role: 'user',
+                  content: [
+                    { type: 'text', text: userText },
+                    { type: 'text', text: '主要分析图（仅人脸裁切 ' + cropW + '×' + cropH + ' · 本地 MediaPipe 已确认 ' + localLandmarkCount + ' landmarks）。这张图就是人脸，请直接分析面部特征。' },
+                    { type: 'image_url', image_url: { url: 'data:' + cropMime + ';base64,' + cropBase64 } }
+                  ]
+                }
+              ];
+              // 更高温度，让模型重新仔细看
+              cropReq.temperature = 0.2;
+
+              console.log('[ANCIENT_FACE_RETRY] [' + ancientReqId + '] triggered · reason=model-no-face-local-face-confirmed');
+              console.log('[ANCIENT_FACE_RETRY] [' + ancientReqId + '] crop bytes=' + cropBase64.length + ' · crop ' + cropW + 'x' + cropH);
+
+              const r2 = await callAncientUpstream(cropReq, '#2-faceCrop-retry');
+              if (!r2.ok) {
+                if (r2.timeout) {
+                  res.statusCode = 504;
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                  return res.end(JSON.stringify({ ok: false, source: 'error', error: 'ancient-upstream-timeout', message: '古代档案上游响应超过 ' + UPSTREAM_TIMEOUT_MS + 'ms', elapsedMs: r2.elapsedMs, requestId: ancientReqId }));
+                }
+                // ★ 网络失败：继续走 fallback（不直接失败）
+                console.warn('[ANCIENT_FACE_RETRY] [' + ancientReqId + '] #2 network exception · still falling through');
+              } else {
+                const upstream2 = r2.upstream;
+                console.log('[ANCIENT_FACE_RETRY] [' + ancientReqId + '] response status=' + upstream2.status);
+                if (upstream2.status >= 400) {
+                  // 透传
+                  let upstreamMessage = (upstream2.raw || '').slice(0, 500);
+                  const errCode = upstream2.status === 422 ? 'upstream-image-rejected' : ('upstream-' + upstream2.status);
+                  res.statusCode = upstream2.status;
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                  return res.end(JSON.stringify({ ok: false, source: 'error', error: errCode, upstreamStatus: upstream2.status, upstreamMessage, requestId: ancientReqId }));
+                }
+                const e2 = extractFromUpstream(upstream2);
+                const vc2 = normalizeVisionCheck(e2.parsed && e2.parsed.visionCheck);
+                console.log('[ANCIENT_FACE_RETRY] [' + ancientReqId + '] #2 parsed hasFace=' + JSON.stringify(vc2.hasFace) + ' · sampleId=' + (e2.parsed && e2.parsed.sampleId));
+
+                if (e2.parsed && vc2.hasFace === false) {
+                  // ★ 第二次仍 no-face → 才正式返回 no-face-detected
+                  res.statusCode = 200;
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                  return res.end(JSON.stringify({
+                    ok: false,
+                    source: 'no-face',
+                    error: 'no-face-detected',
+                    visionCheck: vc2,
+                    requestId: ancientReqId
+                  }));
+                }
+
+                if (e2.parsed && classifyPipeline.isCompleteParsed(e2.parsed, 'ancient')) {
+                  console.log('[ANCIENT_FACE_RETRY] [' + ancientReqId + '] result sampleId=' + e2.parsed.sampleId);
+                  const unified = buildUnifiedSuccess(e2.parsed, vc2, upstream2.status);
+                  res.statusCode = 200;
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                  return res.end(JSON.stringify({
+                    ok: true,
+                    source: 'ai',
+                    system: 'ancient',
+                    sampleId: unified.sampleId,
+                    confidence: unified.confidence,
+                    shortReason: unified.shortReason,
+                    matchedFeatures: unified.matchedFeatures,
+                    visionCheck: unified.visionCheck,
+                    dimensionReasons: unified.dimensionReasons,
+                    reasonSource: unified.reasonSource,
+                    upstreamStatus: upstream2.status,
+                    retryUsed: 'faceCrop',
+                    requestId: ancientReqId
+                  }));
+                }
+                // ★ retry parse 不完整 → 进入 repair pipeline
+                console.warn('[ANCIENT_API] [' + ancientReqId + '] faceCrop retry parse incomplete · entering common pipeline');
+                const repaired = await classifyPipeline.parseAndRepairClassification({
+                  system: 'ancient',
+                  upstreamText: e2.txt,
+                  visualSummary: vc2,
+                  sampleGlossary: glossary,
+                  proxyAI: proxyAI,
+                  model: AI_MODEL,
+                  logTag: '[ANCIENT_REPAIR]',
+                  extractModelText: extractModelText
+                });
+                if (repaired && repaired.sampleId) {
+                  repaired.visionCheck = vc2;
+                  repaired.matchedFeatures = Array.isArray(repaired.matchedFeatures) ? repaired.matchedFeatures.slice(0, 4) : [];
+                  res.statusCode = 200;
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                  return res.end(JSON.stringify({
+                    ok: true,
+                    source: 'ai',
+                    system: 'ancient',
+                    sampleId: repaired.sampleId,
+                    confidence: repaired.confidence,
+                    shortReason: repaired.shortReason,
+                    matchedFeatures: repaired.matchedFeatures,
+                    visionCheck: repaired.visionCheck,
+                    dimensionReasons: repaired.dimensionReasons,
+                    reasonSource: repaired.reasonSource,
+                    upstreamStatus: upstream2.status,
+                    retryUsed: 'faceCrop',
+                    requestId: ancientReqId
+                  }));
+                }
+                console.error('[ANCIENT_API] [' + ancientReqId + '] faceCrop retry parse + repair both failed');
+              }
+            } else {
+              console.warn('[ANCIENT_FACE_RETRY] [' + ancientReqId + '] skipped · no valid faceCrop (mime=' + cropMime + ' · w=' + cropW + ' · h=' + cropH + ')');
             }
+
+            // ★ local 已确认 + 没有可重试的 faceCrop + 模型 no-face → 用 isCompleteParsed 尝试从 #1 解析出 sampleId
+            if (e1.parsed && classifyPipeline.isCompleteParsed(e1.parsed, 'ancient')) {
+              console.log('[ANCIENT_API] [' + ancientReqId + '] #1 isCompleteParsed=true · continue despite model no-face');
+              const unified = buildUnifiedSuccess(e1.parsed, vc1, upstream1.status);
+              unified.visionCheck = vc1;
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              return res.end(JSON.stringify({
+                ok: true,
+                source: 'ai',
+                system: 'ancient',
+                sampleId: unified.sampleId,
+                confidence: unified.confidence,
+                shortReason: unified.shortReason,
+                matchedFeatures: unified.matchedFeatures,
+                visionCheck: unified.visionCheck,
+                dimensionReasons: unified.dimensionReasons,
+                reasonSource: unified.reasonSource,
+                upstreamStatus: upstream1.status,
+                note: 'model-said-no-face-but-local-confirmed',
+                requestId: ancientReqId
+              }));
+            }
+            // ★ 走到这里：local 确认 + faceCrop 不可用 + 模型 no-face + parse 不完整
+            console.warn('[ANCIENT_API] [' + ancientReqId + '] local face confirmed but no usable AI result · trying text-fallback repair');
+            const repaired0 = await classifyPipeline.parseAndRepairClassification({
+              system: 'ancient',
+              upstreamText: e1.txt,
+              visualSummary: vc1,
+              sampleGlossary: glossary,
+              proxyAI: proxyAI,
+              model: AI_MODEL,
+              logTag: '[ANCIENT_REPAIR]',
+              extractModelText: extractModelText
+            });
+            if (repaired0 && repaired0.sampleId) {
+              repaired0.visionCheck = vc1;
+              repaired0.matchedFeatures = Array.isArray(repaired0.matchedFeatures) ? repaired0.matchedFeatures.slice(0, 4) : [];
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              return res.end(JSON.stringify({
+                ok: true,
+                source: 'ai',
+                system: 'ancient',
+                sampleId: repaired0.sampleId,
+                confidence: repaired0.confidence,
+                shortReason: repaired0.shortReason,
+                matchedFeatures: repaired0.matchedFeatures,
+                visionCheck: repaired0.visionCheck,
+                dimensionReasons: repaired0.dimensionReasons,
+                reasonSource: repaired0.reasonSource,
+                upstreamStatus: upstream1.status,
+                note: 'local-face-confirmed-text-repair',
+                requestId: ancientReqId
+              }));
+            }
+            // ★ 全部失败 → 才返回 no-face
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            return res.end(JSON.stringify({
+              ok: false,
+              source: 'no-face',
+              error: 'no-face-detected',
+              visionCheck: vc1,
+              note: 'model-said-no-face-and-local-confirmed-but-no-sample',
+              requestId: ancientReqId
+            }));
+          } else {
+            // ★ local 未确认 + 模型 no-face → 才硬返回 no-face
+            console.warn('[ANCIENT_API] [' + ancientReqId + '] #1 model hasFace=false · local face NOT confirmed · returning no-face');
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            return res.end(JSON.stringify({
+              ok: false,
+              source: 'no-face',
+              error: 'no-face-detected',
+              visionCheck: vc1,
+              requestId: ancientReqId
+            }));
           }
-          const unified = classifyPipeline.buildUnifiedResult(parsed, 'ancient', { reasonSource: 'ai-personalized', upstreamStatus: upstream.status });
-          unified.visionCheck = vc;
-          unified.matchedFeatures = Array.isArray(unified.matchedFeatures) ? unified.matchedFeatures.slice(0, 4) : [];
-          console.log('[ANCIENT_API] SUCCESS · sampleId =', unified.sampleId, '· reasonSource =', unified.reasonSource, '· dimReasons =', classifyPipeline.countNonEmptyDimensionReasons(unified.dimensionReasons) + '/6');
+        }
+
+        // ★ hasFace !== false（true 或 null） → 走 isCompleteParsed
+        if (e1.parsed && classifyPipeline.isCompleteParsed(e1.parsed, 'ancient')) {
+          console.log('[ANCIENT_API] [' + ancientReqId + '] #1 SUCCESS · sampleId=' + e1.parsed.sampleId);
+          const unified = buildUnifiedSuccess(e1.parsed, vc1, upstream1.status);
+          console.log('[ANCIENT_API] [' + ancientReqId + '] SUCCESS · sampleId=' + unified.sampleId + ' · reasonSource=' + unified.reasonSource + ' · dimReasons=' + classifyPipeline.countNonEmptyDimensionReasons(unified.dimensionReasons) + '/6');
           res.statusCode = 200;
           res.setHeader('Content-Type', 'application/json; charset=utf-8');
           return res.end(JSON.stringify({
@@ -814,16 +1134,17 @@ const server = http.createServer(async (req, res) => {
             visionCheck: unified.visionCheck,
             dimensionReasons: unified.dimensionReasons,
             reasonSource: unified.reasonSource,
-            upstreamStatus: upstream.status
+            upstreamStatus: upstream1.status,
+            requestId: ancientReqId
           }));
         }
 
-        // ★ 2. 解析失败 / 字段缺失 → 公共修复流水线（先从自然语言提取 Axx，再走理由补全）
-        console.warn('[ANCIENT_API] first parse incomplete · entering common pipeline');
+        // ★ 解析失败 / 字段缺失 → 公共修复流水线
+        console.warn('[ANCIENT_API] [' + ancientReqId + '] first parse incomplete · entering common pipeline');
         const repaired = await classifyPipeline.parseAndRepairClassification({
           system: 'ancient',
-          upstreamText: txt,
-          visualSummary: vc,
+          upstreamText: e1.txt,
+          visualSummary: vc1,
           sampleGlossary: glossary,
           proxyAI: proxyAI,
           model: AI_MODEL,
@@ -831,14 +1152,14 @@ const server = http.createServer(async (req, res) => {
           extractModelText: extractModelText
         });
         if (!repaired || !repaired.sampleId) {
-          console.error('[ANCIENT_API] repair pipeline returned no sampleId');
+          console.error('[ANCIENT_API] [' + ancientReqId + '] repair pipeline returned no sampleId');
           res.statusCode = 200;
           res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          return res.end(JSON.stringify({ ok: false, source: 'error', error: 'model-output-not-json', upstreamStatus: upstream.status, upstreamRaw: (upstream.raw || '').slice(0, 400) }));
+          return res.end(JSON.stringify({ ok: false, source: 'error', error: 'model-output-not-json', upstreamStatus: upstream1.status, upstreamRaw: (upstream1.raw || '').slice(0, 400), requestId: ancientReqId }));
         }
-        repaired.visionCheck = vc;
+        repaired.visionCheck = vc1;
         repaired.matchedFeatures = Array.isArray(repaired.matchedFeatures) ? repaired.matchedFeatures.slice(0, 4) : [];
-        console.log('[ANCIENT_API] SUCCESS · sampleId =', repaired.sampleId, '· reasonSource =', repaired.reasonSource, '· dimReasons =', classifyPipeline.countNonEmptyDimensionReasons(repaired.dimensionReasons) + '/6');
+        console.log('[ANCIENT_API] [' + ancientReqId + '] SUCCESS · sampleId=' + repaired.sampleId + ' · reasonSource=' + repaired.reasonSource + ' · dimReasons=' + classifyPipeline.countNonEmptyDimensionReasons(repaired.dimensionReasons) + '/6');
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         return res.end(JSON.stringify({
@@ -852,13 +1173,14 @@ const server = http.createServer(async (req, res) => {
           visionCheck: repaired.visionCheck,
           dimensionReasons: repaired.dimensionReasons,
           reasonSource: repaired.reasonSource,
-          upstreamStatus: upstream.status
+          upstreamStatus: upstream1.status,
+          requestId: ancientReqId
         }));
       } catch (e) {
-        console.error('[ANCIENT_API] error', e && e.message);
+        console.error('[ANCIENT_API] [' + ancientReqId + '] error', e && e.message);
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'proxy-exception', message: e && e.message }));
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'proxy-exception', message: e && e.message, requestId: ancientReqId }));
       }
     });
     return;
