@@ -229,18 +229,56 @@ function createFusionHandler(opts) {
       console.log('[' + LABEL + '] SUCCESS · sampleId=' + sampleId + ' · success=' + successCount + ' failed=' + failedCount + ' · hasUrl=' + !!imageUrl + ' hasB64=' + !!imageDataUrl);
 
       // 9. 共享 image-proxy：转 base64 data URL
-      let proxyFallbackUrl = null;
+      // ★ 关键：不把供应商临时 OSS URL 透传给浏览器（可能被 GFW 屏蔽 / 临时失效）
+      //   - 如果 imageDataUrl 已由上游直出 → 直接用
+      //   - 如果只有 imageUrl → 后端 image-proxy 下载 + base64
+      //   - 失败时返回 ok=false · 让前端走 sample 库兜底图，不要直接命中 OSS
       let proxyWarning = null;
       if (imageUrl && !imageDataUrl) {
         console.log('[' + LABEL + '] need image proxy · url=' + _safeHostForLog(imageUrl));
         const proxy = await imageProxy.downloadImageAsDataUrl(imageUrl, { requestId: requestId, label: 'FUSION_' + system.toUpperCase() + '_IMG' });
         if (proxy.ok) {
           imageDataUrl = proxy.imageDataUrl;
-          proxyFallbackUrl = proxy.fallbackImageUrl || null;
+          // ★ 删除 fallbackImageUrl 透传 · 即使 proxy 超大也返回 ok=false，由前端降级
           proxyWarning = proxy.warning || null;
         } else {
-          console.log('[' + LABEL + '] image proxy failed · error=' + proxy.error + ' · reason=' + (proxy.reason || '') + ' · fallback to raw imageUrl');
+          console.log('[' + LABEL + '] image proxy failed · error=' + proxy.error + ' · reason=' + (proxy.reason || '') + ' · returning ok=false');
+          // ★ 关键：失败时不返回 imageUrl 给浏览器（避免供应商 OSS 命中 / GFW 屏蔽）
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          return res.end(JSON.stringify({
+            ok: false,
+            source: 'image-proxy-failed',
+            error: proxy.error || 'image-proxy-failed',
+            reason: proxy.reason || '',
+            sampleId: sampleId,
+            sampleName: sampleName,
+            successCount: successCount,
+            failedCount: failedCount,
+            elapsedMs: elapsed,
+            requestId: requestId,
+            note: '供应商图片代理失败 · 请重试 · 前端会显示 sample 库兜底图'
+          }));
         }
+      }
+
+      if (!imageDataUrl) {
+        // 既无 base64 也无 URL → 视为失败 · 不返回 imageUrl
+        console.log('[' + LABEL + '] no usable image data · returning ok=false');
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({
+          ok: false,
+          source: 'no-image-data',
+          error: 'no-image-data',
+          sampleId: sampleId,
+          sampleName: sampleName,
+          successCount: successCount,
+          failedCount: failedCount,
+          elapsedMs: elapsed,
+          requestId: requestId,
+          note: '未获得可用图片数据 · 前端会显示 sample 库兜底图'
+        }));
       }
 
       res.statusCode = 200;
@@ -256,9 +294,8 @@ function createFusionHandler(opts) {
         successCount: successCount,
         failedCount: failedCount
       };
-      if (imageDataUrl) out.imageDataUrl = imageDataUrl;
-      else if (imageUrl) out.imageUrl = imageUrl;
-      if (proxyFallbackUrl) out.imageUrl = proxyFallbackUrl;
+      // ★ 只透出 imageDataUrl · 绝不把供应商 imageUrl 发给浏览器
+      out.imageDataUrl = imageDataUrl;
       if (proxyWarning) out.warning = proxyWarning;
       return res.end(JSON.stringify(out));
     });

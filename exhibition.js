@@ -517,40 +517,27 @@ async function _initFaceLandmarker() {
   _faceLandmarkerInitStarted = true;
   _faceLandmarkerStatus = 'loading';
   try {
-    // ★ 多源 fallback 链 · 优先本地 vendor · 然后 unpkg · 最后 jsdelivr
-    const VISION_SOURCES = [
-      '/vendor/mediapipe/vision_bundle.mjs',
-      'https://unpkg.com/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs',
-      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs'
-    ];
+    // ★ 仅本地 vendor/mediapipe/ · 不再回退 unpkg / jsdelivr（大陆常被 GFW 屏蔽）
+    const VISION_SOURCE = '/vendor/mediapipe/vision_bundle.mjs';
+    console.log('[3vx] FaceLandmarker load · try', VISION_SOURCE);
     let visionMod = null;
-    let lastErr = null;
-    for (const url of VISION_SOURCES) {
-      try {
-        console.log('[3vx] FaceLandmarker load · try', url);
-        visionMod = await import(/* @vite-ignore */ url);
-        if (visionMod) { console.log('[3vx] FaceLandmarker load OK ·', url); break; }
-      } catch (e) {
-        console.warn('[3vx] FaceLandmarker source fail ·', url, e && e.message);
-        lastErr = e;
-      }
+    try {
+      visionMod = await import(/* @vite-ignore */ VISION_SOURCE);
+    } catch (e) {
+      console.warn('[3vx] FaceLandmarker local load fail ·', e && e.message);
+      throw e;
     }
-    if (!visionMod) throw lastErr || new Error('all sources failed');
+    if (!visionMod) throw new Error('local MediaPipe vision_bundle.mjs not loaded');
+    console.log('[3vx] FaceLandmarker load OK ·', VISION_SOURCE);
     const { FilesetResolver, FaceLandmarker } = visionMod;
     // ★ 注入官方连接常量（与 FaceLandmarker 同一套）
     if (!_loadOfficialFaceConnections(FaceLandmarker) && typeof window !== 'undefined') {
       // 兜底：尝试从 window 读旧版
       _loadOfficialFaceConnections(window);
     }
-    // ★ 优先用本地 WASM，失败时再回退到 unpkg
-    let fileset = null;
-    try {
-      fileset = await FilesetResolver.forVisionTasks(FACE_WASM_BASE);
-      console.log('[3vx] FaceLandmarker WASM · local OK', FACE_WASM_BASE);
-    } catch (e) {
-      console.warn('[3vx] local WASM fail, fallback unpkg', e && e.message);
-      fileset = await FilesetResolver.forVisionTasks('https://unpkg.com/@mediapipe/tasks-vision@0.10.18/wasm');
-    }
+    // ★ 仅本地 WASM（不 fallback）
+    const fileset = await FilesetResolver.forVisionTasks(FACE_WASM_BASE);
+    console.log('[3vx] FaceLandmarker WASM · local OK', FACE_WASM_BASE);
     _faceLandmarker = await FaceLandmarker.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: FACE_MODEL_URL, delegate: 'GPU' },
       runningMode: 'VIDEO',
