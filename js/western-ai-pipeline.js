@@ -145,10 +145,13 @@
     };
   }
 
-  // ★ 网络调用 · 60s timeout · 失败返回 { __failed: true, ... } 包装
+  // ★ 网络调用
+  // - 阶段 1 classify: 90s 前端保护（服务端 45s 超时 → 返回 504）
+  // - 阶段 2 reasons: 60s 前端保护（服务端 30s 超时 → fallback sample 库）
   var westernRequestController = null;
   var westernRequestInFlight = false;
-  var WESTERN_AI_TIMEOUT_MS = 60000;
+  var WESTERN_AI_TIMEOUT_MS = 90000;       // 阶段 1 · 90s 保护（服务端 45s 已保证提前 abort）
+  var WESTERN_REASON_TIMEOUT_MS = 60000;   // 阶段 2 · 60s 保护（服务端 30s）
 
   function traceWesternAbort(controller, reason) {
     console.error('[WESTERN_ABORT] called · reason:', reason);
@@ -178,14 +181,14 @@
     var controller = (typeof AbortController === 'function') ? new AbortController() : null;
     westernRequestController = controller;
     console.log('[WESTERN_AI] new controller · aborted before fetch:', controller ? controller.signal.aborted : 'no-ctrl');
-    console.log('[WESTERN_AI] timeout ms', WESTERN_AI_TIMEOUT_MS);
+    console.log('[WESTERN_AI] stage=1 classify · timeout ms', WESTERN_AI_TIMEOUT_MS);
 
     var timeoutId = null;
     if (controller) {
       timeoutId = setTimeout(function () {
         if (!controller.signal.aborted) {
-          console.warn('[WESTERN_AI] timeout abort · ms=' + WESTERN_AI_TIMEOUT_MS);
-          traceWesternAbort(controller, new DOMException('western request timeout', 'TimeoutError'));
+          console.warn('[WESTERN_AI] timeout abort · stage=1 · ms=' + WESTERN_AI_TIMEOUT_MS);
+          traceWesternAbort(controller, new DOMException('western stage-1 timeout', 'TimeoutError'));
         }
       }, WESTERN_AI_TIMEOUT_MS);
     }
@@ -200,7 +203,7 @@
       });
       console.log('[WESTERN_AI] response status', resp.status);
       var text = await resp.text();
-      console.log('[WESTERN_AI] response text', text);
+      console.log('[WESTERN_AI] response text (head 400)', text.slice(0, 400));
       if (!resp.ok) {
         var data2 = null; try { data2 = JSON.parse(text); } catch (e) {}
         console.error('[WESTERN_AI] REAL AI FAILED · HTTP ' + resp.status + ' · ' + (data2 && data2.error || 'unknown'));
@@ -209,11 +212,12 @@
       var data; try { data = JSON.parse(text); } catch (e) {
         console.error('[WESTERN_AI] REAL AI FAILED · response not JSON:', e.message); return null;
       }
-      // ★ 兼容新统一结构（顶层 sampleId + dimensionReasons + reasonSource）和老 nested 结构（data.result.sampleId）
+      // ★ 阶段 1 新结构：sampleId 在顶层 · dimensionReasons 留空（阶段 2 补）
       if (data && data.ok === true && data.source === 'ai' && WESTERN_AI_ALLOWED.indexOf(data.sampleId) >= 0) {
-        console.log('[WESTERN_AI] new unified structure · sampleId=' + data.sampleId + ' · reasonSource=' + data.reasonSource);
+        console.log('[WESTERN_AI] stage-1 success · sampleId=' + data.sampleId + ' · reasonSource=' + data.reasonSource + ' · upstreamElapsedMs=' + (data.upstreamElapsedMs || '?'));
         return data;
       }
+      // ★ 老 nested 兼容
       if (data && data.ok === true && data.source === 'ai' && data.result && WESTERN_AI_ALLOWED.indexOf(data.result.sampleId) >= 0) {
         console.log('[WESTERN_AI] legacy nested result · sampleId', data.result.sampleId);
         data.result.source = 'ai';
@@ -225,7 +229,7 @@
       console.error('[WESTERN_AI] REAL AI FAILED · server returned ok=' + (data && data.ok) + ', source=' + (data && data.source));
       return null;
     } catch (e) {
-      if (e && e.name === 'AbortError') {
+      if (e && (e.name === 'AbortError' || e.name === 'TimeoutError')) {
         console.error('[WESTERN_AI] REAL AI FAILED · aborted · ' + (e.message || ''));
         return { __failed: true, httpStatus: 0, error: 'aborted', upstreamMessage: e.message || '' };
       }
@@ -234,6 +238,65 @@
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
       westernRequestInFlight = false;
+    }
+  }
+
+  // ★ 阶段 2：六维度 reason 生成（不传图 · 60s 保护）
+  async function callWesternReasonsClient(sampleId, visionCheck) {
+    var endpoint = (window.location.origin || '') + '/api/reasons/western';
+    var body = {
+      sampleId: sampleId,
+      visionCheck: visionCheck || {}
+    };
+    console.log('[WESTERN_REASON_AI] stage=2 reasons · sampleId=' + sampleId + ' · timeoutMs=' + WESTERN_REASON_TIMEOUT_MS);
+
+    var controller = (typeof AbortController === 'function') ? new AbortController() : null;
+    var timeoutId = null;
+    if (controller) {
+      timeoutId = setTimeout(function () {
+        if (!controller.signal.aborted) {
+          console.warn('[WESTERN_REASON_AI] timeout abort · ms=' + WESTERN_REASON_TIMEOUT_MS);
+          try { controller.abort(new DOMException('western reason timeout', 'TimeoutError')); } catch (e) {}
+        }
+      }, WESTERN_REASON_TIMEOUT_MS);
+    }
+    try {
+      var resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller ? controller.signal : undefined
+      });
+      console.log('[WESTERN_REASON_AI] response status', resp.status);
+      var text = await resp.text();
+      console.log('[WESTERN_REASON_AI] response text (head 400)', text.slice(0, 400));
+      if (!resp.ok) {
+        var data2 = null; try { data2 = JSON.parse(text); } catch (e) {}
+        console.error('[WESTERN_REASON_AI] FAILED · HTTP ' + resp.status + ' · ' + (data2 && data2.error || 'unknown'));
+        return { __failed: true, httpStatus: resp.status, error: (data2 && data2.error) || 'unknown', upstreamMessage: (data2 && data2.upstreamMessage) || text.slice(0, 300) };
+      }
+      var data; try { data = JSON.parse(text); } catch (e) {
+        console.error('[WESTERN_REASON_AI] FAILED · response not JSON:', e.message); return null;
+      }
+      if (data && data.ok === true && data.dimensionReasons && typeof data.dimensionReasons === 'object') {
+        var cnt = 0;
+        for (var k in data.dimensionReasons) {
+          if (typeof data.dimensionReasons[k] === 'string' && data.dimensionReasons[k].trim().length >= 4) cnt++;
+        }
+        console.log('[WESTERN_REASON_AI] dimensionReasons=' + cnt + '/6 · reasonSource=' + (data.reasonSource || 'unknown'));
+        return data;
+      }
+      console.error('[WESTERN_REASON_AI] FAILED · bad shape:', data);
+      return null;
+    } catch (e) {
+      if (e && (e.name === 'AbortError' || e.name === 'TimeoutError')) {
+        console.error('[WESTERN_REASON_AI] FAILED · aborted · ' + (e.message || ''));
+        return { __failed: true, httpStatus: 0, error: 'aborted', upstreamMessage: e.message || '' };
+      }
+      console.error('[WESTERN_REASON_AI] FAILED · fetch exception:', e && e.message);
+      return { __failed: true, httpStatus: 0, error: 'fetch-exception', upstreamMessage: e && e.message };
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
     }
   }
 
@@ -523,7 +586,12 @@
       return;
     }
     if (aiResult.__failed) {
-      showWesternAIFailed(aiResult);
+      // ★ 上游超时 / 网络失败 / 解析失败 → 显示对应失败态
+      if (aiResult.httpStatus === 504 || (aiResult.error && aiResult.error.indexOf('timeout') >= 0)) {
+        showWesternTimeoutOverlay(aiResult);
+      } else {
+        showWesternAIFailed(aiResult);
+      }
       return;
     }
     if (aiResult.__noFace) {
@@ -539,6 +607,14 @@
     // ★ 重要日志：sampleId 已选中
     console.log('[WESTERN_AI] request done · selected sample ' + aiResult.sampleId + ' · reasonSource=' + (aiResult.reasonSource || 'ai-personalized'));
 
+    // ★ 阶段 2：调用 /api/reasons/western 获取 6 维度 reason
+    var reasonsResult = await callWesternReasonsClient(aiResult.sampleId, aiResult.visionCheck);
+    var dimensionReasons = (reasonsResult && reasonsResult.dimensionReasons && typeof reasonsResult.dimensionReasons === 'object') ? reasonsResult.dimensionReasons : {};
+    var finalReasonSource = (reasonsResult && reasonsResult.reasonSource) || 'sample-fallback';
+    if (reasonsResult && reasonsResult.__failed) {
+      console.warn('[WESTERN_REASON_AI] stage-2 failed · fallback to sample library · error=' + reasonsResult.error);
+    }
+
     var vm;
     try {
       // ★ 把服务端给的 dimensionReasons + reasonSource 注入 vm，buildWesternViewModel 内部 pickReason 会优先用 AI 的
@@ -549,8 +625,8 @@
         matchedFeatures: aiResult.matchedFeatures || [],
         source: 'ai',
         visionCheck: aiResult.visionCheck || { hasFace: true, wearingGlasses: false, headPose: 'unclear', framing: 'unclear', brightness: 'unclear' },
-        dimensionReasons: aiResult.dimensionReasons || {},
-        reasonSource: aiResult.reasonSource || 'ai-personalized'
+        dimensionReasons: dimensionReasons,
+        reasonSource: finalReasonSource
       };
       vm = buildWesternViewModel(aiForVm);
     } catch (e) {
@@ -562,9 +638,9 @@
     // ★ 输出结果页 reasonSource 日志（与 ancient / modern 一致）
     var drCount = 0;
     var drObj = (vm && vm.reasonOrigin) ? vm.reasonOrigin : null;
-    if (aiResult.dimensionReasons && typeof aiResult.dimensionReasons === 'object') {
-      for (var dk in aiResult.dimensionReasons) {
-        var dv = aiResult.dimensionReasons[dk];
+    if (dimensionReasons && typeof dimensionReasons === 'object') {
+      for (var dk in dimensionReasons) {
+        var dv = dimensionReasons[dk];
         if (typeof dv === 'string' && dv.trim().length >= 4) drCount++;
       }
     }
@@ -581,10 +657,10 @@
     if (window.SPA) {
       window.SPA.LAST_WESTERN_VM = vm;
       window.SPA.LAST_WESTERN_RESULT = aiResult;
-      // ★ 把 AI 写的 6 维度 reason + reasonSource 存到 parent · IIFE 会在自己初始化完成后自动拉
-      var air = (aiResult && aiResult.dimensionReasons) ? aiResult.dimensionReasons : null;
+      // ★ 把阶段 2 拿到的 6 维度 reason + reasonSource 存到 parent · IIFE 会在自己初始化完成后自动拉
+      var air = dimensionReasons;
       if (air && typeof air === 'object') {
-        air.reasonSource = aiResult.reasonSource || 'ai-personalized';
+        air.reasonSource = finalReasonSource;
       }
       window.SPA.LAST_WESTERN_AIREASONS = air;
     }
@@ -666,6 +742,53 @@
     showWesternLoadingOverlay('failed');
   }
 
+  // ★ 上游超时专用 overlay（HTTP 504 / fetch timeout）
+  // - 不显示详细 upstreamMessage · 只显示"等待时间过长"
+  // - 提供 [使用当前画面重试] / [返回选择]
+  function showWesternTimeoutOverlay(failInfo) {
+    console.warn('[WESTERN_LOADING] show · phase=timeout');
+    var root = document.getElementById('result-layer');
+    if (!root) return;
+    var elapsedStr = (failInfo && (failInfo.elapsedMs || failInfo.upstreamMessage)) ? ('上游等待时间过长') : '上游等待时间过长';
+    var shellHtml =
+      '<div class="result-modal-shell" data-result-view="western">' +
+        '<div class="result-modal-toolbar">' +
+          '<button class="result-back-camera-btn" type="button">← 摄像头</button>' +
+        '</div>' +
+        '<div class="result-modal-content ancient-loading">' +
+          '<div class="ancient-loading__inner ancient-loading__failed">' +
+            '<div class="ancient-loading__kicker">▌ WESTERN AI TIMEOUT</div>' +
+            '<div class="ancient-loading__title">西方档案请求等待时间过长</div>' +
+            '<div class="ancient-loading__subtitle">' + elapsedStr + ' · 服务器已主动终止并返回 504</div>' +
+            '<div class="ancient-loading__note">点击下方按钮重试或返回选择</div>' +
+            '<div style="margin-top:24px;display:flex;gap:14px;justify-content:center;">' +
+              '<button type="button" class="wl-retry-btn" style="background:#f5d400;color:#0a0806;border:none;padding:10px 22px;font-family:monospace;font-weight:900;letter-spacing:2px;cursor:pointer;">[使用当前画面重试]</button>' +
+              '<button type="button" class="wl-back-btn" style="background:#0a0806;color:#f5d400;border:1.5px solid #f5d400;padding:10px 22px;font-family:monospace;font-weight:900;letter-spacing:2px;cursor:pointer;">[返回选择]</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    root.innerHTML = shellHtml;
+    root.style.display = 'block';
+    root.classList.add('is-active');
+    document.body.classList.add('v3x-view-active');
+    var bc = root.querySelector('.result-back-camera-btn');
+    if (bc) bc.onclick = function () { if (window.resetToCamera) try { window.resetToCamera(); } catch (e) {} };
+    var retry = root.querySelector('.wl-retry-btn');
+    if (retry) retry.onclick = function () {
+      console.log('[WESTERN_LOADING] timeout retry click · reusing locked snapshot');
+      try { runWesternAIAnalysis(); } catch (e) { console.error('[WESTERN_LOADING] retry err', e); }
+    };
+    var back = root.querySelector('.wl-back-btn');
+    if (back) back.onclick = function () {
+      if (typeof window.SPA !== 'undefined' && typeof window.SPA.showPathSelectOverlay === 'function') {
+        try { window.SPA.showPathSelectOverlay(); } catch (e) {}
+      } else if (typeof window.backToPathSelect === 'function') {
+        try { window.backToPathSelect(); } catch (e) {}
+      }
+    };
+  }
+
   // ★ 暴露给父页面
   window.runWesternAIAnalysis = runWesternAIAnalysis;
   window.buildWesternViewModel = buildWesternViewModel;
@@ -673,6 +796,7 @@
   window.showWesternLoadingOverlay = showWesternLoadingOverlay;
   window.updateWesternLoadingOverlay = updateWesternLoadingOverlay;
   window.hideWesternLoadingOverlay = hideWesternLoadingOverlay;
+  window.showWesternTimeoutOverlay = showWesternTimeoutOverlay;
   window.WESTERN_AI_ALLOWED = WESTERN_AI_ALLOWED;
   window.WESTERN_AI_STRICT_TEST = WESTERN_AI_STRICT_TEST;
   console.log('[WESTERN_AI] pipeline loaded · allowed:', WESTERN_AI_ALLOWED.join(','));

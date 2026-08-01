@@ -13,12 +13,22 @@
   var MODERN_AI_STRICT_TEST = true;
   var STRICT_REQUIRED_FIELDS = ['sampleId','sampleName','systemVerdict','verdictCategoryLine','matchReasonLine','sexualityValue','sexualityReason','genderValue','genderReason','incomeValue','incomeReason','familyValue','familyReason','relationshipValue','relationshipReason','riskValue','riskReason','evidenceTitle','evidenceSubtitle','evidenceIntro','evidenceNote','evidenceImages','engineLabel','source','confidence','visionCheck'];
 
-  // ★ 绝对图片根路径 · iframe 内页面位于 /exhibition-camera/_preview/
-  // 浏览器解析绝对路径时不会再加 _preview/ 前缀
-  var MODERN_ASSET_ROOT = '/exhibition-camera/assets/sample-library/modern/normalized/';
+  // ★ 绝对图片根路径
+  // Production 域名 https://exhibition-camera.vercel.app 已是项目根
+  // 不再加 /exhibition-camera/ 前缀（旧版在 localhost + 子路径模式下有效，线上 404）
+  var MODERN_ASSET_ROOT = '/assets/sample-library/modern/normalized/';
 
+  function getModernSampleImageUrl(sampleId, kind) {
+    // 唯一路径生成方法 · 严格校验 sampleId 与 kind · 防止 iframe _preview/ 错位解析
+    var safeId = /^M(?:0[1-9]|1[0-9]|20)$/.test(sampleId) ? sampleId : null;
+    var safeKind = (kind === 'main' || kind === 'alt' || kind === 'context' || kind === 'archive') ? kind : null;
+    if (!safeId || !safeKind) return '';
+    return '/assets/sample-library/modern/normalized/' + safeId + '_sample_' + safeKind + '.jpg';
+  }
+
+  // 兼容老调用 · 内部转发到 getModernSampleImageUrl
   function getModernImagePath(sampleId, role) {
-    return MODERN_ASSET_ROOT + sampleId + '_sample_' + role + '.jpg';
+    return getModernSampleImageUrl(sampleId, role);
   }
 
   function getModernSampleById(sampleId) {
@@ -724,6 +734,7 @@
   try { resetResultStateOnBoot(); } catch (e) { console.warn('[BOOT] reset err:', e && e.message); }
   window.MODERN_ASSET_ROOT = MODERN_ASSET_ROOT;
   window.getModernImagePath = getModernImagePath;
+  window.getModernSampleImageUrl = getModernSampleImageUrl;
   window.getModernSampleById = getModernSampleById;
   window.buildModernViewModel = buildModernViewModel;
   window.runModernAIAnalysis = runModernAIAnalysis;

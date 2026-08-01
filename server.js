@@ -1640,36 +1640,40 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ============================================
-  // ★ /api/classify/western · 独立 western 专用路由 · 14 个历史样本
+  // ★ /api/classify/western · 阶段 1 · 视觉分类（快路径 · 45s 上游超时）
   // - 真实 AI 只接收一张当前摄像头截图 + 14 组样本元数据
-  // - 不传 visualProfile（历史人物是固定档案，直接传 sampleId + 类别）
-  // - 严格模式：上游 4xx/5xx → 透传 status code
-  // - 返回 sampleId (W01-W14) + confidence + shortReason + matchedFeatures + visionCheck
+  // - 只返回 sampleId + visionCheck + visualSummary + shortReason
+  // - 6 维度 dimensionReasons 留到阶段 2 /api/reasons/western 生成
+  // - 上游 45 秒超时 → 返回 504 + 明确 error
   // ============================================
   const isWesternApi = (req.url.split('?')[0] === '/api/classify/western' ||
                         req.url.split('?')[0] === '/exhibition-camera/api/classify/western');
   if (req.method === 'POST' && isWesternApi) {
     let body = '';
     req.on('data', c => body += c);
+    const totalStart = Date.now();
+    const reqId = 'west_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+    const logEl = (label, ms) => console.log('[WESTERN_API]', '[' + reqId + ']', label, ms != null ? ('· elapsedMs=' + (Date.now() - ms)) : '');
+    logEl('request received');
     req.on('end', async () => {
-      console.log('[WESTERN_API] POST /api/classify/western · body bytes =', body.length);
+      console.log('[WESTERN_API] [' + reqId + '] body parsed · bytes=' + body.length + ' · elapsedMs=' + (Date.now() - totalStart));
       let input;
       try { input = JSON.parse(body); } catch (e) {
         res.statusCode = 400;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-json', message: e.message }));
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-json', message: e.message, requestId: reqId }));
       }
 
       const image = input && input.image;
       const allowed = (input && Array.isArray(input.allowedSampleIds) && input.allowedSampleIds.length > 0)
         ? input.allowedSampleIds
         : ['W01','W02','W03','W04','W05','W06','W07','W08','W09','W10','W11','W12','W13','W14'];
-      console.log('[WESTERN_API] allowed sampleIds:', allowed.join(','));
+      console.log('[WESTERN_API] [' + reqId + '] allowed sampleIds: ' + allowed.join(','));
 
       // 拒绝本地匹配 / 历史结果泄露
       const forbidden = ['localCandidate','localMatch','recommendedSampleId','previousSampleId','lastSampleId','defaultSampleId'];
       for (const k of forbidden) {
-        if (input && input[k] !== undefined) console.warn('[WESTERN_API] WARN forbidden field', k, 'ignored');
+        if (input && input[k] !== undefined) console.warn('[WESTERN_API] [' + reqId + '] WARN forbidden field ' + k + ' ignored');
       }
 
       // 解析 current frame
@@ -1678,16 +1682,16 @@ const server = http.createServer(async (req, res) => {
         const m = image.match(/^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/i);
         if (m) { mime = 'image/' + (m[1] === 'jpg' ? 'jpeg' : m[1].toLowerCase()); base64 = m[2]; }
       }
-      console.log('[WESTERN_VISION] current frame mime:', mime, '· bytes:', base64 ? base64.length : 0);
+      console.log('[WESTERN_VISION] [' + reqId + '] current frame mime:', mime, '· bytes:', base64 ? base64.length : 0);
       if (!mime || !base64) {
         res.statusCode = 400;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-camera-image', message: 'image 必须是 data:image/(png|jpeg|webp);base64,…' }));
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-camera-image', message: 'image 必须是 data:image/(png|jpeg|webp);base64,…', requestId: reqId }));
       }
       if (base64.length < 4096) {
         res.statusCode = 400;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-camera-image', message: 'base64 太短 · 拒绝 1×1 / 占位图' }));
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-camera-image', message: 'base64 太短 · 拒绝 1×1 / 占位图', requestId: reqId }));
       }
 
       let imgW = 0, imgH = 0;
@@ -1710,12 +1714,12 @@ const server = http.createServer(async (req, res) => {
             i += 2 + segLen;
           }
         }
-      } catch (e) { console.warn('[WESTERN_VISION] decode err', e.message); }
-      console.log('[WESTERN_VISION] current frame width:', imgW, '· height:', imgH);
+      } catch (e) { console.warn('[WESTERN_VISION] [' + reqId + '] decode err', e.message); }
+      console.log('[WESTERN_VISION] [' + reqId + '] current frame width: ' + imgW + ' · height: ' + imgH + ' · elapsedMs=' + (Date.now() - totalStart));
       if (!imgW || !imgH || Math.min(imgW, imgH) < 256) {
         res.statusCode = 400;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-camera-image', message: '图像短边 < 256 · 拒绝', width: imgW, height: imgH }));
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-camera-image', message: '图像短边 < 256 · 拒绝', width: imgW, height: imgH, requestId: reqId }));
       }
 
       // ★ P0-1：保存服务端真正收到的图
@@ -1727,17 +1731,17 @@ const server = http.createServer(async (req, res) => {
         const ext = mime.indexOf('jpeg') >= 0 ? 'jpg' : (mime.indexOf('png') >= 0 ? 'png' : 'webp');
         const savedPath = path.join(debugDir, 'western_last_received_frame.' + ext);
         fs.writeFileSync(savedPath, debugBuf);
-        console.log('[WESTERN_DEBUG_IMAGE] mime:', mime, '· bytes:', debugBuf.length, '· width:', imgW, '· height:', imgH, '· sha256:', sha);
-        console.log('[WESTERN_DEBUG_IMAGE] saved path:', savedPath);
-      } catch (e) { console.warn('[WESTERN_DEBUG_IMAGE] save err:', e.message); }
+        console.log('[WESTERN_DEBUG_IMAGE] [' + reqId + '] mime:', mime, '· bytes:', debugBuf.length, '· width:', imgW, '· height:', imgH, '· sha256:', sha);
+        console.log('[WESTERN_DEBUG_IMAGE] [' + reqId + '] saved path:', savedPath);
+      } catch (e) { console.warn('[WESTERN_DEBUG_IMAGE] [' + reqId + '] save err:', e.message); }
 
       // ★ 本地 MediaPipe 人脸 gate
       const localFaceDetected = input && input.localFaceDetected === true;
       const localLandmarkCount = Number(input && input.localLandmarkCount) || 0;
       const confirmedHasFace = localFaceDetected && localLandmarkCount >= 100;
-      console.log('[WESTERN_FACE_GATE] localFaceDetected:', localFaceDetected, '· landmarkCount:', localLandmarkCount, '· confirmedHasFace:', confirmedHasFace);
+      console.log('[WESTERN_FACE_GATE] [' + reqId + '] localFaceDetected:', localFaceDetected, '· landmarkCount:', localLandmarkCount, '· confirmedHasFace:', confirmedHasFace);
 
-      // ★ 接收并保存前端裁切的人脸图
+      // ★ 接收并保存前端裁切的人脸图（已含 512 上限 + JPEG 0.7 优化）
       let cropMime = null, cropBase64 = null, cropW = 0, cropH = 0;
       const faceCropDataUrl = input && input.faceCropDataUrl;
       if (typeof faceCropDataUrl === 'string') {
@@ -1768,22 +1772,22 @@ const server = http.createServer(async (req, res) => {
             const cropExt = cropMime.indexOf('jpeg') >= 0 ? 'jpg' : (cropMime.indexOf('png') >= 0 ? 'png' : 'webp');
             const cropPath = path.join(debugDir, 'western_last_face_crop.' + cropExt);
             fs.writeFileSync(cropPath, cbuf);
-            console.log('[WESTERN_FACE_CROP] width:', cropW, '· height:', cropH, '· bytes:', cbuf.length, '· attached: true · saved:', cropPath);
-          } catch (e) { console.warn('[WESTERN_FACE_CROP] save err:', e.message); }
+            console.log('[WESTERN_FACE_CROP] [' + reqId + '] width:', cropW, '· height:', cropH, '· bytes:', cbuf.length, '· attached: true · saved:', cropPath);
+          } catch (e) { console.warn('[WESTERN_FACE_CROP] [' + reqId + '] save err:', e.message); }
         }
       } else {
-        console.log('[WESTERN_FACE_CROP] attached: false (no faceCropDataUrl)');
+        console.log('[WESTERN_FACE_CROP] [' + reqId + '] attached: false (no faceCropDataUrl)');
       }
 
       // ★ 本地无人脸 → 422
       if (!confirmedHasFace) {
-        console.log('[WESTERN_FACE_GATE] no face confirmed locally · returning no-face (HTTP 422)');
+        console.log('[WESTERN_FACE_GATE] [' + reqId + '] no face confirmed locally · returning no-face (HTTP 422)');
         res.statusCode = 422;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'no-face', error: 'no-face-detected' }));
+        return res.end(JSON.stringify({ ok: false, source: 'no-face', error: 'no-face-detected', requestId: reqId }));
       }
 
-      // 加载 W01-W14 sample glossary
+      // 加载 W01-W14 sample glossary（精简字段）
       let westernGlossary = null;
       try {
         const wSrc = fs.readFileSync(path.join(__dirname, 'js', 'western-14-samples-data.js'), 'utf8');
@@ -1792,52 +1796,40 @@ const server = http.createServer(async (req, res) => {
         vm.runInContext(wSrc, ctx);
         const samples = ctx.window.WESTERN_14_SAMPLES || [];
         westernGlossary = samples.map(function (s) {
-          return {
-            sampleId: s.sampleId,
-            sampleName: s.sampleName,
-            sampleNameEn: s.sampleNameEn,
-            subtitle: s.subtitle
-          };
+          return { sampleId: s.sampleId, sampleName: s.sampleName, subtitle: s.subtitle };
         });
       } catch (e) {
-        console.error('[WESTERN_VISION] FAIL load glossary:', e.message);
+        console.error('[WESTERN_VISION] [' + reqId + '] FAIL load glossary:', e.message);
       }
-      console.log('[WESTERN_VISION] glossary count:', westernGlossary ? westernGlossary.length : 0);
+      console.log('[WESTERN_VISION] [' + reqId + '] glossary count:', westernGlossary ? westernGlossary.length : 0);
 
       if (!AI_API_KEY) {
         res.statusCode = 502;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'missing-api-key' }));
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'missing-api-key', requestId: reqId }));
       }
 
-      // ★ 硬约束短 prompt：禁止模型在正文里逐步分析（"步骤一/二/三/四"会诱导它先输出推理文字）
-      // ★ 14 个样本的视觉风格 + 6 维度 reason 仍然必要，但只能塞进 JSON 字段中
+      // ★ 精简 system prompt · 减少输入 token · 提升响应速度
       const systemPrompt =
-        '你是 BIAS SYSTEM 中的"西方面学历史档案大模型"。\n' +
-        '输入是一张摄像头截图。\n' +
-        '【硬约束】\n' +
-        '1. 只输出一个 JSON object。\n' +
-        '2. 第一个字符必须是 { · 最后一个字符必须是 }。\n' +
-        '3. 严禁输出任何分析过程、说明、Markdown、代码块、或 JSON 之外的任何文字。\n' +
-        '4. 必须从 W01-W14 中选择一个 sampleId。\n' +
-        '5. 本地 MediaPipe FaceLandmarker 已确认裁切图中存在完整人脸（共 ' + localLandmarkCount + ' 个 landmarks），不得返回 visionCheck.hasFace=false。\n\n' +
-        '【W01-W14 视觉档案】\n' +
-        '- W01 苏格拉底 / Socrates · 丑陋与智慧悖论\n' +
-        '- W02 亚历山大大帝 / Alexander the Great · 英雄侧影\n' +
-        '- W03 尼禄 / Nero · 暴君道德化\n' +
-        '- W04 圣女贞德 / Joan of Arc · 圣徒与异端\n' +
-        '- W05 伊丽莎白一世 / Elizabeth I · 双面假面\n' +
-        '- W06 路易十四 / Louis XIV · 太阳王表演\n' +
-        '- W07 玛丽·安托瓦内特 / Marie Antoinette · 奢侈归罪\n' +
-        '- W08 拿破仑 / Napoleon · 英雄与讽刺画\n' +
-        '- W09 文艺复兴女性肖像型 · 理想美被格式化\n' +
-        '- W10 梵高自画像型 · 重复凝视的艺术家\n' +
-        '- W11 阿尔钦博托复合脸 · 面孔被自然接管\n' +
-        '- W12 梅塞施密特性格头像 · 极端表情被永久定型\n' +
-        '- W13 拉瓦特侧影相 · 轮廓被转换成人格\n' +
-        '- W14 天生罪犯型 / Lombroso · 面孔提前定罪\n\n' +
-        '【匹配规则】只比较视觉特征（脸型 / 五官比例 / 头部姿态 / 明暗 / 表情 / 构图距离）。严禁因为人物名气、艺术品类别或社会标签选择样本。\n' +
-        '【6 维度 reason】必须在 dimensionReasons 内为 status / temperament / power / body / role / risk 各写 30-80 字中文判定原因（针对本张图 + 选中的 Wxx 样本的视觉关系），不能是套话。';
+        '你是 BIAS SYSTEM 的"西方面学历史档案"分类器。虚构系统。\n' +
+        '硬约束：只输出一个 JSON object。首字符 { 末字符 }。禁止分析过程、Markdown、代码块。\n' +
+        '必须从 W01-W14 选一个 sampleId。本地 MediaPipe 已确认 ' + localLandmarkCount + ' landmarks，不得返回 hasFace=false。\n\n' +
+        'W01-W14 视觉档案（按视觉特征）：\n' +
+        'W01 苏格拉底 · 丑陋与智慧 · 低对称宽下颌\n' +
+        'W02 亚历山大大帝 · 英雄侧影 · 斜前额高眉骨\n' +
+        'W03 尼禄 · 暴君道德化 · 阴郁圆脸厚唇\n' +
+        'W04 圣女贞德 · 圣徒与异端 · 短发严肃轮廓\n' +
+        'W05 伊丽莎特一世 · 双面假面 · 苍白高额头尖颌\n' +
+        'W06 路易十四 · 太阳王表演 · 卷发方颌高颧骨\n' +
+        'W07 玛丽·安托瓦内特 · 奢侈归罪 · 圆脸丰颊细眉\n' +
+        'W08 拿破仑 · 英雄与讽刺画 · 低额小眼三角脸\n' +
+        'W09 文艺复兴女性肖像 · 理想美被格式化\n' +
+        'W10 梵高自画像 · 重复凝视的艺术家\n' +
+        'W11 阿尔钦博托 · 面孔被自然接管\n' +
+        'W12 梅塞施密特 · 极端表情被永久定型\n' +
+        'W13 拉瓦特侧影相 · 轮廓被转换成人格\n' +
+        'W14 天生罪犯型 Lombroso · 面孔提前定罪\n\n' +
+        '匹配规则：只比较视觉特征（脸型/五官比例/头部姿态/明暗/表情/构图距离）。禁止按名气/社会标签。';
 
       const userText = JSON.stringify({
         task: 'choose_one_sample_from_14_western_archive',
@@ -1845,19 +1837,17 @@ const server = http.createServer(async (req, res) => {
         glossary: westernGlossary || []
       });
 
-      console.log('[WESTERN_VISION] vision model:', AI_MODEL);
+      console.log('[WESTERN_VISION] [' + reqId + '] vision model:', AI_MODEL);
 
       const content = [];
-      // content[0] = 任务文本
       content.push({ type: 'text', text: userText });
-      // content[1] = 裁切人脸图（如果有）；content[2] = 完整帧
       if (cropBase64 && cropMime) {
-        content.push({ type: 'text', text: '本地 MediaPipe 裁切的人脸图（' + cropW + '×' + cropH + '，已确认 ' + localLandmarkCount + ' landmarks）' });
+        content.push({ type: 'text', text: '人脸裁切(' + cropW + '×' + cropH + ')' });
         content.push({ type: 'image_url', image_url: { url: 'data:' + cropMime + ';base64,' + cropBase64 } });
-        content.push({ type: 'text', text: '完整摄像头帧（' + imgW + '×' + imgH + '，作为辅助语境）' });
+        content.push({ type: 'text', text: '完整帧(' + imgW + '×' + imgH + ')' });
         content.push({ type: 'image_url', image_url: { url: 'data:' + mime + ';base64,' + base64 } });
       } else {
-        content.push({ type: 'text', text: '当前摄像头截帧（' + imgW + '×' + imgH + '）' });
+        content.push({ type: 'text', text: '截帧(' + imgW + '×' + imgH + ')' });
         content.push({ type: 'image_url', image_url: { url: 'data:' + mime + ';base64,' + base64 } });
       }
 
@@ -1885,13 +1875,14 @@ const server = http.createServer(async (req, res) => {
                 }
               }
             } catch (e) {}
-            console.log('[WESTERN_IMAGE_SLOT] index', idx, 'mime', m[1], 'bytes', m[2].length, 'width', w, 'height', h);
+            console.log('[WESTERN_IMAGE_SLOT] [' + reqId + '] index ' + idx + ' mime ' + m[1] + ' bytes ' + m[2].length + ' ' + w + 'x' + h);
           }
         } else if (item.type === 'text') {
-          console.log('[WESTERN_REQUEST_MAP] content[' + idx + '] text:', item.text.slice(0, 80));
+          console.log('[WESTERN_REQUEST_MAP] [' + reqId + '] content[' + idx + '] text:', item.text.slice(0, 80));
         }
       });
 
+      // ★ 阶段 1 schema：只要求 sampleId + visionCheck + 简短理由 · 不要 6 维度 reason
       const aiReq = {
         model: AI_MODEL,
         messages: [
@@ -1899,11 +1890,11 @@ const server = http.createServer(async (req, res) => {
           { role: 'user', content: content }
         ],
         temperature: 0.2,
-        max_tokens: 3000,
+        max_tokens: 800,  // ★ 收紧：阶段 1 只输出 sampleId / visionCheck / 1 句总结 / 2-4 features
         response_format: {
           type: 'json_schema',
           json_schema: {
-            name: 'western_visual_match',
+            name: 'western_classify_only',
             strict: true,
             schema: {
               type: 'object',
@@ -1941,19 +1932,6 @@ const server = http.createServer(async (req, res) => {
                       score: { type: 'number', minimum: 0, maximum: 1 }
                     }
                   }
-                },
-                dimensionReasons: {
-                  type: 'object',
-                  additionalProperties: false,
-                  required: ['status','temperament','power','body','role','risk'],
-                  properties: {
-                    status:       { type: 'string' },
-                    temperament:  { type: 'string' },
-                    power:        { type: 'string' },
-                    body:         { type: 'string' },
-                    role:         { type: 'string' },
-                    risk:         { type: 'string' }
-                  }
                 }
               }
             }
@@ -1961,17 +1939,45 @@ const server = http.createServer(async (req, res) => {
         }
       };
 
+      // ★ 阶段 1：上游 45 秒硬超时
+      const UPSTREAM_TIMEOUT_MS = 45 * 1000;
+      const upstreamStart = Date.now();
+      console.log('[WESTERN_API] [' + reqId + '] upstream request start · timeoutMs=' + UPSTREAM_TIMEOUT_MS);
       let upstream;
+      let timeoutHit = false;
       try {
-        upstream = await proxyAI(JSON.stringify(aiReq));
+        upstream = await Promise.race([
+          proxyAI(JSON.stringify(aiReq)),
+          new Promise(function (_, reject) {
+            setTimeout(function () {
+              timeoutHit = true;
+              reject(new Error('western-upstream-timeout'));
+            }, UPSTREAM_TIMEOUT_MS);
+          })
+        ]);
       } catch (e) {
-        console.error('[WESTERN_API] upstream network exception:', e && e.message);
+        const elapsedUp = Date.now() - upstreamStart;
+        if (timeoutHit) {
+          console.error('[WESTERN_API] [' + reqId + '] UPSTREAM TIMEOUT · elapsedMs=' + elapsedUp);
+          res.statusCode = 504;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          return res.end(JSON.stringify({
+            ok: false,
+            source: 'error',
+            error: 'western-upstream-timeout',
+            message: '西方档案上游响应超过 ' + UPSTREAM_TIMEOUT_MS + 'ms',
+            elapsedMs: elapsedUp,
+            requestId: reqId
+          }));
+        }
+        console.error('[WESTERN_API] [' + reqId + '] upstream network exception · elapsedMs=' + elapsedUp + ' · ' + (e && e.message));
         res.statusCode = 502;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'upstream-request-failed', message: e && e.message }));
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'upstream-request-failed', message: e && e.message, elapsedMs: elapsedUp, requestId: reqId }));
       }
-      console.log('[WESTERN_API] upstream status', upstream.status);
-      console.log('[WESTERN_API] upstream raw text', (upstream.raw || '').slice(0, 800));
+      const elapsedUp = Date.now() - upstreamStart;
+      console.log('[WESTERN_API] [' + reqId + '] upstream response · status=' + upstream.status + ' · elapsedMs=' + elapsedUp);
+      console.log('[WESTERN_API] [' + reqId + '] upstream raw text (head 400 chars):', (upstream.raw || '').slice(0, 400));
 
       // ★ 上游 4xx/5xx → 透传 status code
       if (upstream.status >= 400) {
@@ -1984,7 +1990,7 @@ const server = http.createServer(async (req, res) => {
           const m = upstreamMessage.match(/content\[(\d+)\][^\[]*?(\w+)?\s*is\s*sensitive/i);
           if (m) failedImageSlot = 'content[' + m[1] + ']';
         } catch (e) {}
-        console.error('[WESTERN_API] upstream rejected · status', upstream.status, '· slot:', failedImageSlot, '· message:', upstreamMessage);
+        console.error('[WESTERN_API] [' + reqId + '] upstream rejected · status=' + upstream.status + ' · slot=' + failedImageSlot + ' · elapsedMs=' + elapsedUp);
         const errCode = upstream.status === 422 ? 'upstream-image-rejected' : ('upstream-' + upstream.status);
         res.statusCode = upstream.status;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -1994,15 +2000,17 @@ const server = http.createServer(async (req, res) => {
           error: errCode,
           upstreamStatus: upstream.status,
           failedImageSlot: failedImageSlot,
-          upstreamMessage: upstreamMessage
+          upstreamMessage: upstreamMessage,
+          elapsedMs: elapsedUp,
+          requestId: reqId
         }));
       }
 
       const txt = extractModelText(upstream.body);
-      console.log('[WESTERN_AI] upstream response received · status', upstream.status, '· raw length', (upstream.raw || '').length);
-      console.log('[WESTERN_AI] first response text head:', (txt || '').slice(0, 200));
+      console.log('[WESTERN_AI] [' + reqId + '] first response received · raw length=' + (upstream.raw || '').length);
+      console.log('[WESTERN_AI] [' + reqId + '] first response text head:', (txt || '').slice(0, 200));
       let parsed = parseModelJson(txt);
-      console.log('[WESTERN_API] first parse parsed?', !!parsed);
+      console.log('[WESTERN_API] [' + reqId + '] first parse parsed?', !!parsed);
 
       // visionCheck 净化
       let vc = parsed ? (parsed.visionCheck || {}) : {};
@@ -2022,7 +2030,7 @@ const server = http.createServer(async (req, res) => {
 
       // 本地 MediaPipe 已确认 → 覆盖模型 visionCheck.hasFace=false
       if (confirmedHasFace && vc.hasFace === false) {
-        console.warn('[WESTERN_VISION_WARNING] model returned hasFace=false while MediaPipe confirmed face (landmarkCount=' + localLandmarkCount + ') · normalizing to true');
+        console.warn('[WESTERN_VISION_WARNING] [' + reqId + '] model returned hasFace=false while MediaPipe confirmed face (landmarkCount=' + localLandmarkCount + ') · normalizing to true');
         vc.hasFace = true;
         vc.faceCount = 1;
       }
@@ -2034,109 +2042,270 @@ const server = http.createServer(async (req, res) => {
           ok: false,
           source: 'no-face',
           error: 'no-face-detected',
-          visionCheck: vc
+          visionCheck: vc,
+          requestId: reqId
         }));
       }
 
-      // ★ 1. 优先使用模型直接返回的完整 JSON（isCompleteParsed 已校验 sampleId + 6 维度）
-      if (parsed && classifyPipeline.isCompleteParsed(parsed, 'western')) {
-        console.log('[WESTERN_API] first parse complete · sampleId =', parsed.sampleId);
-        // ★ 把 sampleId 同义词补齐
-        if (typeof parsed.sampleId !== 'string' || allowed.indexOf(parsed.sampleId) < 0) {
-          if (typeof parsed.finalSampleId === 'string' && allowed.indexOf(parsed.finalSampleId) >= 0) parsed.sampleId = parsed.finalSampleId;
-          else if (Array.isArray(parsed.topCandidates) && parsed.topCandidates[0] && allowed.indexOf(parsed.topCandidates[0].sampleId) >= 0) parsed.sampleId = parsed.topCandidates[0].sampleId;
-          else if (parsed.candidateScores && typeof parsed.candidateScores === 'object') {
-            let topK = null, topS = -1;
-            if (Array.isArray(parsed.candidateScores)) {
-              for (const c of parsed.candidateScores) { const s = Number(c && c.score) || 0; if (s > topS && c && allowed.indexOf(c.sampleId) >= 0) { topS = s; topK = c.sampleId; } }
-            } else {
-              for (const k of Object.keys(parsed.candidateScores)) {
-                const s = Number(parsed.candidateScores[k]) || 0;
-                if (s > topS && allowed.indexOf(k) >= 0) { topS = s; topK = k; }
-              }
+      // ★ sampleId 同义词补齐
+      if (parsed && (typeof parsed.sampleId !== 'string' || allowed.indexOf(parsed.sampleId) < 0)) {
+        if (typeof parsed.finalSampleId === 'string' && allowed.indexOf(parsed.finalSampleId) >= 0) parsed.sampleId = parsed.finalSampleId;
+        else if (Array.isArray(parsed.topCandidates) && parsed.topCandidates[0] && allowed.indexOf(parsed.topCandidates[0].sampleId) >= 0) parsed.sampleId = parsed.topCandidates[0].sampleId;
+        else if (parsed.candidateScores && typeof parsed.candidateScores === 'object') {
+          let topK = null, topS = -1;
+          if (Array.isArray(parsed.candidateScores)) {
+            for (const c of parsed.candidateScores) { const s = Number(c && c.score) || 0; if (s > topS && c && allowed.indexOf(c.sampleId) >= 0) { topS = s; topK = c.sampleId; } }
+          } else {
+            for (const k of Object.keys(parsed.candidateScores)) {
+              const s = Number(parsed.candidateScores[k]) || 0;
+              if (s > topS && allowed.indexOf(k) >= 0) { topS = s; topK = k; }
             }
-            if (topK) parsed.sampleId = topK;
           }
+          if (topK) parsed.sampleId = topK;
         }
-        // ★ 规范化 confidence / shortReason / matchedFeatures
-        if (!['low','medium','high'].includes(parsed.confidence)) parsed.confidence = 'medium';
-        if (typeof parsed.shortReason !== 'string' || parsed.shortReason.length === 0) {
-          if (typeof parsed.finalReason === 'string') parsed.shortReason = parsed.finalReason;
-          else if (Array.isArray(parsed.topCandidates) && parsed.topCandidates[0] && parsed.topCandidates[0].rationale) parsed.shortReason = parsed.topCandidates[0].rationale;
-          else if (parsed.sampleId) parsed.shortReason = '视觉匹配 · 候选 ' + parsed.sampleId;
-        }
-        if (!Array.isArray(parsed.matchedFeatures) || parsed.matchedFeatures.length < 2) {
-          if (Array.isArray(parsed.topCandidates)) parsed.matchedFeatures = parsed.topCandidates.slice(0, 4).map(function (c) { return c.rationale || c.sampleId; }).filter(Boolean);
-          else parsed.matchedFeatures = ['视觉匹配', '视觉特征比对'];
-        }
-        const unified = classifyPipeline.buildUnifiedResult(parsed, 'western', { reasonSource: 'ai-personalized', upstreamStatus: upstream.status });
-        unified.visionCheck = vc;
-        unified.matchedFeatures = Array.isArray(unified.matchedFeatures) ? unified.matchedFeatures.slice(0, 4) : [];
-        const dimCount = classifyPipeline.countNonEmptyDimensionReasons(unified.dimensionReasons);
-        console.log('[WESTERN_API] SUCCESS · sampleId =', unified.sampleId, '· reasonSource =', unified.reasonSource, '· dimReasons =', dimCount + '/6 · westernSource = normal');
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.end(JSON.stringify({
-          ok: true,
-          source: 'ai',
-          system: 'western',
-          sampleId: unified.sampleId,
-          confidence: unified.confidence,
-          shortReason: unified.shortReason,
-          matchedFeatures: unified.matchedFeatures,
-          visionCheck: unified.visionCheck,
-          dimensionReasons: unified.dimensionReasons,
-          reasonSource: unified.reasonSource,
-          upstreamStatus: upstream.status,
-          westernSource: 'normal'
-        }));
       }
-
-      // ★ 2. 解析失败 / 字段缺失 → 公共修复流水线（先从自然语言提取 Wxx，再走理由补全）
-      console.warn('[WESTERN_API] first parse incomplete · entering common pipeline');
-      const repaired = await classifyPipeline.parseAndRepairClassification({
-        system: 'western',
-        upstreamText: txt,
-        visualSummary: vc,
-        sampleGlossary: (westernGlossary || []).map(function (g) { return { sampleId: g.sampleId, sampleName: g.sampleName, subtitle: g.subtitle }; }),
-        proxyAI: proxyAI,
-        model: AI_MODEL,
-        logTag: '[WESTERN_REPAIR]',
-        extractModelText: extractModelText
-      });
-      if (!repaired || !repaired.sampleId) {
-        console.error('[WESTERN_API] repair pipeline returned no sampleId');
+      // 兜底：从自然语言容错提取
+      if (!parsed || allowed.indexOf(parsed.sampleId) < 0) {
+        const fallbackId = classifyPipeline.extractSampleIdFromText(txt, 'western');
+        if (fallbackId) {
+          parsed = parsed || {};
+          parsed.sampleId = fallbackId;
+        }
+      }
+      if (!parsed || !parsed.sampleId || allowed.indexOf(parsed.sampleId) < 0) {
+        console.error('[WESTERN_API] [' + reqId + '] no sampleId parsed · total elapsedMs=' + (Date.now() - totalStart));
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         return res.end(JSON.stringify({
           ok: false,
           source: 'error',
-          error: 'upstream-parse-failed',
+          error: 'no-sample-id',
           upstreamStatus: upstream.status,
-          upstreamMessage: '模型返回格式异常 · 请重新分析'
+          elapsedMs: elapsedUp,
+          requestId: reqId
         }));
       }
-      repaired.visionCheck = vc;
-      repaired.matchedFeatures = Array.isArray(repaired.matchedFeatures) ? repaired.matchedFeatures.slice(0, 4) : [];
-      // ★ 区分修复来源：reasonSource='reason-completion' / 'sample-fallback'
-      const dimCount2 = classifyPipeline.countNonEmptyDimensionReasons(repaired.dimensionReasons);
-      const westernSourceTag = (repaired.reasonSource === 'reason-completion') ? 'repair' : ((repaired.reasonSource === 'sample-fallback') ? 'repair-text-fallback' : 'text-fallback');
-      console.log('[WESTERN_API] SUCCESS · sampleId =', repaired.sampleId, '· reasonSource =', repaired.reasonSource, '· dimReasons =', dimCount2 + '/6 · westernSource =', westernSourceTag);
+
+      // ★ 规范化 confidence / shortReason / matchedFeatures
+      if (!['low','medium','high'].includes(parsed.confidence)) parsed.confidence = 'medium';
+      if (typeof parsed.shortReason !== 'string' || parsed.shortReason.length === 0) {
+        if (typeof parsed.finalReason === 'string') parsed.shortReason = parsed.finalReason;
+        else if (Array.isArray(parsed.topCandidates) && parsed.topCandidates[0] && parsed.topCandidates[0].rationale) parsed.shortReason = parsed.topCandidates[0].rationale;
+        else parsed.shortReason = '视觉匹配 · 候选 ' + parsed.sampleId;
+      }
+      if (!Array.isArray(parsed.matchedFeatures) || parsed.matchedFeatures.length < 2) {
+        if (Array.isArray(parsed.topCandidates)) parsed.matchedFeatures = parsed.topCandidates.slice(0, 4).map(function (c) { return c.rationale || c.sampleId; }).filter(Boolean);
+        else parsed.matchedFeatures = ['视觉匹配', '视觉特征比对'];
+      }
+
+      // ★ 阶段 1 只返回 sampleId / visionCheck / shortReason / matchedFeatures
+      // ★ 阶段 2 (/api/reasons/western) 再生成 6 维度 reason
+      const matchedFeatures = parsed.matchedFeatures.slice(0, 4);
+      const totalElapsed = Date.now() - totalStart;
+      console.log('[WESTERN_API] [' + reqId + '] first parse complete · sampleId=' + parsed.sampleId + ' · elapsedMs=' + totalElapsed);
+      console.log('[WESTERN_API] [' + reqId + '] response sent · totalElapsedMs=' + totalElapsed);
       res.statusCode = 200;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       return res.end(JSON.stringify({
         ok: true,
         source: 'ai',
         system: 'western',
-        sampleId: repaired.sampleId,
-        confidence: repaired.confidence,
-        shortReason: repaired.shortReason,
-        matchedFeatures: repaired.matchedFeatures,
-        visionCheck: repaired.visionCheck,
-        dimensionReasons: repaired.dimensionReasons,
-        reasonSource: repaired.reasonSource,
+        sampleId: parsed.sampleId,
+        confidence: parsed.confidence,
+        shortReason: parsed.shortReason,
+        matchedFeatures: matchedFeatures,
+        visionCheck: vc,
+        // ★ 阶段 1 不返回 6 维度 reason · 留给 /api/reasons/western
+        dimensionReasons: {},
+        reasonSource: 'classification-only',
         upstreamStatus: upstream.status,
-        westernSource: westernSourceTag
+        upstreamElapsedMs: elapsedUp,
+        totalElapsedMs: totalElapsed,
+        requestId: reqId
+      }));
+    });
+    return;
+  }
+
+  // ============================================
+  // ★ /api/reasons/western · 阶段 2 · 6 维度 reason 生成（不传图 · 30s 超时）
+  // - 输入：sampleId + visualSummary + visualCheck
+  // - 不再传图 · 不再传完整 glossary
+  // - 失败时 fallback 到 sample 库自带 reason（保证 6/6）
+  // ============================================
+  const isWesternReasonsApi = (req.url.split('?')[0] === '/api/reasons/western' ||
+                                req.url.split('?')[0] === '/exhibition-camera/api/reasons/western');
+  if (req.method === 'POST' && isWesternReasonsApi) {
+    let body = '';
+    req.on('data', c => body += c);
+    const totalStart = Date.now();
+    const reqId = 'reason_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+    console.log('[WESTERN_REASON_API] [' + reqId + '] request received');
+    req.on('end', async () => {
+      console.log('[WESTERN_REASON_API] [' + reqId + '] body parsed · bytes=' + body.length + ' · elapsedMs=' + (Date.now() - totalStart));
+      let input;
+      try { input = JSON.parse(body); } catch (e) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-json', requestId: reqId }));
+      }
+
+      const sampleId = (input && typeof input.sampleId === 'string') ? input.sampleId : '';
+      const vc = (input && input.visionCheck && typeof input.visionCheck === 'object') ? input.visionCheck : {};
+      if (!/^W(?:0[1-9]|1[0-4])$/.test(sampleId)) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({ ok: false, source: 'error', error: 'invalid-sample-id', message: 'sampleId 必须是 W01-W14', requestId: reqId }));
+      }
+
+      if (!AI_API_KEY) {
+        // 没 API key → 直接走 sample 库兜底（保证 6/6）
+        const sampleReasons = classifyPipeline.extractSampleLibraryReasonsPublic(sampleId, 'western');
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({
+          ok: true,
+          source: 'sample-fallback',
+          sampleId: sampleId,
+          dimensionReasons: sampleReasons,
+          reasonSource: 'sample-fallback',
+          reasonSourceDetail: 'missing-api-key',
+          requestId: reqId
+        }));
+      }
+
+      const completionSystem =
+        '你是虚构艺术分类系统的"理由补全器"。\n' +
+        '基于视觉事实 + 选中样本档案概念，输出 6 项个性化判定原因。\n' +
+        '硬约束：只输出 JSON object。首字符 { 末字符 }。禁止分析过程、Markdown、代码块。\n' +
+        '六项 dimensionReasons 必须全部非空，每项 30-80 字中文。\n' +
+        'sampleId 必须：' + sampleId;
+
+      const completionUser = JSON.stringify({
+        task: 'reason_completion',
+        sampleId: sampleId,
+        requiredDimensions: ['status','temperament','power','body','role','risk'],
+        visualCheck: vc,
+        instruction: '针对本张图的视觉事实 + Wxx 档案概念方向，生成 6 项判定原因'
+      });
+
+      const aiReq = {
+        model: AI_MODEL,
+        messages: [
+          { role: 'system', content: completionSystem },
+          { role: 'user', content: completionUser }
+        ],
+        temperature: 0,
+        max_tokens: 1500,
+        response_format: { type: 'json_object' }
+      };
+
+      const REASON_TIMEOUT_MS = 30 * 1000;
+      const start = Date.now();
+      console.log('[WESTERN_REASON_API] [' + reqId + '] upstream request start · timeoutMs=' + REASON_TIMEOUT_MS + ' · sampleId=' + sampleId);
+      let upstream;
+      let timeoutHit = false;
+      try {
+        upstream = await Promise.race([
+          proxyAI(JSON.stringify(aiReq)),
+          new Promise(function (_, reject) {
+            setTimeout(function () {
+              timeoutHit = true;
+              reject(new Error('western-reason-upstream-timeout'));
+            }, REASON_TIMEOUT_MS);
+          })
+        ]);
+      } catch (e) {
+        const elapsedUp = Date.now() - start;
+        if (timeoutHit) {
+          console.error('[WESTERN_REASON_API] [' + reqId + '] UPSTREAM TIMEOUT · elapsedMs=' + elapsedUp);
+          // ★ 超时 fallback 到 sample 库（保证 6/6）
+          const sampleReasons = classifyPipeline.extractSampleLibraryReasonsPublic(sampleId, 'western');
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          return res.end(JSON.stringify({
+            ok: true,
+            source: 'sample-fallback',
+            sampleId: sampleId,
+            dimensionReasons: sampleReasons,
+            reasonSource: 'sample-fallback',
+            reasonSourceDetail: 'upstream-timeout',
+            elapsedMs: elapsedUp,
+            requestId: reqId
+          }));
+        }
+        console.error('[WESTERN_REASON_API] [' + reqId + '] upstream network exception · ' + (e && e.message));
+        const sampleReasons = classifyPipeline.extractSampleLibraryReasonsPublic(sampleId, 'western');
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({
+          ok: true,
+          source: 'sample-fallback',
+          sampleId: sampleId,
+          dimensionReasons: sampleReasons,
+          reasonSource: 'sample-fallback',
+          reasonSourceDetail: 'upstream-exception',
+          error: e && e.message,
+          requestId: reqId
+        }));
+      }
+      const elapsedUp = Date.now() - start;
+      console.log('[WESTERN_REASON_API] [' + reqId + '] upstream response · status=' + upstream.status + ' · elapsedMs=' + elapsedUp);
+
+      if (upstream.status >= 400) {
+        const sampleReasons = classifyPipeline.extractSampleLibraryReasonsPublic(sampleId, 'western');
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(JSON.stringify({
+          ok: true,
+          source: 'sample-fallback',
+          sampleId: sampleId,
+          dimensionReasons: sampleReasons,
+          reasonSource: 'sample-fallback',
+          reasonSourceDetail: 'upstream-' + upstream.status,
+          upstreamStatus: upstream.status,
+          requestId: reqId
+        }));
+      }
+
+      const text = extractModelText(upstream.body);
+      const reparsed = parseModelJson(text);
+      if (reparsed && typeof reparsed === 'object') {
+        const dimCnt = classifyPipeline.countNonEmptyDimensionReasons(reparsed.dimensionReasons || {});
+        if (dimCnt >= 6) {
+          reparsed.sampleId = sampleId;
+          const unified = classifyPipeline.buildUnifiedResult(reparsed, 'western', { reasonSource: 'reason-completion', upstreamStatus: upstream.status });
+          const totalElapsed = Date.now() - totalStart;
+          console.log('[WESTERN_REASON_API] [' + reqId + '] reason complete · dimReasons=' + dimCnt + '/6 · elapsedMs=' + totalElapsed);
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          return res.end(JSON.stringify({
+            ok: true,
+            source: 'ai',
+            sampleId: sampleId,
+            dimensionReasons: unified.dimensionReasons,
+            reasonSource: 'reason-completion',
+            upstreamStatus: upstream.status,
+            upstreamElapsedMs: elapsedUp,
+            totalElapsedMs: totalElapsed,
+            requestId: reqId
+          }));
+        }
+      }
+
+      // ★ reason-completion 解析失败 → sample 库兜底（保证 6/6）
+      const sampleReasons = classifyPipeline.extractSampleLibraryReasonsPublic(sampleId, 'western');
+      console.log('[WESTERN_REASON_API] [' + reqId + '] reason parse failed · fallback to sample library · totalElapsedMs=' + (Date.now() - totalStart));
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      return res.end(JSON.stringify({
+        ok: true,
+        source: 'sample-fallback',
+        sampleId: sampleId,
+        dimensionReasons: sampleReasons,
+        reasonSource: 'sample-fallback',
+        reasonSourceDetail: 'parse-failed',
+        requestId: reqId
       }));
     });
     return;

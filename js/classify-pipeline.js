@@ -413,5 +413,8 @@ module.exports = {
   buildReasonCompletionPayload: buildReasonCompletionPayload,
   buildRepairPayload: buildRepairPayload,
   countNonEmptyDimensionReasons: countNonEmptyDimensionReasons,
-  parseAndRepairClassification: parseAndRepairClassification
+  parseAndRepairClassification: parseAndRepairClassification,
+  extractSampleLibraryReasons: extractSampleLibraryReasons,
+  // ★ 公开别名（不依赖 closure）· 给 server.js /api/reasons/western 调用
+  extractSampleLibraryReasonsPublic: extractSampleLibraryReasons
 };
