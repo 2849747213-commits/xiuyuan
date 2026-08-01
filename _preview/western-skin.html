@@ -19,14 +19,14 @@
   B. 不做大排重排 / 不更换风格 / 不删历史图 / 内部滚动保持
 
   详细历史与禁止清单见 WESTERN_LOCK_NOTE.md。
-  ★ WESTERN BUILD: 2026-07-30-r6 · 双栏布局（档案 + ARCHIVE FUSION 融合模块） + 修复 W05 19_phrenology 404
+  ★ WESTERN BUILD: 2026-08-01-r1 · 双栏布局（档案 + ARCHIVE FUSION 融合模块）+ 恢复 fusion 路由 + 升级 build id
   ====================================================================
 -->
 <!-- ★ BUILD MARKER · 任何缓存/CDN 都不要错位引用本文件 -->
 <script>
   (function () {
     try {
-      var buildId = 'WESTERN-2026-07-30-r6';
+      var buildId = 'WESTERN-2026-08-01-r1';
       var file = '_preview/western-skin.html?v=4';
       window.__WESTERN_BUILD_ID = buildId;
       window.__WESTERN_RUNTIME_FILE = file;
@@ -1598,7 +1598,14 @@
       }
     });
 
-    console.log('[WESTERN_FUSION] module script ready · build=WESTERN-2026-07-30-r6');
+    console.log('[WESTERN_FUSION] module script ready · build=WESTERN-2026-08-01-r1');
+    // ★ 可见 BUILD ID · 用户肉眼可验证
+    try {
+      var bid = document.createElement('div');
+      bid.style.cssText = 'position:fixed;left:8px;bottom:6px;font-family:Courier New,monospace;font-size:10px;color:rgba(236,232,219,0.32);letter-spacing:1px;pointer-events:none;z-index:99999;user-select:none;';
+      bid.textContent = 'BUILD · WESTERN-2026-08-01-r1';
+      document.body.appendChild(bid);
+    } catch (e) {}
   })();
   </script>
 </body>

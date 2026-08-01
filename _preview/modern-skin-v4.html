@@ -667,7 +667,7 @@
 
       <aside class="modern-fusion-column">
         <!-- ★ IDENTITY FUSION · 现代身份融合像模块（侧栏固定比例肖像卡） -->
-        <div class="mf-module" id="modernFusionPanel" data-fusion-state="idle" data-system="modern" data-build="MODERN-2026-07-30-r6">
+        <div class="mf-module" id="modernFusionPanel" data-fusion-state="idle" data-system="modern" data-build="MODERN-2026-08-01-r1">
           <div class="mf-module__head">
             <span class="mf-module__title">身份融合像</span>
             <span class="mf-module__sub" id="modernFusionSub">当前帧 × Mxx 现代身份 · IDENTITY FUSION</span>
@@ -1233,7 +1233,14 @@ window.fillModernSkinV4 = window.fillModernSkin;
     }
   });
 
-  console.log('[MODERN_FUSION] module script ready · build=MODERN-2026-07-30-r6');
+  console.log('[MODERN_FUSION] module script ready · build=MODERN-2026-08-01-r1');
+  // ★ 可见 BUILD ID · 用户肉眼可验证
+  try {
+    var bid = document.createElement('div');
+    bid.style.cssText = 'position:fixed;left:8px;bottom:6px;font-family:Courier New,monospace;font-size:10px;color:rgba(255,255,255,0.32);letter-spacing:1px;pointer-events:none;z-index:99999;user-select:none;';
+    bid.textContent = 'BUILD · MODERN-2026-08-01-r1';
+    document.body.appendChild(bid);
+  } catch (e) {}
 })();
 </script>
 </body>

@@ -36,7 +36,7 @@
 <script>
   (function () {
     try {
-      var buildId = 'ANCIENT-2026-07-29-r5';
+      var buildId = 'ANCIENT-2026-08-01-r1';
       var file = '_preview/ancient-skin-v4.html?v=7';
       window.__ANCIENT_BUILD_ID = buildId;
       window.__ANCIENT_RUNTIME_FILE = file;
@@ -1931,6 +1931,13 @@
         window.resetAncientFusion();
       }
     });
+    // ★ 可见 BUILD ID · 用户肉眼可验证
+    try {
+      var bid = document.createElement('div');
+      bid.style.cssText = 'position:fixed;left:8px;bottom:6px;font-family:Courier New,monospace;font-size:10px;color:rgba(60,40,20,0.42);letter-spacing:1px;pointer-events:none;z-index:99999;user-select:none;';
+      bid.textContent = 'BUILD · ANCIENT-2026-08-01-r1';
+      document.body.appendChild(bid);
+    } catch (e) {}
   })();
 </script>
 </body>
