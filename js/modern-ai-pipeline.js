@@ -609,6 +609,10 @@
     console.log('[MODERN_VIEW_MODEL] built', viewModel.sampleId, '· userImage bytes=' + (viewModel.userImage || '').length);
     console.log('[MODERN_FLOW] final result', viewModel.sampleId, viewModel.sampleName, 'ai · reasonSource=' + viewModel.reasonSource);
     console.log('[MODERN_REASON_RENDER] source=' + viewModel.reasonSource + ' · count=' + (aiForVm.dimensionReasons ? Object.keys(aiForVm.dimensionReasons).filter(function (k) { return typeof aiForVm.dimensionReasons[k] === 'string' && aiForVm.dimensionReasons[k].trim().length >= 4; }).length : 0) + '/6');
+    // ★ 输出最终 result state 日志
+    var drOriginCount = 0;
+    if (viewModel.reasonOrigin) { for (var rk in viewModel.reasonOrigin) { if (viewModel.reasonOrigin[rk] === 'ai') drOriginCount++; } }
+    console.log('[RESULT_STATE] system=modern sampleId=' + viewModel.sampleId + ' reasonSource=' + viewModel.reasonSource + ' dimReasons=' + drOriginCount + '/6');
     window.pendingModernResult = viewModel;
     if (typeof window.showResultOverlay === 'function') window.showResultOverlay('modern');
     await fillModernIframeWhenReady(viewModel);

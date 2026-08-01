@@ -4,9 +4,9 @@
 // 依赖：window.AIClient.callAI · window.ImageReader.readImageFromDataUrl
 // ============================================
 const $ = (id) => document.getElementById(id);
-// ★ 全局 AI 开关：false 时所有 AI / xapi / fetch 直接短路返回 null · 不发任何网络请求
+// ★ 全局 AI 开关：false 时所有 AI / fetch 直接短路返回 null · 不发任何网络请求
 window.ENABLE_AI_ANALYSIS = false;
-// ★ 旧版 AIClient 健康检查（xapi.yhcj.com/version 等）总开关 · 默认禁用
+// ★ 旧版健康检查总开关 · 默认禁用 · legacy 域名已彻底删除
 window.DISABLE_LEGACY_AI_HEALTH_CHECK = true;
 const callAI = function(input, settings) {
   if (!window.ENABLE_AI_ANALYSIS) {

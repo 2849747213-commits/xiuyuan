@@ -266,6 +266,122 @@
     return null;
   }
 
+  // ★ Western loading overlay · 三阶段过渡（与 ancient / modern 同风格）
+  // ★ 关键：用户点 western 后立即显示 · 等 iframe 真 load 完才隐藏
+  function showWesternLoadingOverlay(phase) {
+    phase = phase || 'classification';
+    console.log('[WESTERN_LOADING] show · phase=' + phase);
+    var root = document.getElementById('result-layer');
+    if (!root) return;
+    var titles = {
+      classification: {
+        kicker: '▌ WESTERN ARCHIVE MATCHING · W01-W14',
+        title: 'AI 正在比对当前帧',
+        subtitle: '正在检索西方历史样本库',
+        note: '请稍候 · ARCHIVE MATCHING'
+      },
+      'reason-completion': {
+        kicker: '▌ WESTERN REASON COMPLETION',
+        title: 'AI 正在整理判定档案',
+        subtitle: '正在生成六项个性化判词',
+        note: '请稍候 · 档案生成中'
+      },
+      'result-loading': {
+        kicker: '▌ ARCHIVE READY',
+        title: '档案已经建立',
+        subtitle: '正在载入西方结果页面',
+        note: '请稍候 · 结果页载入中'
+      },
+      failed: {
+        kicker: '▌ WESTERN AI FAILED',
+        title: '西方档案模型未能完成当前判定',
+        subtitle: '请检查网络或更换人脸样本后重试',
+        note: '按上方按钮操作'
+      }
+    };
+    var t = titles[phase] || titles.classification;
+    var buttons = (phase === 'failed')
+      ? '<div style="margin-top:24px;display:flex;gap:14px;justify-content:center;">' +
+          '<button type="button" class="wl-retry-btn" style="background:#f5d400;color:#0a0806;border:none;padding:10px 22px;font-family:monospace;font-weight:900;letter-spacing:2px;cursor:pointer;">[重新尝试]</button>' +
+          '<button type="button" class="wl-back-btn" style="background:#0a0806;color:#f5d400;border:1.5px solid #f5d400;padding:10px 22px;font-family:monospace;font-weight:900;letter-spacing:2px;cursor:pointer;">[返回选择]</button>' +
+        '</div>'
+      : '';
+    var shellHtml =
+      '<div class="result-modal-shell" data-result-view="western">' +
+        '<div class="result-modal-toolbar">' +
+          '<button class="result-back-camera-btn" type="button">← 摄像头</button>' +
+        '</div>' +
+        '<div class="result-modal-content ancient-loading">' +
+          '<div class="ancient-loading__inner' + (phase === 'failed' ? ' ancient-loading__failed' : '') + '">' +
+            (phase !== 'failed' ? '<div class="ancient-loading__bar"><span></span><span></span><span></span></div>' : '') +
+            '<div class="ancient-loading__kicker">' + t.kicker + '</div>' +
+            '<div class="ancient-loading__title">' + t.title + '</div>' +
+            '<div class="ancient-loading__subtitle">' + t.subtitle + '</div>' +
+            '<div class="ancient-loading__note">' + t.note + '</div>' +
+            buttons +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    root.innerHTML = shellHtml;
+    root.style.display = 'block';
+    root.classList.add('is-active');
+    document.body.classList.add('v3x-view-active');
+    // ★ 绑定按钮
+    var bc = root.querySelector('.result-back-camera-btn');
+    if (bc) bc.onclick = function () { if (window.resetToCamera) try { window.resetToCamera(); } catch (e) {} };
+    var retry = root.querySelector('.wl-retry-btn');
+    if (retry) retry.onclick = function () {
+      // ★ 复用当前已锁定截图 · 不需要重新开摄像头
+      console.log('[WESTERN_LOADING] retry click · reusing locked snapshot');
+      try { runWesternAIAnalysis(); } catch (e) { console.error('[WESTERN_LOADING] retry err', e); }
+    };
+    var back = root.querySelector('.wl-back-btn');
+    if (back) back.onclick = function () {
+      console.log('[WESTERN_LOADING] back-to-select click');
+      if (typeof window.SPA !== 'undefined' && typeof window.SPA.showPathSelectOverlay === 'function') {
+        try { window.SPA.showPathSelectOverlay(); } catch (e) {}
+      } else if (typeof window.backToPathSelect === 'function') {
+        try { window.backToPathSelect(); } catch (e) {}
+      }
+    };
+  }
+  function hideWesternLoadingOverlay(reason) {
+    console.log('[WESTERN_LOADING] hide · reason=' + (reason || 'unknown'));
+    // 不主动清空 result-layer · 因为 caller 会接管并 showResultOverlay('western')
+  }
+  function updateWesternLoadingOverlay(phase) {
+    // 不重建 DOM · 只改文字
+    var root = document.getElementById('result-layer');
+    if (!root) return;
+    var shell = root.querySelector('.result-modal-shell[data-result-view="western"]');
+    if (!shell) return;
+    console.log('[WESTERN_LOADING] phase=' + phase);
+    var map = {
+      'reason-completion': {
+        kicker: '▌ WESTERN REASON COMPLETION',
+        title: 'AI 正在整理判定档案',
+        subtitle: '正在生成六项个性化判词',
+        note: '请稍候 · 档案生成中'
+      },
+      'result-loading': {
+        kicker: '▌ ARCHIVE READY',
+        title: '档案已经建立',
+        subtitle: '正在载入西方结果页面',
+        note: '请稍候 · 结果页载入中'
+      }
+    };
+    var t = map[phase];
+    if (!t) return;
+    var k = shell.querySelector('.ancient-loading__kicker');
+    var tt = shell.querySelector('.ancient-loading__title');
+    var st = shell.querySelector('.ancient-loading__subtitle');
+    var nt = shell.querySelector('.ancient-loading__note');
+    if (k) k.textContent = t.kicker;
+    if (tt) tt.textContent = t.title;
+    if (st) st.textContent = t.subtitle;
+    if (nt) nt.textContent = t.note;
+  }
+
   // ★ 临时 mock AI 生成器 · 当 WESTERN_AI_MODE === 'mock' 时走这里
   // - 不调 upstream API · 不依赖 Token Plan 配额
   // - 模拟 AI 返回真实 shape · UI 端跟真 AI 完全一致
@@ -297,6 +413,8 @@
       console.warn('[WESTERN_AI] disabled · skip');
       return;
     }
+    // ★ 100ms 内必须出现 loading · 同步立即调用（不 await）
+    showWesternLoadingOverlay('classification');
     console.log('[WESTERN_AI] runWesternAIAnalysis start · mode=' + WESTERN_AI_MODE);
 
     // ★ 模式分支 · mock 直接走，不调真 AI
@@ -416,6 +534,10 @@
       showWesternAIFailed({ __failed: true, httpStatus: 0, error: 'invalid-sample-id', upstreamMessage: 'sampleId 不在 W01-W14' });
       return;
     }
+    // ★ sampleId 已返回 · 切换到 reason-completion phase
+    updateWesternLoadingOverlay('reason-completion');
+    // ★ 重要日志：sampleId 已选中
+    console.log('[WESTERN_AI] request done · selected sample ' + aiResult.sampleId + ' · reasonSource=' + (aiResult.reasonSource || 'ai-personalized'));
 
     var vm;
     try {
@@ -471,16 +593,41 @@
 
     // ★ 调 showResultOverlay 并改 src · 不动 ancient/modern 逻辑
     if (typeof window.SPA !== 'undefined' && typeof window.SPA.showResultOverlay === 'function') {
+      // ★ 切到 result-loading phase（archive ready）
+      updateWesternLoadingOverlay('result-loading');
       // 先按 base src 打开 result-layer · 然后立刻改 iframe.src 加 ?id=
       window.SPA.showResultOverlay('western');
       var root = document.getElementById('result-layer');
       if (root) {
         var fr = root.querySelector('iframe.result-frame');
-        if (fr) fr.src = finalSrc;
+        if (fr) {
+          // ★ 等 iframe 真 load 完才隐藏 loading overlay
+          var didHide = false;
+          function onIframeLoad() {
+            if (didHide) return;
+            didHide = true;
+            console.log('[WESTERN_LOADING] hide · reason=iframe-loaded · sampleId=' + sampleId);
+            // result-loading 类用于显示"档案已建立"短暂保持 · 这里给 200ms 缓冲
+            setTimeout(function () {
+              var ld = root.querySelector('.result-loading');
+              if (ld) ld.style.display = 'none';
+            }, 200);
+          }
+          fr.addEventListener('load', onIframeLoad, { once: true });
+          // ★ 兜底超时（30s）强制关闭 loading · 避免永远卡住
+          setTimeout(function () { if (!didHide) onIframeLoad(); }, 30000);
+          fr.src = finalSrc;
+        }
       }
     } else {
       console.error('[WESTERN_AI] SPA.showResultOverlay missing · cannot render');
     }
+    // ★ 输出最终 result state 日志
+    var drCount3 = 0;
+    if (vm && vm.reasonOrigin) {
+      for (var rk in vm.reasonOrigin) { if (vm.reasonOrigin[rk] === 'ai') drCount3++; }
+    }
+    console.log('[RESULT_STATE] system=western sampleId=' + vm.sampleId + ' reasonSource=' + (vm.reasonSource || 'ai-personalized') + ' dimReasons=' + drCount3 + '/6');
   }
 
   // ★ 修复中 overlay · 当服务端走公共修复流水线时显示
@@ -515,48 +662,17 @@
   //   详细错误已 console.error 留在服务端 / 客户端 console
   function showWesternAIFailed(failInfo) {
     console.error('[WESTERN_AI] REAL AI FAILED · ', failInfo);
-    var httpStatus = failInfo.httpStatus || 0;
-    var error = failInfo.error || 'unknown';
-    var statusLabel = httpStatus === 0 ? 'NETWORK' : ('HTTP ' + httpStatus);
-
-    // 用户友好提示：只在 error 真正是 "upstream-parse-failed" 时切换文案
-    var isParseFailed = (error === 'upstream-parse-failed');
-    var userTitle = isParseFailed ? '西方档案模型返回格式异常，请重新分析。' : '真实 AI 分析失败';
-    var userHint = isParseFailed
-      ? '上游模型本轮未能输出结构化 JSON，已尝试文本容错与修复请求，均未恢复。'
-      : '请检查网络 / Token Plan 配额，或更换人脸样本后重试。';
-
-    // ★ 不渲染 LOCKED western-skin.html（避免误导）· 直接在 result-layer 弹失败
-    if (typeof window.SPA === 'undefined' || typeof window.SPA.showResultOverlay !== 'function') {
-      console.error('[WESTERN_AI] cannot show fail overlay · SPA missing');
-      return;
-    }
-    window.SPA.showResultOverlay('western');
-    var root = document.getElementById('result-layer');
-    if (!root) return;
-    var fr = root.querySelector('iframe.result-frame');
-    if (fr) { try { fr.src = 'about:blank'; } catch (e) {} }
-    var shell = root.querySelector('.result-modal-shell');
-    if (shell) {
-      shell.innerHTML =
-        '<div class="result-modal-toolbar">' +
-          '<button class="result-back-select-btn" type="button" data-action="back-to-path-select">← 返回选择</button>' +
-          '<button class="result-back-camera-btn" type="button" data-action="back-to-camera">← 摄像头</button>' +
-        '</div>' +
-        '<div class="result-modal-content" style="background:#1a0d0d;border:2px solid #b84545;padding:60px 40px;text-align:center;font-family:monospace;">' +
-          '<div style="font-size:14px;letter-spacing:4px;color:#b84545;margin-bottom:20px;">▌ REAL AI FAILED</div>' +
-          '<div style="font-size:32px;color:#f6efde;letter-spacing:4px;line-height:1.4;margin-bottom:24px;max-width:780px;margin-left:auto;margin-right:auto;">' + userTitle + '</div>' +
-          '<div style="font-size:14px;color:#998a72;line-height:1.9;max-width:680px;margin:0 auto;">' + userHint + '</div>' +
-          '<div style="margin-top:24px;font-size:11px;color:#5e5340;letter-spacing:2px;">[' + statusLabel + ' · ' + error + ']</div>' +
-          '<div style="margin-top:30px;font-size:12px;color:#998a72;letter-spacing:2px;">按上方按钮返回摄像头重新采集</div>' +
-        '</div>';
-    }
+    // ★ 复用 western loading overlay 的失败态 · 提供 [重新尝试] / [返回选择] 按钮
+    showWesternLoadingOverlay('failed');
   }
 
   // ★ 暴露给父页面
   window.runWesternAIAnalysis = runWesternAIAnalysis;
   window.buildWesternViewModel = buildWesternViewModel;
   window.showWesternRepairingOverlay = showWesternRepairingOverlay;
+  window.showWesternLoadingOverlay = showWesternLoadingOverlay;
+  window.updateWesternLoadingOverlay = updateWesternLoadingOverlay;
+  window.hideWesternLoadingOverlay = hideWesternLoadingOverlay;
   window.WESTERN_AI_ALLOWED = WESTERN_AI_ALLOWED;
   window.WESTERN_AI_STRICT_TEST = WESTERN_AI_STRICT_TEST;
   console.log('[WESTERN_AI] pipeline loaded · allowed:', WESTERN_AI_ALLOWED.join(','));
