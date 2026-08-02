@@ -1,0 +1,66 @@
+{
+  "name": "exhibition-camera-edgeone",
+  "version": "1.0.0",
+  "nodeVersion": "22.11.0",
+  "installCommand": "npm install",
+  "buildCommand": "",
+  "outputDirectory": ".",
+  "cloudFunctions": {
+    "includeFiles": [
+      "server.js",
+      "api/index.js",
+      "js/**",
+      "providers/**",
+      "ai-client.js",
+      "ai-prompt.js",
+      "image-reader.js"
+    ]
+  },
+  "headers": [
+    {
+      "source": "/*",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    },
+    {
+      "source": "/vendor/mediapipe/*",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=2592000" }
+      ]
+    },
+    {
+      "source": "/assets/*",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=604800" }
+      ]
+    },
+    {
+      "source": "/*.mjs",
+      "headers": [
+        { "key": "Content-Type", "value": "application/javascript; charset=utf-8" }
+      ]
+    },
+    {
+      "source": "/*.wasm",
+      "headers": [
+        { "key": "Content-Type", "value": "application/wasm" }
+      ]
+    },
+    {
+      "source": "/*.task",
+      "headers": [
+        { "key": "Content-Type", "value": "application/octet-stream" }
+      ]
+    }
+  ],
+  "caches": [
+    { "source": "/vendor/mediapipe/*", "cacheTtl": 2592000 },
+    { "source": "/assets/*", "cacheTtl": 604800 },
+    { "source": "/js/*", "cacheTtl": 86400 },
+    { "source": "/*.mjs", "cacheTtl": 86400 },
+    { "source": "/api/health", "cacheTtl": 0 }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "type": "module",
+  "private": true,
+  "description": "EdgeOne Makers Cloud Functions · 强制 ESM（与项目根 CJS server.js 隔离）"
+}
